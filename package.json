@@ -1,0 +1,40 @@
+{
+  "name": "artikel-match",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "env:dedupe": "node scripts/dedupe-env.mjs .env && node scripts/dedupe-env.mjs .env.example",
+    "dev:clean": "rm -rf node_modules/.vite && vite",
+    "build": "tsc -b && vite build",
+    "lexicon": "node scripts/parse-goethe-a1-csv.mjs",
+    "sync-a2": "node scripts/sync-a2-from-az-csv.mjs",
+    "sync-b1": "node scripts/sync-b1-from-tsv.mjs",
+    "sync-c1": "node scripts/sync-c1-from-tsv.mjs",
+    "lexicon:translate": "node scripts/enrich-goethe-lexicon-translations.mjs --mt",
+    "lexicon:gloss-split": "node scripts/enrich-goethe-lexicon-translations.mjs",
+    "lexicon:normalize": "node scripts/enrich-goethe-lexicon-translations.mjs",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "firebase": "^12.11.0",
+    "framer-motion": "^11.11.17",
+    "i18next": "^25.10.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-i18next": "^16.6.2",
+    "ws": "^8.20.0",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "typescript": "~5.6.2",
+    "vite": "^5.4.11"
+  }
+}

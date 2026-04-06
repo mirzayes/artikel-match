@@ -1,0 +1,370 @@
+A1: 368 söz
+
+  1. die Achtung — diqqət
+  2. die Adresse — ünvan
+  3. die Ahnung — anlayış / fikir
+  4. das Alter — yaş
+  5. der Anfang — başlanğıc
+  6. die Angst — qorxu
+  7. der Anruf — zəng
+  8. der Anrufbeantworter — cavab telefonu
+  9. die Antwort — cavab
+ 10. die Anzeige — elan / reklam
+ 11. der Apfel — alma
+ 12. die Apotheke — aptek
+ 13. der Appetit — iştah
+ 14. die Arbeit — iş
+ 15. der Arm — qol
+ 16. der Artikel — məqalə / artikl
+ 17. der Arzt — həkim (kişi)
+ 18. die Ärztin — həkim (qadın)
+ 19. das Auge — göz
+ 20. der Ausflug — ekskursiya / gəzinti
+ 21. das Ausland — xarici ölkə
+ 22. das Auto — avtomobil / maşın
+ 23. der Automat — avtomat / aparat
+ 24. das Baby — körpə
+ 25. das Bad — hamam
+ 26. der Bahnhof — vağzal
+ 27. der Bahnsteig — peron
+ 28. der Ball — top
+ 29. die Banane — banan
+ 30. die Band — ansambl / qrup
+ 31. der Basketball — basketbol
+ 32. der Bauch — qarın
+ 33. der Baum — ağac
+ 34. der Beruf — peşə / ixtisas
+ 35. das Bett — çarpayı / yataq
+ 36. die Bibliothek — kitabxana
+ 37. der Bleistift — karandaş
+ 38. die Blume — çiçək
+ 39. die Bluse — bluzka
+ 40. der Brief — məktub
+ 41. das Brot — çörək
+ 42. das Brötchen — bulka / kiçik çörək
+ 43. das Buch — kitab
+ 44. der Bus — avtobus
+ 45. die CD — CD / disk
+ 46. der Comic — komiks
+ 47. der Computer — kompüter
+ 48. der Dank — təşəkkür
+ 49. die Disco — diskoteka
+ 50. der Durst — susuzluq
+ 51. das Ei — yumurta
+ 52. die Einladung — dəvət
+ 53. die Eins — 1 / əla (qiymət)
+ 54. das Eis — dondurma / buz
+ 55. die Eltern — valideynlər
+ 56. das Ende — son / bitiş
+ 57. die Entschuldigung — üzr
+ 58. der Erwachsene — böyük / yetkin
+ 59. die Erwachsene — böyük / yetkin
+ 60. das Essen — yemək (isim)
+ 61. das Fach — fənn / mövzu
+ 62. die Fahrkarte — bilet
+ 63. der Fahrplan — nəqliyyat cədvəli
+ 64. das Fahrrad — velosiped
+ 65. die Familie — ailə
+ 66. der Familienname — soyad
+ 67. der Fehler — səhv
+ 68. das Fenster — pəncərə
+ 69. die Ferien — tətillər
+ 70. das Fernsehen — televiziya
+ 71. der Film — film
+ 72. der Fisch — balıq
+ 73. die Flasche — şüşə / butulka
+ 74. das Fleisch — ət
+ 75. der Flughafen — hava limanı
+ 76. das Flugzeug — təyyarə
+ 77. der Fluss — çay
+ 78. das Foto — foto / şəkil
+ 79. der Fotoapparat — fotoapparat
+ 80. die Frage — sual
+ 81. die Frau — qadın / xanım
+ 82. der Freund — dost (oğlan)
+ 83. die Freundin — dost (qız)
+ 84. das Frühstück — səhər yeməyi
+ 85. der Fuß — ayaq
+ 86. der Fußball — futbol
+ 87. der Garten — bağ / həyət
+ 88. der Geburtstag — ad günü
+ 89. das Geld — pul
+ 90. das Gemüse — tərəvəz
+ 91. das Gepäck — baqaj / yük
+ 92. das Geschäft — mağaza / iş
+ 93. das Geschenk — hədiyyə
+ 94. die Geschichte — tarix / hekayə
+ 95. das Glas — stəkan / şüşə
+ 96. das Gleis — rels / platforma
+ 97. das Glück — xoşbəxtlik / şans
+ 98. der Glückwunsch — təbrik
+ 99. die Großeltern — nənə-baba
+100. der Gruß — salam / salamlama
+101. das Haar — saç
+102. der Hals — boyun / boğaz
+103. die Haltestelle — dayanacaq
+104. das Handy — mobil telefon
+105. das Haus — ev
+106. die Hausaufgabe — ev tapşırığı
+107. das Heft — dəftər
+108. der Herr — cənab / bəy
+109. das Hobby — hobbi
+110. die Hochzeit — toy
+111. der Hund — it
+112. der Hunger — aclıq
+113. die Idee — fikir / ideya
+114. die Information — məlumat
+115. die Insel — ada
+116. das Internet — internet
+117. die Jacke — gödəkçə / pencək
+118. die Jeans — cins şalvar
+119. der Jugendliche — gənc / yeniyetmə
+120. die Jugendliche — gənc / yeniyetmə
+121. der Junge — oğlan
+122. der Kaffee — qəhvə
+123. der Kakao — kakao
+124. die Kamera — kamera
+125. die Karte — kart / bilet / məktub
+126. die Kartoffel — kartof
+127. der Käse — pendir
+128. die Katze — pişik
+129. das Kind — uşaq
+130. das Kino — kino
+131. der Kiosk — köşk
+132. die Klasse — sinif
+133. die Klassenarbeit — imtahan / sinif işi
+134. das Klavier — piano
+135. das Kleid — don / paltar
+136. der Kopf — baş
+137. das Krankenhaus — xəstəxana
+138. der Kuchen — tort / keks
+139. die Küche — mətbəx
+140. der Kühlschrank — soyuducu
+141. der Kugelschreiber — topaqqalem / qələm
+142. der Kurs — kurs
+143. die Lampe — lampa
+144. das Land — ölkə / kənd
+145. die Leute — insanlar
+146. die Lust — istək / həvəs
+147. das Mädchen — qız
+148. die Mail — e-poçt
+149. das Mal — dəfə
+150. der Mann — kişi / ər
+151. der Mantel — palto
+152. der Markt — bazar
+153. der Marktplatz — bazar meydanı
+154. die Marmelade — mürəbbə
+155. die Milch — süd
+156. das Mineralwasser — mineral su
+157. die Musik — musiqi
+158. die Nachricht — xəbər / mesaj
+159. der Name — ad
+160. die Note — qiymət / not
+161. die Nummer — nömrə
+162. das Obst — meyvə
+163. der Ohrring — sırğa
+164. die Ordnung — nizam / qayda
+165. das Paket — bağlama / paket
+166. der Park — park
+167. die Pause — fasilə / ara
+168. das Pferd — at
+169. die Pizza — pizza
+170. der Platz — yer / meydan
+171. die Post — poçt
+172. das Poster — poster / afişa
+173. die Postkarte — məktubkart
+174. das Problem — problem
+175. der Pullover — sviter
+176. der Quatsch — cəfəngiyat / saçmalıq
+177. das Quiz — viktorina
+178. das Rad — velosiped / çarx
+179. der Radiergummi — silgi
+180. das Radio — radio
+181. das Rätsel — tapmaca
+182. der Regen — yağış
+183. die Reise — səyahət
+184. das Restaurant — restoran
+185. der Ring — üzük / halqa
+186. der Rucksack — sırt çantası
+187. die Sache — şey / əşya
+188. der Saft — şirə / meyvə suyu
+189. der Salat — salat
+190. das Schiff — gəmi
+191. der Schmerz — ağrı
+192. die Schokolade — şokolad
+193. das Schwimmbad — üzgüçülük hovuzu
+194. der See — göl
+195. die Seite — səhifə / tərəf
+196. der Spaß — əyləncə / zövq
+197. das Spiel — oyun
+198. der Spielplatz — oyun meydançası
+199. der Sport — idman
+200. die Sprache — dil
+201. die Stadt — şəhər
+202. der Strand — çimərlik / sahil
+203. die Straße — küçə / yol
+204. das Stück — parça / hissə
+205. der Supermarkt — supermarket
+206. die Suppe — şorba
+207. die Süßigkeiten — şirniyyat
+208. die Tasche — çanta
+209. das Taschengeld — cib pulu
+210. die Tasse — fincan / stəkan
+211. der Tee — çay (içki)
+212. das Theater — teatr
+213. das Thema — mövzu
+214. das Tier — heyvan
+215. der Tisch — masa / stol
+216. die Toilette — tualet
+217. das T-Shirt — futbolka
+218. die Tür — qapı
+219. die U-Bahn — metro
+220. die Uhr — saat (cihaz)
+221. der Unterricht — dərs / təlim
+222. der Vorname — şəxsi ad
+223. der Wald — meşə
+224. das Wasser — su
+225. das Wiedersehen — görüşmək / vidalaşmaq
+226. die Wohnung — mənzil / dairə
+227. das Wohnzimmer — qonaq otağı
+228. das Wort — söz
+229. die Wurst — kolbasa / sosis
+230. der Zahn — diş
+231. die Zeit — vaxt / zaman
+232. die Zeitung — qəzet
+233. das Zimmer — otaq
+234. der Zug — qatar
+235. der Blog — bloq
+236. der CD-Player — CD pleyer
+237. der Chat — çat / söhbət otağı
+238. die Cola — kola
+239. die DVD — DVD
+240. das Fax — faks
+241. die Homepage — ana səhifə
+242. der Laptop — noutbuk
+243. der Link — link / keçid
+244. die Mailbox — poçt qutusu
+245. das Smartphone — smartfon
+246. der Antwortbogen — cavab vərəqi
+247. die Aufgabe — tapşırıq / məsələ
+248. das Kreuz — işarə
+249. das Beispiel — nümunə / misal
+250. das Gespräch — söhbət / dialoq
+251. die Lösung — həll / cavab
+252. der Partner — tərəfdaş (kişi)
+253. die Partnerin — tərəfdaş (qadın)
+254. der Teil — hissə / imtahan hissəsi
+255. der Test — test
+256. der Text — mətn
+257. das Wörterbuch — lüğət
+258. der Architekt — memar (kişi)
+259. die Architektin — memar (qadın)
+260. der Hausmann — ev əri (evdə qalan)
+261. die Hausfrau — evdar qadın / ev xanımı
+262. der Techniker — texnik (kişi)
+263. die Technikerin — texnik (qadın)
+264. der Angestellte — muzdlu işçi / rəsmi işçi
+265. die Angestellte — muzdlu işçi / rəsmi işçi
+266. der Lehrer — müəllim
+267. die Lehrerin — müəllimə
+268. der Künstler — rəssam / sənətkar (kişi)
+269. die Künstlerin — rəssam / sənətkar (qadın)
+270. der Ingenieur — mühəndis (kişi)
+271. die Ingenieurin — mühəndis (qadın)
+272. der Kaufmann — tacir (kişi)
+273. die Kauffrau — tacir (qadın)
+274. der Schauspieler — aktyor
+275. die Schauspielerin — aktrisa
+276. der Sekretär — katib
+277. die Sekretärin — katibə
+278. der Vater — ata
+279. die Mutter — ana
+280. der Bruder — qardaş
+281. die Schwester — bacı
+282. die Geschwister — qardaş-bacılar
+283. die Tante — xala / bibi
+284. der Onkel — əmi / dayı
+285. die Großmutter — nənə
+286. der Großvater — baba
+287. der Norden — şimal
+288. der Süden — cənub
+289. der Westen — qərb
+290. der Osten — şərq
+291. der Frühling — yaz
+292. der Sommer — yay
+293. der Herbst — payız
+294. der Winter — qış
+295. der Sonntag — bazar
+296. der Montag — bazar ertəsi
+297. der Dienstag — çərşənbə axşamı
+298. der Mittwoch — çərşənbə
+299. der Donnerstag — cümə axşamı
+300. der Freitag — cümə
+301. der Samstag — şənbə
+302. das Wochenende — həftə sonu
+303. der Morgen — səhər
+304. die Nacht — gecə
+305. die Minute — dəqiqə
+306. die Stunde — saat (60 dəq.)
+307. der Tag — gün
+308. die Woche — həftə
+309. das Jahr — il
+310. die Grundschule — ibtidai məktəb
+311. die Hauptschule — əsas məktəb
+312. das Gymnasium — gimnaziya
+313. die Sprachschule — dil məktəbi
+314. der Deutsche — alman (kişi/qadın)
+315. die Deutsche — alman (kişi/qadın)
+316. das Abendessen — şam yeməyi
+317. das Hähnchen — toyuq əti
+318. der Reis — düyü
+319. die Butter — kərə yağı
+320. das Salz — duz
+321. der Zucker — şəkər
+322. der Saft — şirə
+323. das Bier — pivə
+324. der Wein — şərab
+325. der Stuhl — stul
+326. der Tisch — masa
+327. der Schrank — şkaf
+328. das Regal — rəf
+329. das Sofa — divan
+330. der Fernseher — televizor
+331. die Waschmaschine — paltaryuyan maşın
+332. der Herd — plitə / ocaq
+333. die Tasse — fincan
+334. der Teller — boşqab
+335. das Messer — bıçaq
+336. die Gabel — çəngəl
+337. der Löffel — qaşıq
+338. das Ohr — qulaq
+339. die Nase — burun
+340. der Mund — ağız
+341. der Hals — boğaz / boyun
+342. der Rücken — bel / arxa
+343. die Hand — əl
+344. der Finger — barmaq
+345. das Bein — ayaq (topuqdan yuxarı)
+346. der Fuß — ayaq (pəncə)
+347. das Knie — diz
+348. die Kleidung — geyim
+349. die Hose — şalvar
+350. das Hemd — köynək
+351. der Rock — yubka
+352. der Schuh — ayaqqabı
+353. die Socke — corab
+354. der Hut — papaq / şlyapa
+355. die Brille — eynək
+356. der Schlüssel — açar
+357. die Geldbörse — pulyanı / pul kisəsi
+358. das Wetter — hava
+359. die Sonne — günəş
+360. der Schnee — qar
+361. der Wind — külək
+362. die Wolke — bulud
+363. die Ampel — işıqfor
+364. die Kreuzung — yolayrıcı
+365. die Brücke — körpü
+366. die Ecke — bucaq / künc
+367. der Weg — yol
+368. die Karte — xəritə / bilet

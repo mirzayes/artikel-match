@@ -1,0 +1,507 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { Article, GoetheLevel, LevelProgressStats } from '../types';
+import { shuffleInPlace, type VokabelRow } from '../lib/vokabelnCsv';
+import { requestDuelDeckFromWorker } from '../lib/wordPoolWorkerClient';
+import { isRtlGlossLang, nounToVokabelRow, resolveVokabelRowGloss, usesRemoteGlossFile } from '../lib/nounTranslation';
+import { useGlossLanguage, useGlossRemote } from '../hooks/useGlossLanguage';
+import { useVocabulary } from '../context/VocabularyContext';
+import { ArticleButton, type ArticleBtnMode } from './quiz/ArticleButton';
+import { FeedbackBar } from './quiz/FeedbackBar';
+import { QuizTopBar } from './quiz/QuizTopBar';
+import { WordCard } from './quiz/WordCard';
+import { getArticleFact } from '../data/articleFacts';
+import { avatarIdToEmoji } from '../lib/playerProfileRtdb';
+import { useGameStore } from '../store/useGameStore';
+import { getAffixWrongTeachHighlight } from '../lib/predictArticleFromAffixRules';
+import { DuelGame, getOrCreateDuelUserId } from './DuelGame';
+
+const DUEL_GOAL = 20;
+const PLAYER_WRONG_PENALTY = 2;
+
+/* ── Invite-link helpers ─────────────────────────────────────────────── */
+const INVITE_LS_PREFIX = 'duel-invite-';
+const TOAST_MS = 2400;
+
+function generateRoomCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no O/0, I/1 ambiguity
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function buildInviteLink(code: string): string {
+  return `${window.location.origin}${window.location.pathname}?room=${code}`;
+}
+
+function storeInvite(code: string): void {
+  try {
+    localStorage.setItem(
+      `${INVITE_LS_PREFIX}${code}`,
+      JSON.stringify({ code, createdAt: Date.now(), status: 'waiting' }),
+    );
+  } catch { /* ignore */ }
+}
+
+function readAutoJoinRoom(): string | null {
+  try {
+    const code = sessionStorage.getItem('duel-auto-join-room');
+    if (code) sessionStorage.removeItem('duel-auto-join-room');
+    return code;
+  } catch {
+    return null;
+  }
+}
+const WRONG_FEEDBACK_MS = 700;
+/** Bot opponent: random +1 on a random interval within the given range. */
+const OPPONENT_TICK_MIN_MS = 2500;
+const OPPONENT_TICK_MAX_MS = 5000;
+const CORRECT_ADVANCE_MS = 450;
+
+function randomOpponentDelayMs(): number {
+  return OPPONENT_TICK_MIN_MS + Math.random() * (OPPONENT_TICK_MAX_MS - OPPONENT_TICK_MIN_MS);
+}
+
+interface DuelMatchProps {
+  level: GoetheLevel;
+  levelStats: LevelProgressStats;
+  displayName: string;
+  onRecord: (level: GoetheLevel, article: Article, correct: boolean, wordId: string) => void;
+  onExitHome: () => void;
+}
+
+export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome }: DuelMatchProps) {
+  const { t } = useTranslation();
+  const { nounsByLevel } = useVocabulary();
+  const nouns = nounsByLevel[level];
+  const playerAvatarId = useGameStore((s) => s.avatar);
+  const playerEmoji = avatarIdToEmoji(playerAvatarId);
+  const [onlineDuel, setOnlineDuel] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const duelUid = useMemo(() => getOrCreateDuelUserId(), []);
+  const [glossLang] = useGlossLanguage();
+  const { remoteGlossById, remoteGlossReady } = useGlossRemote();
+
+  const [rows, setRows] = useState<VokabelRow[] | null>(null);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [order, setOrder] = useState<number[]>([]);
+  const [cursor, setCursor] = useState(0);
+  const [phase, setPhase] = useState<'idle' | 'answered'>('idle');
+  const [picked, setPicked] = useState<Article | null>(null);
+  const [wordVisible, setWordVisible] = useState(true);
+  const [xpPop, setXpPop] = useState(false);
+
+  const [playerProgress, setPlayerProgress] = useState(0);
+  const [opponentProgress, setOpponentProgress] = useState(0);
+  const [winner, setWinner] = useState<'player' | 'bot' | null>(null);
+
+  const winnerRef = useRef<'player' | 'bot' | null>(null);
+  const wrongFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const xpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    winnerRef.current = winner;
+  }, [winner]);
+
+  const resetDuelSession = useCallback(() => {
+    if (wrongFeedbackTimerRef.current) clearTimeout(wrongFeedbackTimerRef.current);
+    if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+    wrongFeedbackTimerRef.current = null;
+    advanceTimerRef.current = null;
+    winnerRef.current = null;
+    setWinner(null);
+    setPlayerProgress(0);
+    setOpponentProgress(0);
+    setPhase('idle');
+    setPicked(null);
+    setWordVisible(true);
+    if (!nouns.length) {
+      setRows(null);
+      setOrder([]);
+      setLoadErr(t('duel.no_words', { level }));
+      return;
+    }
+    if (usesRemoteGlossFile(glossLang) && !remoteGlossReady) {
+      setRows(null);
+      setOrder([]);
+      setLoadErr(null);
+      return;
+    }
+    const remote = usesRemoteGlossFile(glossLang) ? remoteGlossById : null;
+    const list = nouns;
+    void (async () => {
+      try {
+        const { rows: parsed, order: ord } = await requestDuelDeckFromWorker(list, glossLang, remote);
+        setRows(parsed);
+        setOrder(ord);
+        setCursor(0);
+        setLoadErr(null);
+      } catch {
+        const parsed: VokabelRow[] = list.map((n) => nounToVokabelRow(n, glossLang, remote));
+        setRows(parsed);
+        setOrder(shuffleInPlace(parsed.map((_, i) => i)));
+        setCursor(0);
+        setLoadErr(null);
+      }
+    })();
+  }, [level, nouns, glossLang, remoteGlossReady, remoteGlossById, t]);
+
+  useEffect(() => {
+    resetDuelSession();
+  }, [resetDuelSession]);
+
+  useEffect(() => {
+    return () => {
+      if (wrongFeedbackTimerRef.current) clearTimeout(wrongFeedbackTimerRef.current);
+      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+      if (xpTimerRef.current) clearTimeout(xpTimerRef.current);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
+  /* Auto-join if app was opened via ?room= invite link */
+  useEffect(() => {
+    const room = readAutoJoinRoom();
+    if (room) setOnlineDuel(true);
+  }, []);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => {
+      toastTimerRef.current = null;
+      setToastMsg(null);
+    }, TOAST_MS);
+  };
+
+  const handleShareLink = async () => {
+    const code = generateRoomCode();
+    storeInvite(code);
+    const link = buildInviteLink(code);
+    try {
+      await navigator.clipboard.writeText(link);
+    } catch {
+      // Fallback for browsers that block clipboard without user gesture
+      const ta = document.createElement('textarea');
+      ta.value = link;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    showToast('Link kopyalandı!');
+  };
+
+  /** Bot: after a random delay, increment opponentProgress by 1. */
+  useEffect(() => {
+    if (winner) return;
+    const delay = randomOpponentDelayMs();
+    const id = window.setTimeout(() => {
+      setOpponentProgress((o) => {
+        if (winnerRef.current) return o;
+        const next = o + 1;
+        if (next >= DUEL_GOAL) {
+          winnerRef.current = 'bot';
+          setWinner('bot');
+        }
+        return next;
+      });
+    }, delay);
+    return () => clearTimeout(id);
+  }, [opponentProgress, winner]);
+
+  const triggerXpPop = useCallback(() => {
+    setXpPop(true);
+    if (xpTimerRef.current) clearTimeout(xpTimerRef.current);
+    xpTimerRef.current = setTimeout(() => {
+      xpTimerRef.current = null;
+      setXpPop(false);
+    }, 400);
+  }, []);
+
+  const total = order.length;
+  const rowIndex = total > 0 ? order[cursor % total]! : 0;
+  const current = rows && total ? rows[rowIndex]! : null;
+
+  const currentDisplayGloss = useMemo(
+    () =>
+      current ? resolveVokabelRowGloss(current, nounsByLevel, glossLang, remoteGlossById) : '',
+    [current, nounsByLevel, glossLang, remoteGlossById],
+  );
+
+  const advanceWord = useCallback(() => {
+    setWordVisible(false);
+    if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+    advanceTimerRef.current = setTimeout(() => {
+      advanceTimerRef.current = null;
+      setCursor((c) => c + 1);
+      setPhase('idle');
+      setPicked(null);
+      setWordVisible(true);
+    }, 120);
+  }, []);
+
+  const handlePick = useCallback(
+    (a: Article) => {
+      if (!current || winner || phase !== 'idle') return;
+      const ok = a === current.article;
+      setPicked(a);
+      setPhase('answered');
+      onRecord(level, current.article, ok, current.id);
+      triggerXpPop();
+
+      if (ok) {
+        setPlayerProgress((p) => {
+          const np = p + 1;
+          if (np >= DUEL_GOAL && !winnerRef.current) {
+            winnerRef.current = 'player';
+            setWinner('player');
+          }
+          return np;
+        });
+        if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+        advanceTimerRef.current = setTimeout(() => {
+          advanceTimerRef.current = null;
+          if (!winnerRef.current) advanceWord();
+        }, CORRECT_ADVANCE_MS);
+      } else {
+        setPlayerProgress((p) => Math.max(0, p - PLAYER_WRONG_PENALTY));
+        if (wrongFeedbackTimerRef.current) clearTimeout(wrongFeedbackTimerRef.current);
+        wrongFeedbackTimerRef.current = setTimeout(() => {
+          wrongFeedbackTimerRef.current = null;
+          setPhase('idle');
+          setPicked(null);
+        }, WRONG_FEEDBACK_MS);
+      }
+    },
+    [advanceWord, current, level, onRecord, phase, triggerXpPop, winner],
+  );
+
+  const isCorrectPick = Boolean(picked !== null && current && picked === current.article);
+
+  const wrongAffixTeachDuel =
+    current && phase === 'answered' && !isCorrectPick
+      ? getAffixWrongTeachHighlight(current.word, current.article)
+      : null;
+  const inputLocked = winner !== null || phase === 'answered';
+
+  const btnMode = useCallback(
+    (a: Article): ArticleBtnMode => {
+      if (phase === 'idle' || !current) return 'idle';
+      if (picked === current.article) {
+        return a === current.article ? 'correct' : 'idle';
+      }
+      if (picked === a) return 'wrong';
+      if (a === current.article) return 'reveal';
+      return 'idle';
+    },
+    [current, phase, picked],
+  );
+
+  const barPct = (v: number) => `${Math.min(100, (v / DUEL_GOAL) * 100)}%`;
+
+  if (loadErr) {
+    return (
+      <div
+        className="flex min-h-[50dvh] flex-col items-center justify-center gap-4 px-6 pb-32 text-center text-sm"
+        style={{ background: 'var(--artikl-bg)', color: 'var(--artikl-muted2)' }}
+      >
+        <p>{loadErr}</p>
+        <button
+          type="button"
+          onClick={onExitHome}
+          className="rounded-xl border border-white/15 px-4 py-2 text-white/80"
+        >
+          {t('duel.home')}
+        </button>
+      </div>
+    );
+  }
+
+  if (!current) {
+    return (
+      <div
+        className="flex min-h-[50dvh] flex-col items-center justify-center pb-32 text-sm"
+        style={{ background: 'var(--artikl-bg)', color: 'var(--artikl-muted2)' }}
+      >
+        {t('quiz.loading')}
+      </div>
+    );
+  }
+
+  if (onlineDuel) {
+    return (
+      <DuelGame
+        currentUserId={duelUid}
+        displayName={displayName}
+        onExit={() => setOnlineDuel(false)}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="flex min-h-[100dvh] justify-center pb-36 pt-[max(0px,env(safe-area-inset-top))]"
+      style={{ background: 'var(--artikl-bg)' }}
+    >
+      <div className="artikl-scene">
+        <QuizTopBar stats={levelStats} xpPop={xpPop} playerEmoji={playerEmoji} />
+
+        <div className="px-5 pb-3 pt-1">
+          <button
+            type="button"
+            onClick={() => setOnlineDuel(true)}
+            className="mb-2 w-full rounded-xl border border-[rgba(167,139,250,0.35)] bg-gradient-to-r from-[rgba(124,108,248,0.22)] to-[rgba(196,79,217,0.14)] py-3 text-sm font-bold text-white shadow-[0_8px_28px_rgba(124,108,248,0.22)] transition-transform active:scale-[0.98]"
+          >
+            {t('duel.find_opponent')}
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleShareLink()}
+            className="mb-2 w-full rounded-xl border border-[rgba(255,255,255,0.1)] bg-white/[0.06] py-2.5 text-sm font-semibold text-[rgba(232,232,245,0.82)] transition-transform active:scale-[0.98]"
+          >
+            <span className="mr-1.5" aria-hidden>🔗</span>Duel linki paylaş
+          </button>
+          <p className="mb-3 text-center text-[10px] leading-snug text-[rgba(232,232,245,0.42)]">
+            {t('duel.find_opponent_sub')}
+          </p>
+          <p className="text-center text-[11px] font-bold uppercase tracking-wider text-[rgba(232,232,245,0.45)]">
+            {t('duel.race_to', { n: DUEL_GOAL })}
+          </p>
+          <div className="mt-3 flex items-center justify-between gap-3 text-sm font-semibold">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="text-emerald-300/90">{t('duel.you')}</span>
+              <div
+                className="h-2 overflow-hidden rounded-full bg-white/10"
+                role="progressbar"
+                aria-valuenow={playerProgress}
+                aria-valuemin={0}
+                aria-valuemax={DUEL_GOAL}
+              >
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"
+                  style={{ width: barPct(playerProgress) }}
+                />
+              </div>
+              <span className="tabular-nums text-white">{playerProgress}</span>
+            </div>
+            <span className="shrink-0 text-lg text-white/30" aria-hidden>
+              :
+            </span>
+            <div className="flex min-w-0 flex-1 flex-col items-end gap-1 text-right">
+              <span className="text-rose-300/90">{t('duel.opponent')}</span>
+              <div
+                className="h-2 w-full overflow-hidden rounded-full bg-white/10"
+                role="progressbar"
+                aria-valuenow={opponentProgress}
+                aria-valuemin={0}
+                aria-valuemax={DUEL_GOAL}
+              >
+                <div
+                  className="ml-auto h-full rounded-full bg-gradient-to-l from-violet-500 to-fuchsia-400 transition-all duration-300"
+                  style={{ width: barPct(opponentProgress) }}
+                />
+              </div>
+              <span className="tabular-nums text-white">{opponentProgress}</span>
+            </div>
+          </div>
+          <p className="mt-2 text-center text-[10px] text-[rgba(232,232,245,0.38)]">
+            {t('duel.opponent_hint', { penalty: PLAYER_WRONG_PENALTY })}
+          </p>
+        </div>
+
+        <WordCard
+          wordKey={current.id}
+          word={current.word}
+          correctArticle={current.article}
+          translation={currentDisplayGloss}
+          translationRtl={isRtlGlossLang(glossLang)}
+          glossLang={glossLang}
+          wordVisible={wordVisible}
+          showAnswer={phase === 'answered'}
+          highlightArticle={phase === 'answered' ? current.article : null}
+          glowArticle={isCorrectPick ? current.article : null}
+          comboToast={null}
+          comboToastVisible={false}
+          cardLabel={t('duel.card_label')}
+          wrongAffixTeach={wrongAffixTeachDuel}
+        />
+
+        {phase === 'answered' ? (
+          <FeedbackBar ok={isCorrectPick} fact={isCorrectPick ? getArticleFact(current.word) : null}>
+            {isCorrectPick ? (
+              <>{t('duel.feedback_correct', { article: current.article, word: current.word, gloss: currentDisplayGloss })}</>
+            ) : (
+              <>
+                {t('duel.feedback_wrong', {
+                  penalty: PLAYER_WRONG_PENALTY,
+                  article: current.article,
+                  word: current.word,
+                  gloss: currentDisplayGloss,
+                })}
+              </>
+            )}
+          </FeedbackBar>
+        ) : null}
+
+        <div className="artikl-btns">
+          {(['der', 'die', 'das'] as const).map((a) => (
+            <ArticleButton
+              key={a}
+              article={a}
+              mode={btnMode(a)}
+              disabled={inputLocked}
+              onPick={handlePick}
+            />
+          ))}
+        </div>
+
+        <div className="artikl-flex-space" />
+      </div>
+
+      {winner ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/72 px-4 backdrop-blur-sm">
+          <div className="glass-card max-w-sm rounded-2xl p-6 text-center shadow-2xl">
+            <h2 className="font-display text-xl font-bold text-white sm:text-2xl">
+              {winner === 'player' ? t('duel.victory') : t('duel.defeat')}
+            </h2>
+            <p className="mt-2 text-sm text-[rgba(232,232,245,0.6)]">
+              {t('duel.score', { you: playerProgress, opp: opponentProgress })}
+            </p>
+            <div className="mt-6 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={resetDuelSession}
+                className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-3 text-sm font-semibold text-white"
+              >
+                {t('duel.again')}
+              </button>
+              <button
+                type="button"
+                onClick={onExitHome}
+                className="w-full rounded-xl border border-white/15 py-3 text-sm font-semibold text-[rgba(232,232,245,0.75)]"
+              >
+                {t('duel.home')}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Invite-link toast */}
+      {toastMsg ? (
+        <div
+          className="fixed bottom-24 left-1/2 z-[80] -translate-x-1/2 rounded-2xl bg-[rgba(30,28,48,0.95)] px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_32px_rgba(0,0,0,0.55)] backdrop-blur-md"
+          role="status"
+          aria-live="polite"
+        >
+          {toastMsg}
+        </div>
+      ) : null}
+    </div>
+  );
+}

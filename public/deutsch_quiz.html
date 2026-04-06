@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Artikl duel — Alman dili</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #08080f;
+      --surface: #0f0f1a;
+      --surface2: #141425;
+      --border: #1c1c30;
+      --border2: #252540;
+      --text: #e8e8f5;
+      --muted: #3a3a58;
+      --muted2: #5a5a80;
+      --der: #3d8ef5;
+      --der-bg: #0a1628;
+      --der-border: #162a4a;
+      --der-glow: #3d8ef520;
+      --die: #e06aaa;
+      --die-bg: #20091a;
+      --die-border: #3d1030;
+      --die-glow: #e06aaa20;
+      --das: #3ed4a0;
+      --das-bg: #061f18;
+      --das-border: #0d3528;
+      --das-glow: #3ed4a020;
+      --accent: #6c63ff;
+      --accent2: #9b8fff;
+      --gold: #f5c842;
+      --ok: #1d9e75;
+      --ok-bg: #041f15;
+      --bad: #e24b4a;
+      --bad-bg: #1f0508;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', system-ui, sans-serif;
+    }
+    .scene {
+      max-width: 420px;
+      margin: 0 auto;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      padding: 0 0 max(24px, env(safe-area-inset-bottom));
+    }
+    .hidden { display: none !important; }
+    h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px;
+      letter-spacing: 0.06em;
+      color: var(--accent2);
+      text-align: center;
+      padding: 20px 16px 8px;
+    }
+    .sub {
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted2);
+      padding: 0 20px 16px;
+    }
+    .panel {
+      margin: 0 16px 12px;
+      background: var(--surface);
+      border-radius: 20px;
+      border: 0.5px solid var(--border2);
+      padding: 20px;
+    }
+    label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.1em; }
+    input[type="text"] {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 0.5px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+    }
+    input:focus { outline: none; border-color: var(--accent); }
+    .btn-primary {
+      width: 100%;
+      margin-top: 14px;
+      padding: 16px;
+      border-radius: 16px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+    }
+    .btn-primary:active { transform: scale(0.98); background: #534ab7; }
+    .btn-ghost {
+      margin-top: 10px;
+      width: 100%;
+      padding: 10px;
+      border-radius: 12px;
+      border: 0.5px solid var(--border);
+      background: transparent;
+      color: var(--muted2);
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .queue-banner {
+      text-align: center;
+      padding: 24px;
+      color: var(--accent2);
+      font-size: 15px;
+    }
+    .pulse { animation: pulse 1.2s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: 0.5; } }
+    .duel-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px 8px;
+      gap: 8px;
+    }
+    .duel-top span { font-size: 12px; color: var(--muted2); }
+    .duel-top strong { color: var(--gold); font-family: 'Bebas Neue', sans-serif; font-size: 15px; }
+    .timer-wrap {
+      text-align: center;
+      padding: 4px 16px 12px;
+    }
+    .timer {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 36px;
+      color: var(--accent2);
+      letter-spacing: 0.08em;
+    }
+    .timer.warn { color: var(--bad); }
+    .progress-duel {
+      height: 4px;
+      background: var(--surface2);
+      border-radius: 99px;
+      margin: 0 20px 12px;
+      overflow: hidden;
+    }
+    .progress-duel > div {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 99px;
+      transition: width 0.3s ease;
+    }
+    .card {
+      margin: 0 16px 12px;
+      background: var(--surface);
+      border-radius: 28px;
+      border: 0.5px solid var(--border2);
+      padding: 24px 20px 20px;
+      text-align: center;
+    }
+    .card-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+    .word-main {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(36px, 12vw, 72px);
+      font-weight: 400;
+      letter-spacing: 2px;
+      line-height: 1.05;
+      color: var(--text);
+      word-break: break-word;
+    }
+    .word-meta { font-size: 12px; color: var(--muted); margin-top: 8px; }
+    .word-az {
+      margin-top: 12px;
+      font-size: 14px;
+      color: var(--muted2);
+      min-height: 22px;
+    }
+    .opp-hint {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 8px;
+      min-height: 16px;
+    }
+    .opp-hint.on { color: var(--accent2); }
+    .btns {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      padding: 0 16px;
+      margin-bottom: 12px;
+    }
+    .abtn {
+      padding: 18px 0;
+      border-radius: 18px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1.5px solid;
+      text-align: center;
+      transition: transform 0.12s, opacity 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .abtn:disabled { opacity: 0.35; pointer-events: none; }
+    .abtn:active:not(:disabled) { transform: scale(0.93); }
+    .abtn.der { background: var(--der-bg); color: var(--der); border-color: var(--der-border); }
+    .abtn.die { background: var(--die-bg); color: var(--die); border-color: var(--die-border); }
+    .abtn.das { background: var(--das-bg); color: var(--das); border-color: var(--das-border); }
+    .feedback-mini {
+      margin: 0 16px 12px;
+      border-radius: 14px;
+      padding: 10px 14px;
+      font-size: 12px;
+      line-height: 1.4;
+      display: none;
+    }
+    .feedback-mini.ok { display: block; background: var(--ok-bg); border: 0.5px solid var(--ok); color: #9fe1cb; }
+    .feedback-mini.bad { display: block; background: var(--bad-bg); border: 0.5px solid var(--bad); color: #f09090; }
+    .lb {
+      margin: 16px;
+      background: var(--surface2);
+      border-radius: 16px;
+      border: 0.5px solid var(--border);
+      padding: 12px;
+      max-height: 220px;
+      overflow: auto;
+    }
+    .lb h3 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 14px;
+      color: var(--accent2);
+      letter-spacing: 0.1em;
+      margin-bottom: 10px;
+    }
+    .lb-row {
+      display: grid;
+      grid-template-columns: 28px 1fr auto auto auto;
+      gap: 6px;
+      font-size: 11px;
+      padding: 6px 4px;
+      border-bottom: 0.5px solid var(--border);
+      align-items: center;
+      color: var(--muted2);
+    }
+    .lb-row.me { color: var(--text); background: #1a1740; border-radius: 8px; }
+    .end-card {
+      text-align: center;
+      padding: 24px;
+    }
+    .end-card h2 { font-family: 'Bebas Neue', sans-serif; font-size: 32px; margin-bottom: 8px; }
+    .end-card.win h2 { color: var(--ok); }
+    .end-card.loss h2 { color: var(--bad); }
+    .end-card.draw h2 { color: var(--accent2); }
+    .err-toast {
+      margin: 8px 16px;
+      padding: 10px;
+      border-radius: 10px;
+      background: var(--bad-bg);
+      border: 0.5px solid var(--bad);
+      color: #f09090;
+      font-size: 12px;
+      display: none;
+    }
+    .err-toast.show { display: block; }
+  </style>
+</head>
+<body>
+  <div class="scene">
+    <h1>ARTIKL DUEL</h1>
+    <p class="sub">Eyni söz · 60 saniyə · çəkişmə</p>
+    <div id="err" class="err-toast"></div>
+
+    <section id="screen-lobby" class="panel">
+      <label>İstifadəçi adı</label>
+      <input type="text" id="username" maxlength="24" placeholder="məs. Leyla" autocomplete="username" />
+      <button type="button" class="btn-primary" id="btn-join">Növbəyə qoşul</button>
+      <button type="button" class="btn-ghost" id="btn-lb-only">Yalnız liderlər cədvəli</button>
+    </section>
+
+    <section id="screen-queue" class="hidden">
+      <div class="queue-banner pulse">Rəqib gözlənilir…</div>
+      <button type="button" class="btn-ghost" id="btn-cancel-queue" style="margin: 0 16px;">Növbədən çıx</button>
+    </section>
+
+    <section id="screen-duel" class="hidden">
+      <div class="duel-top">
+        <div><span>Rəqib</span><br /><strong id="opp-name">—</strong></div>
+        <div style="text-align: right">
+          <span>Hesab</span><br />
+          <strong><span id="score-you">0</span> : <span id="score-opp">0</span></strong>
+        </div>
+      </div>
+      <div class="timer-wrap">
+        <div class="timer" id="timer">60</div>
+      </div>
+      <div class="progress-duel"><div id="prog-fill" style="width: 0%"></div></div>
+      <div class="card">
+        <div class="card-label">Söz <span id="word-idx">0</span> / <span id="word-total">12</span></div>
+        <div class="word-main" id="word-de">—</div>
+        <div class="word-meta" id="word-hint"></div>
+        <div class="word-az" id="word-az"></div>
+        <div class="opp-hint" id="opp-ans"> </div>
+      </div>
+      <div id="fb" class="feedback-mini"></div>
+      <div class="btns" id="btn-area">
+        <button type="button" class="abtn der" data-art="der">der</button>
+        <button type="button" class="abtn die" data-art="die">die</button>
+        <button type="button" class="abtn das" data-art="das">das</button>
+      </div>
+    </section>
+
+    <section id="screen-end" class="hidden panel end-card">
+      <h2 id="end-title">—</h2>
+      <p id="end-sub" style="color: var(--muted2); font-size: 14px; margin-bottom: 16px;"></p>
+      <button type="button" class="btn-primary" id="btn-again">Yenidən növbə</button>
+    </section>
+
+    <div class="lb" id="lb-wrap">
+      <h3>Liderlər · streak</h3>
+      <div id="lb-body"></div>
+      <p id="lb-rank" style="font-size: 11px; color: var(--muted); margin-top: 8px;"></p>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = proto + '//' + location.host;
+
+      const $ = (id) => document.getElementById(id);
+      const screens = {
+        lobby: $('screen-lobby'),
+        queue: $('screen-queue'),
+        duel: $('screen-duel'),
+        end: $('screen-end'),
+      };
+
+      let ws = null;
+      let roundStart = 0;
+      let endsAt = 0;
+      let currentWordIdx = -1;
+      let answered = false;
+      let timerId = null;
+      let duelTotalWords = 12;
+
+      function showErr(t) {
+        const e = $('err');
+        e.textContent = t;
+        e.classList.add('show');
+        setTimeout(() => e.classList.remove('show'), 4000);
+      }
+
+      function showScreen(name) {
+        Object.entries(screens).forEach(([k, el]) => {
+          el.classList.toggle('hidden', k !== name);
+        });
+      }
+
+      function connect() {
+        ws = new WebSocket(wsUrl);
+        ws.onopen = () => {};
+        ws.onclose = () => {
+          showErr('Əlaqə kəsildi. Səhifəni yeniləyin.');
+        };
+        ws.onmessage = (ev) => {
+          let msg;
+          try {
+            msg = JSON.parse(ev.data);
+          } catch {
+            return;
+          }
+          handle(msg);
+        };
+      }
+
+      function send(o) {
+        if (ws && ws.readyState === 1) ws.send(JSON.stringify(o));
+      }
+
+      function renderLb(top20, myRank) {
+        const body = $('lb-body');
+        const me = ($('username').value || '').trim();
+        body.innerHTML = '';
+        top20.forEach((row, i) => {
+          const div = document.createElement('div');
+          div.className = 'lb-row' + (row.username === me ? ' me' : '');
+          div.innerHTML =
+            '<span>' +
+            (i + 1) +
+            '</span><span>' +
+            escapeHtml(row.username) +
+            '</span><span>' +
+            row.streak +
+            '🔥</span><span>' +
+            row.xp +
+            ' XP</span><span>' +
+            row.accuracy +
+            '%</span>';
+          body.appendChild(div);
+        });
+        $('lb-rank').textContent =
+          myRank != null ? 'Sizin yeriniz: ' + myRank : 'Növbəyə qoşulun — yeriniz yazılsın';
+      }
+
+      function escapeHtml(s) {
+        const d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+      }
+
+      function handle(msg) {
+        if (msg.type === 'error') {
+          showErr(msg.message || 'Xəta');
+          return;
+        }
+        if (msg.type === 'leaderboard') {
+          renderLb(msg.top20 || [], msg.myRank);
+          return;
+        }
+        if (msg.type === 'queue') {
+          showScreen('queue');
+          return;
+        }
+        if (msg.type === 'left') {
+          showScreen('lobby');
+          return;
+        }
+        if (msg.type === 'matched') {
+          if (typeof msg.wordCount === 'number') duelTotalWords = msg.wordCount;
+          $('opp-name').textContent = msg.opponent || 'Rəqib';
+          showScreen('duel');
+          $('score-you').textContent = '0';
+          $('score-opp').textContent = '0';
+          $('fb').className = 'feedback-mini';
+          $('fb').textContent = '';
+          answered = false;
+          $('opp-ans').textContent = '';
+          $('opp-ans').classList.remove('on');
+          return;
+        }
+        if (msg.type === 'word') {
+          currentWordIdx = msg.idx;
+          endsAt = msg.endsAt || Date.now() + 60000;
+          roundStart = Date.now();
+          answered = false;
+          $('word-de').textContent = msg.word || '—';
+          $('word-idx').textContent = String((msg.idx ?? 0) + 1);
+          $('word-total').textContent = String(duelTotalWords);
+          $('word-az').textContent = '';
+          $('word-hint').textContent = '';
+          $('opp-ans').textContent = '';
+          $('opp-ans').classList.remove('on');
+          $('fb').className = 'feedback-mini';
+          $('fb').textContent = '';
+          document.querySelectorAll('.abtn').forEach((b) => {
+            b.disabled = false;
+          });
+          if (timerId) clearInterval(timerId);
+          timerId = setInterval(updateTimer, 100);
+          updateTimer();
+          return;
+        }
+        if (msg.type === 'opponent_answered') {
+          $('opp-ans').textContent = 'Rəqib cavab verdi';
+          $('opp-ans').classList.add('on');
+          return;
+        }
+        if (msg.type === 'score_update') {
+          $('score-you').textContent = String(msg.yourScore ?? 0);
+          $('score-opp').textContent = String(msg.opponentScore ?? 0);
+          const lr = msg.lastRound;
+          if (lr) {
+            const fb = $('fb');
+            const ok = lr.youCorrect;
+            fb.className = 'feedback-mini ' + (ok ? 'ok' : 'bad');
+            fb.innerHTML =
+              (ok ? 'Düzgün! ' : 'Səhv. ') +
+              '<strong>' +
+              lr.correctArt +
+              '</strong> — ' +
+              escapeHtml(lr.az || '');
+            $('word-az').textContent = lr.az || '';
+          }
+          document.querySelectorAll('.abtn').forEach((b) => {
+            b.disabled = true;
+          });
+          return;
+        }
+        if (msg.type === 'duel_end') {
+          if (timerId) {
+            clearInterval(timerId);
+            timerId = null;
+          }
+          showScreen('end');
+          const el = $('screen-end');
+          el.classList.remove('win', 'loss', 'draw');
+          if (msg.result === 'win') {
+            el.classList.add('win');
+            $('end-title').textContent = 'Qələbə!';
+          } else if (msg.result === 'loss') {
+            el.classList.add('loss');
+            $('end-title').textContent = 'Məğlubiyyət';
+          } else {
+            el.classList.add('draw');
+            $('end-title').textContent = 'Bərabərə';
+          }
+          const sub =
+            (msg.youScore ?? 0) +
+            ' : ' +
+            (msg.opponentScore ?? 0) +
+            (msg.reason === 'forfeit' ? ' · rəqib çıxdı' : '');
+          $('end-sub').textContent = sub;
+          return;
+        }
+      }
+
+      function updateTimer() {
+        const left = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+        const t = $('timer');
+        t.textContent = String(left);
+        t.classList.toggle('warn', left <= 10);
+        const pct =
+          endsAt > roundStart ? Math.min(100, ((endsAt - Date.now()) / (endsAt - roundStart)) * 100) : 0;
+        $('prog-fill').style.width = pct + '%';
+      }
+
+      document.querySelectorAll('.abtn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          if (answered || currentWordIdx < 0) return;
+          answered = true;
+          const art = btn.getAttribute('data-art');
+          send({
+            type: 'answer',
+            wordIdx: currentWordIdx,
+            art,
+            timeMs: Date.now() - roundStart,
+          });
+          document.querySelectorAll('.abtn').forEach((b) => {
+            b.disabled = true;
+          });
+        });
+      });
+
+      $('btn-join').addEventListener('click', () => {
+        const u = $('username').value.trim();
+        if (!u) {
+          showErr('Ad daxil edin');
+          return;
+        }
+        send({ type: 'join_queue', username: u });
+      });
+
+      $('btn-cancel-queue').addEventListener('click', () => {
+        send({ type: 'leave' });
+        showScreen('lobby');
+      });
+
+      $('btn-again').addEventListener('click', () => {
+        const u = $('username').value.trim();
+        showScreen('lobby');
+        if (u) send({ type: 'join_queue', username: u });
+      });
+
+      $('btn-lb-only').addEventListener('click', () => {
+        send({ type: 'get_leaderboard', username: $('username').value.trim() });
+      });
+
+      connect();
+    })();
+  </script>
+</body>
+</html>

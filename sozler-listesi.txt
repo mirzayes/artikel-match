@@ -1,0 +1,407 @@
+Слово | Артикль | Перевод
+Haus | Das | Ev
+Wasser | Das | Su
+Brot | Das | Çörək
+Mutter | Die | Ana
+Vater | Der | Ata
+Kind | Das | Uşaq
+Tag | Der | Gün
+Nacht | Die | Gecə
+Buch | Das | Kitab
+Schule | Die | Məktəb
+Essen | Das | Yemək
+Freund | Der | Dost
+Arbeit | Die | İş
+Jahr | Das | İl
+Zeit | Die | Vaxt
+Mann | Der | Kişi
+Frau | Die | Qadın
+Stadt | Die | Şəhər
+Land | Das | Ölkə
+Morgen | Der | Səhər
+Abend | Der | Axşam
+Woche | Die | Həftə
+Monat | Der | Ay
+Stunde | Die | Saat
+Minute | Die | Dəqiqə
+Weg | Der | Yol
+Straße | Die | Küçə
+Zimmer | Das | Otaq
+Tür | Die | Qapı
+Fenster | Das | Pəncərə
+Tisch | Der | Stol
+Stuhl | Der | Stul
+Bett | Das | Çarpayı
+Küche | Die | Mətbəx
+Badezimmer | Das | Vanna otağı
+Toilette | Die | Tualet
+Schlüssel | Der | Açar
+Geld | Das | Pul
+Tasche | Die | Çanta
+Koffer | Der | Bavul
+Uhr | Die | Saat
+Handy | Das | Mobil telefon
+Computer | Der | Kompüter
+Zeitung | Die | Qəzet
+Brief | Der | Məktub
+Post | Die | Poçt
+Auto | Das | Avtomobil
+Bus | Der | Avtobus
+Bahn | Die | Qatar
+Zug | Der | Qatar
+Flughafen | Der | Hava limanı
+Bahnhof | Der | Vağzal
+Apotheke | Die | Aptek
+Markt | Der | Bazar
+Geschäft | Das | Mağaza
+Bank | Die | Bank
+Park | Der | Park
+Kirche | Die | Kilsə
+Museum | Das | Muzey
+Universität | Die | Universitet
+Lehrer | Der | Müəllim
+Lehrerin | Die | Müəllimə
+Arzt | Der | Həkim
+Ärztin | Die | Həkim (qadın)
+Student | Der | Tələbə
+Studentin | Die | Tələbə (qadın)
+Obst | Das | Meyvə
+Gemüse | Das | Tərəvəz
+Fleisch | Das | Ət
+Milch | Die | Süd
+Käse | Der | Pendir
+Ei | Das | Yumurta
+Kaffee | Der | Qəhvə
+Tee | Der | Çay
+Bier | Das | Piva
+Wein | Der | Şərab
+Brot | Das | Çörək
+Butter | Die | Yağ
+Salz | Der | Duz
+Zucker | Der | Şəkər
+Suppe | Die | Şorba
+Salat | Der | Salat
+Pizza | Die | Pitsa
+Kuchen | Der | Tort
+Schokolade | Die | Şokolad
+Körper | Der | Bədən
+Kopf | Der | Baş
+Auge | Das | Göz
+Ohr | Das | Qulaq
+Nase | Die | Burun
+Mund | Der | Ağız
+Hand | Die | Əl
+Finger | Der | Barmaq
+Fuß | Der | Ayaq
+Bein | Das | Ayaq / Qıç
+Rücken | Der | Bel
+Familie | Die | Ailə
+Bruder | Der | Qardaş
+Schwester | Die | Bacı
+Sohn | Der | Oğul
+Tochter | Die | Qız
+Opa | Der | Baba
+Oma | Die | Nənə
+Enkel | Der | Nəvə
+Enkelin | Die | Nəvə (qadın)
+Hund | Der | İt
+Katze | Die | Pişik
+Tier | Das | Heyvan
+Vogel | Der | Quş
+Blume | Die | Çiçək
+Baum | Der | Ağac
+Wetter | Das | Hava
+Sonne | Die | Günəş
+Regen | Der | Yağış
+Schnee | Der | Qar
+Wind | Der | Külək
+Natur | Die | Təbiət
+Problem | Das | Problem
+Frage | Die | Sual
+Antwort | Die | Cavab
+Name | Der | Ad
+Adresse | Die | Ünvan
+Nummer | Die | Nömrə
+Preis | Der | Qiymət
+Rechnung | Die | Hesab
+Datum | Das | Tarix
+Geburtstag | Der | Ad günü
+Geschenk | Das | Hədiyyə
+Urlaub | Der | Tətil
+Reise | Die | Səyahət
+Pass | Der | Pasport
+Formular | Das | Forma
+Sprache | Die | Dil
+Wort | Das | Söz
+Satz | Der | Cümlə
+Grammatik | Die | Qrammatika
+Fehler | Der | Səhv
+Prüfung | Die | İmtahan
+Ergebnis | Das | Nəticə
+Anfang | Der | Başlanğıc
+Ende | Das | Son
+Teil | Der | Hissə
+Möglichkeit | Die | İmkan
+Grund | Der | Səbəb
+Idee | Die | Fikir
+Plan | Der | Plan
+Zeitschrift | Die | Jurnal
+Film | Der | Film
+Musik | Die | Musiqi
+Lied | Das | Mahnı
+Sport | Der | İdman
+Spiel | Das | Oyun
+Ball | Der | Top
+Party | Die | Parti
+Gast | Der | Qonaq
+Einladung | Die | Dəvət
+Termin | Der | Görüş
+Pause | Die | Fasilə
+Job | Der | İş
+Firma | Die | Şirkət
+Chef | Der | Rəhbər
+Kollegin | Die | Əməkdaş (qadın)
+Kollege | Der | Əməkdaş
+Gehalt | Das | Maaş
+Versicherung | Die | Sığorta
+Vertrag | Der | Müqavilə
+Karte | Die | Kart
+Führerschein | Der | Sürücülük vəsiqəsi
+Benzin | Das | Benzin
+Reparatur | Die | Təmir
+Notfall | Der | Təcili hal
+Polizei | Die | Polis
+Krankenwagen | Der | Təcili yardım
+Medikament | Das | Dərman
+Krankheit | Die | Xəstəlik
+Schmerz | Der | Ağrı
+Fieber | Das | Qızdırma
+Allergie | Die | Allergiya
+Termin | Der | Qəbul
+Klinik | Die | Klinika
+Notruf | Der | Təcili xidmət
+Leben | Das | Həyat
+Tod | Der | Ölüm
+Liebe | Die | Sevgi
+Traum | Der | Yuxu
+Hoffnung | Die | Ümid
+Wunsch | Der | Arzu
+Angst | Die | Qorxu
+Stress | Der | Stress
+Ruhe | Die | Sakitlik
+Glück | Das | Bəxt
+Kummer | Der | Kədər
+Freude | Die | Sevinc
+Lärm | Der | Səs-küy
+Stille | Die | Səssizlik
+Licht | Das | İşıq
+Schatten | Der | Kölgə
+Farbe | Die | Rəng
+Geruch | Der | Qoxu
+Geschmack | Der | Dad
+Größe | Die | Ölçü
+Gewicht | Das | Çəki
+Raum | Der | Məkan
+Ecke | Die | Künc
+Zentrum | Das | Mərkəz
+Norden | Der | Şimal
+Süd | Die | Cənub
+Osten | Der | Şərq
+Westen | Der | Qərb
+Grenze | Die | Sərhəd
+Nachbar | Der | Qonşu
+Nachbarin | Die | Qonşu (qadın)
+Dorf | Das | Kənd
+Region | Die | Region
+Fluss | Der | Çay
+See | Der | Göl
+Meer | Das | Dəniz
+Berg | Der | Dağ
+Wald | Der | Meşə
+Feld | Das | Sahə
+Insel | Die | Ada
+Strand | Der | Çimərlik
+Hotel | Das | Otel
+Reservation | Die | Rezervasiya
+Empfang | Der | Qəbul
+Rezeption | Die | Resepsiya
+Aufzug | Der | Lift
+Treppe | Die | Nərdivan
+Dach | Das | Dam
+Keller | Der | Zirzəmi
+Balkon | Der | Balkon
+Garten | Der | Bağ
+Garage | Die | Qaraj
+Regal | Das | Rəf
+Lampe | Die | Lampa
+Stecker | Der | Şteker
+Steckdose | Die | Rozetka
+Hahn | Der | Kran
+Seife | Die | Sabun
+Handtuch | Das | Dəsmal
+Zahnbürste | Die | Diş fırçası
+Zahnpasta | Die | Diş pastası
+Kamm | Der | Daraq
+Spiegel | Der | Güzgü
+Creme | Die | Krem
+Shampoo | Das | Şampun
+Wecker | Der | Zəng
+Decke | Die | Yorğan
+Kissen | Das | Yastıq
+Schrank | Der | Şkaf
+Schublade | Die | Çəkmecə
+Sofa | Das | Divan
+Couch | Die | Divan
+Fernseher | Der | Televizor
+Fernbedienung | Die | Uzaktan idarəetmə
+Laptop | Der | Noutbuk
+Tastatur | Die | Klaviatura
+Maus | Die | Siçan (kompüter)
+Bildschirm | Der | Ekran
+Internet | Das | İnternet
+E-Mail | Die | E-poçt
+Anruf | Der | Zəng
+Nachricht | Die | Mesaj
+Kalender | Der | Təqvim
+Liste | Die | Siyahı
+Stift | Der | Qələm
+Papier | Das | Kağız
+Schere | Die | Qayçı
+Kleber | Der | Yapışqan
+Heft | Das | Dəftər
+Schultasche | Die | Məktəb çantası
+Rucksack | Der | Sırt çantası
+Brille | Die | Eynək
+Regenschirm | Der | Çətir
+Jacke | Die | Ceket
+Mantel | Der | Palto
+Hemd | Das | Köynək
+Hose | Die | Şalvar
+Rock | Der | Yubka
+Kleid | Das | Paltar
+Schuh | Der | Ayaqqabı
+Socke | Die | Corab
+Handschuh | Der | Əlcək
+Schal | Der | Şərf
+Mütze | Die | Şapka
+Hut | Der | Şapka
+Kleidungsstück | Das | Geyim
+Waschmaschine | Die | Paltaryuyan
+Trockner | Der | Quruducu
+Bügeleisen | Das | Ütü
+Nadel | Die | İynə
+Faden | Der | İp
+Nähmaschine | Die | Tikiş maşını
+Knopf | Der | Düymə
+Reißverschluss | Der | İldirəm
+Tasche | Die | Cib
+Gürtel | Der | Kəmər
+Portemonnaie | Das | Pul kisəsi
+Sonnenbrille | Die | Günəş eynəyi
+Schmuck | Der | Zinət
+Uhr | Die | Saat (bilərzik)
+Ring | Der | Üzük
+Kette | Die | Zəncir
+Ohrring | Das | Sırğa
+Koffer | Der | Bavul
+Landkarte | Die | Xəritə
+Reiseführer | Der | Səyahət bələdçisi
+Visum | Das | Viza
+Impfung | Die | Peyvənd
+Impfpass | Der | Peyvənd pasportu
+Gepäck | Das | Yük
+Ankunft | Die | Gəliş
+Abflug | Der | Uçuş
+Landung | Die | Eniş
+Sitz | Der | Oturacaq
+Reihe | Die | Sıra
+Platz | Der | Yer
+Reservierung | Die | Rezervasiya
+Gang | Der | Koridor
+Toilette | Die | Tualet
+Notausgang | Der | Fövqəladə çıxış
+Sicherheit | Die | Təhlükəsizlik
+Kontrolle | Der | Nəzarət
+Gepäck | Das | Baqaj
+Abfertigung | Die | Rəsmiləşdirmə
+Zoll | Der | Gömrük
+Deklaration | Die | Bəyannamə
+Koffer | Der | Bavul
+Handtasche | Die | Əl çantası
+Gepäckstück | Das | Baqaj əşyası
+Fahrplan | Der | Cədvəl
+Verspätung | Die | Gecikmə
+Anschluss | Der | Keçid
+Umsteigen | Die | Transfer
+Gleis | Der | Perron
+Haltestelle | Die | Dayanacaq
+Fahrschein | Der | Bilet
+Fahrkarte | Die | Bilet
+Schaffner | Der | Konduktor
+Fahrt | Die | Səfər
+Stau | Der | Tıxac
+Autobahn | Die | Avtomobil yolu
+Kreuzung | Der | Çarpazlaşma
+Ampel | Die | İşıqfor
+Fußgänger | Der | Piyada
+Fußgängerzone | Die | Piyada zonası
+Parkplatz | Der | Park yeri
+Tankstelle | Die | Benzin doldurma məntəqəsi
+Unfall | Der | Qəza
+Verletzung | Die | Yaralanma
+Krankenhaus | Der | Xəstəxana
+Rettung | Die | Xilasetmə
+Arzt | Der | Həkim
+Krankenschwester | Die | Tibb bacısı
+Patient | Der | Xəstə
+Behandlung | Die | Müalicə
+Rezept | Das | Rezept
+Tablette | Die | Tablet
+Sirup | Der | Şərbət
+Spritze | Die | İynə
+Verband | Der | Sargı
+Wunde | Die | Yara
+Pflaster | Das | Yara bantı
+Termin | Der | Qəbul vaxtı
+Sprechstunde | Die | Qəbul saatı
+Wartezimmer | Der | Gözləmə otağı
+Krankenversicherung | Die | Səhiyyə sığortası
+Impfstoff | Der | Peyvənd maddəsi
+Dosis | Die | Doza
+Nebenwirkung | Der | Yan təsir
+Allergie | Die | Allergiya
+Schmerz | Der | Ağrı
+Kopfschmerzen | Die | Baş ağrısı
+Bauchschmerzen | Der | Qarın ağrısı
+Halsschmerzen | Die | Boğaz ağrısı
+Fieber | Der | Qızdırma
+Husten | Die | Öskürək
+Schnupfen | Der | Sellək
+Erkältung | Die | Soyuqlama
+Grippe | Der | Qrip
+Krankheit | Die | Xəstəlik
+Gesundheit | Der | Sağlamlıq
+Vorsorge | Die | Qabaqcadan qayğı
+Check-up | Der | Yoxlama
+Blutdruck | Die | Qan təzyiqi
+Puls | Der | Nəbz
+Temperatur | Die | Temperatur
+Gewicht | Der | Çəki
+Diät | Die | Pəhriz
+Sport | Der | İdman
+Bewegung | Die | Hərəkət
+Schlaf | Der | Yuxu
+Ernährung | Die | Qidalanma
+Vitamin | Der | Vitamin
+Kalorie | Die | Kalori
+Zucker | Der | Şəkər
+Salz | Die | Duz
+Fett | Das | Yağ
+Alkohol | Der | Alkoqol
+Nikotin | Die | Nikotin
+Raucher | Der | Papiros çəkən
+Raucherentwöhnung | Die | Papirosdan imtina
+Stress | Der | Stress
+Entspannung | Die | Rahatlıq
+Urlaub | Der | Tətil
+Erholung | Die | Dinclik

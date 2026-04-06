@@ -1,0 +1,76 @@
+[
+  {
+    "category": "Mensch & Körper",
+    "words": [
+      { "de": "der Kopf", "az": "baş" },
+      { "de": "das Haar", "az": "saç" },
+      { "de": "das Auge", "az": "göz" },
+      { "de": "das Ohr", "az": "qulaq" },
+      { "de": "die Nase", "az": "burun" },
+      { "de": "der Mund", "az": "ağız" },
+      { "de": "der Zahn", "az": "diş" },
+      { "de": "der Hals", "az": "boğaz / boyun" },
+      { "de": "der Rücken", "az": "bel / arxa" },
+      { "de": "der Bauch", "az": "qarın" },
+      { "de": "der Arm", "az": "qol" },
+      { "de": "die Hand", "az": "əl" },
+      { "de": "der Finger", "az": "barmaq" },
+      { "de": "das Bein", "az": "ayaq (bud)" },
+      { "de": "das Knie", "az": "diz" },
+      { "de": "der Fuß", "az": "ayaq (pəncə)" },
+      { "de": "das Kind", "az": "uşaq" },
+      { "de": "das Baby", "az": "körpə" },
+      { "de": "der Junge", "az": "oğlan" },
+      { "de": "das Mädchen", "az": "qız" },
+      { "de": "die Frau", "az": "qadın" },
+      { "de": "der Mann", "az": "kişi" },
+      { "de": "der/die Erwachsene", "az": "yetkin" },
+      { "de": "der/die Jugendliche", "az": "yeniyetmə" }
+    ]
+  },
+  {
+    "category": "Kleidung",
+    "words": [
+      { "de": "die Kleidung", "az": "geyim" },
+      { "de": "die Jacke", "az": "gödəkçə" },
+      { "de": "der Mantel", "az": "palto" },
+      { "de": "das Hemd", "az": "köynək" },
+      { "de": "das T-Shirt", "az": "futbolka" },
+      { "de": "die Bluse", "az": "bluzka" },
+      { "de": "der Pullover", "az": "sviter" },
+      { "de": "die Hose", "az": "şalvar" },
+      { "de": "die Jeans", "az": "cins" },
+      { "de": "der Rock", "az": "yubka" },
+      { "de": "das Kleid", "az": "don" },
+      { "de": "der Schuh", "az": "ayaqqabı" },
+      { "de": "die Socke", "az": "corab" },
+      { "de": "die Brille", "az": "eynək" }
+    ]
+  },
+  {
+    "category": "Essen & Trinken",
+    "words": [
+      { "de": "das Essen", "az": "yemək" },
+      { "de": "das Frühstück", "az": "səhər yeməyi" },
+      { "de": "das Abendessen", "az": "şam yeməyi" },
+      { "de": "das Brot", "az": "çörək" },
+      { "de": "das Brötchen", "az": "bulka" },
+      { "de": "das Ei", "az": "yumurta" },
+      { "de": "das Hähnchen", "az": "toyuq" },
+      { "de": "der Fisch", "az": "balıq" },
+      { "de": "das Fleisch", "az": "ət" },
+      { "de": "die Wurst", "az": "kolbasa" },
+      { "de": "der Reis", "az": "düyü" },
+      { "de": "die Kartoffel", "az": "kartof" },
+      { "de": "das Gemüse", "az": "tərəvəz" },
+      { "de": "das Obst", "az": "meyvə" },
+      { "de": "die Butter", "az": "kərə yağı" },
+      { "de": "der Käse", "az": "pendir" },
+      { "de": "das Salz", "az": "duz" },
+      { "de": "der Zucker", "az": "şəkər" },
+      { "de": "der Kaffee", "az": "qəhvə" },
+      { "de": "der Tee", "az": "çay" },
+      { "de": "das Wasser", "az": "su" }
+    ]
+  }
+]
