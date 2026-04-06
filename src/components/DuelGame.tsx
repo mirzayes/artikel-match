@@ -221,6 +221,89 @@ export async function findRandomMatch(currentUserId: string): Promise<{
   });
 }
 
+/* ── Private lobby helpers ───────────────────────────────────────────── */
+
+const PRIVATE_LOBBIES = 'private-lobbies';
+
+export type PrivateLobbyStatus = 'waiting' | 'ready' | 'game';
+
+export interface PrivateLobby {
+  hostId: string;
+  status: PrivateLobbyStatus;
+  guestId?: string;
+  gameId?: string;
+}
+
+const lsPrivateKey = (code: string) => `duel-private-${code}`;
+
+export async function createPrivateLobby(code: string, hostId: string): Promise<void> {
+  const data: PrivateLobby = { hostId, status: 'waiting' };
+  if (isFirebaseConfigured && isFirebaseLive) {
+    const db = requireRtdb();
+    await set(ref(db, `${PRIVATE_LOBBIES}/${code}`), { ...data, createdAt: serverTimestamp() });
+  } else {
+    try { localStorage.setItem(lsPrivateKey(code), JSON.stringify(data)); } catch { /* ignore */ }
+  }
+}
+
+export async function joinPrivateLobby(code: string, guestId: string): Promise<void> {
+  if (isFirebaseConfigured && isFirebaseLive) {
+    const db = requireRtdb();
+    const lobbyRef = ref(db, `${PRIVATE_LOBBIES}/${code}`);
+    const snap = await get(lobbyRef);
+    if (!snap.exists()) throw new Error('Otaq tapılmadı');
+    const lobby = snap.val() as PrivateLobby;
+    if (lobby.status !== 'waiting') throw new Error('Otaq artıq doludur');
+    await update(lobbyRef, { guestId, status: 'ready' });
+  } else {
+    const raw = localStorage.getItem(lsPrivateKey(code));
+    if (!raw) throw new Error('Otaq tapılmadı');
+    const lobby = JSON.parse(raw) as PrivateLobby;
+    if (lobby.status !== 'waiting') throw new Error('Otaq artıq doludur');
+    localStorage.setItem(lsPrivateKey(code), JSON.stringify({ ...lobby, guestId, status: 'ready' }));
+  }
+}
+
+export function watchPrivateLobby(
+  code: string,
+  cb: (lobby: PrivateLobby | null) => void,
+): () => void {
+  if (isFirebaseConfigured && isFirebaseLive) {
+    const db = requireRtdb();
+    return onValue(ref(db, `${PRIVATE_LOBBIES}/${code}`), (snap) => {
+      cb((snap.val() as PrivateLobby | null) ?? null);
+    });
+  }
+  const id = window.setInterval(() => {
+    try {
+      const raw = localStorage.getItem(lsPrivateKey(code));
+      cb(raw ? (JSON.parse(raw) as PrivateLobby) : null);
+    } catch { cb(null); }
+  }, 500);
+  return () => clearInterval(id);
+}
+
+export async function activatePrivateLobby(
+  code: string,
+  hostId: string,
+  guestId: string,
+): Promise<string> {
+  if (isFirebaseConfigured && isFirebaseLive) {
+    const gameId = await createRtdbDuelRoom(hostId, guestId);
+    const db = requireRtdb();
+    await update(ref(db, `${PRIVATE_LOBBIES}/${code}`), { status: 'game', gameId });
+    return gameId;
+  }
+  const raw = localStorage.getItem(lsPrivateKey(code));
+  if (raw) {
+    const lobby = JSON.parse(raw) as PrivateLobby;
+    localStorage.setItem(lsPrivateKey(code), JSON.stringify({ ...lobby, status: 'game', gameId: 'sim' }));
+  }
+  return 'sim';
+}
+
+/* ─────────────────────────────────────────────────────────────────────── */
+
 export type DuelChatMessage = {
   key: string;
   senderId: string;
@@ -233,9 +316,11 @@ type DuelGameProps = {
   currentUserId: string;
   displayName: string;
   onExit: () => void;
+  /** When set, skips random matchmaking and joins this specific game. */
+  initialMatch?: { gameId: string; role: 'player1' | 'player2' };
 };
 
-export function DuelGame({ currentUserId, displayName, onExit }: DuelGameProps) {
+export function DuelGame({ currentUserId, displayName, onExit, initialMatch }: DuelGameProps) {
   const { t } = useTranslation();
   const [phase, setPhase] = useState<'idle' | 'matching' | 'play'>('idle');
   const storeAvatar = useGameStore((s) => s.avatar);
@@ -304,6 +389,48 @@ export function DuelGame({ currentUserId, displayName, onExit }: DuelGameProps) 
     setPicked(null);
     setPhase('play');
   }, [t]);
+
+  /* Auto-start when an initialMatch is provided (private duel) */
+  useEffect(() => {
+    if (!initialMatch) return;
+    const { gameId: gid, role: r } = initialMatch;
+    setGameId(gid);
+    setRole(r);
+    if (gid === 'sim') {
+      simulationRef.current = true;
+      void (async () => {
+        const w = await pickWords();
+        setWords(w);
+        setOpponentUid('sim_rival');
+        const av = PLAYER_AVATARS[Math.floor(Math.random() * PLAYER_AVATARS.length)]?.id ?? 'pretzel';
+        setOpponentProfile({ displayName: t('duel.training_partner'), avatar: av });
+        setP1(0); setP2(0); setIdx(0); setAnswered(false); setPicked(null);
+        setPhase('play');
+      })();
+      return;
+    }
+    simulationRef.current = false;
+    setPhase('matching');
+    void (async () => {
+      try {
+        const snap = await get(ref(requireRtdb(), `${DUELS}/${gid}`));
+        const data = snap.val() as { words?: RtdbDuelWord[] } | null;
+        setWords(Array.isArray(data?.words) ? data!.words! : []);
+        setPhase('play'); setIdx(0); setAnswered(false); setPicked(null);
+      } catch {
+        // Firebase unavailable — fall back to simulation
+        const w = await pickWords();
+        simulationRef.current = true;
+        setWords(w); setGameId('sim');
+        const av = PLAYER_AVATARS[Math.floor(Math.random() * PLAYER_AVATARS.length)]?.id ?? 'pretzel';
+        setOpponentUid('sim_rival');
+        setOpponentProfile({ displayName: t('duel.training_partner'), avatar: av });
+        setP1(0); setP2(0); setIdx(0); setAnswered(false); setPicked(null);
+        setPhase('play');
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const startMatch = async () => {
     setPhase('matching');

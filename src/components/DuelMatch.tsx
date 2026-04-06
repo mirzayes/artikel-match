@@ -14,7 +14,14 @@ import { getArticleFact } from '../data/articleFacts';
 import { avatarIdToEmoji } from '../lib/playerProfileRtdb';
 import { useGameStore } from '../store/useGameStore';
 import { getAffixWrongTeachHighlight } from '../lib/predictArticleFromAffixRules';
-import { DuelGame, getOrCreateDuelUserId } from './DuelGame';
+import {
+  DuelGame,
+  getOrCreateDuelUserId,
+  createPrivateLobby,
+  joinPrivateLobby,
+  watchPrivateLobby,
+  activatePrivateLobby,
+} from './DuelGame';
 
 const DUEL_GOAL = 20;
 const PLAYER_WRONG_PENALTY = 2;
@@ -80,6 +87,20 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const duelUid = useMemo(() => getOrCreateDuelUserId(), []);
+
+  /* ── Private duel state ───────────────────────────────────────────── */
+  const [privateDuelScreen, setPrivateDuelScreen] =
+    useState<'hidden' | 'menu' | 'hosting' | 'joining' | 'joined'>('hidden');
+  const [privateCode, setPrivateCode] = useState('');
+  const [joinInput, setJoinInput] = useState('');
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [joinLoading, setJoinLoading] = useState(false);
+  const [privateMatch, setPrivateMatch] = useState<{
+    gameId: string;
+    role: 'player1' | 'player2';
+  } | null>(null);
+  const privateLobbyUnsubRef = useRef<(() => void) | null>(null);
+  const privateActivatingRef = useRef(false);
   const [glossLang] = useGlossLanguage();
   const { remoteGlossById, remoteGlossReady } = useGlossRemote();
 
@@ -158,6 +179,7 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
       if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
       if (xpTimerRef.current) clearTimeout(xpTimerRef.current);
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (privateLobbyUnsubRef.current) privateLobbyUnsubRef.current();
     };
   }, []);
 
@@ -174,6 +196,87 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
       toastTimerRef.current = null;
       setToastMsg(null);
     }, TOAST_MS);
+  };
+
+  /* ── Private duel handlers ────────────────────────────────────────── */
+
+  const closePrivateDuel = () => {
+    setPrivateDuelScreen('hidden');
+    if (privateLobbyUnsubRef.current) {
+      privateLobbyUnsubRef.current();
+      privateLobbyUnsubRef.current = null;
+    }
+    privateActivatingRef.current = false;
+    setPrivateCode('');
+    setJoinInput('');
+    setJoinError(null);
+  };
+
+  const handleCopyPrivateCode = async (code: string) => {
+    const link = buildInviteLink(code);
+    try {
+      await navigator.clipboard.writeText(link);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = link;
+      ta.style.cssText = 'position:fixed;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    showToast('Kopyalandı!');
+  };
+
+  const handleCreatePrivateRoom = async () => {
+    const code = generateRoomCode();
+    setPrivateCode(code);
+    setPrivateDuelScreen('hosting');
+    privateActivatingRef.current = false;
+    await createPrivateLobby(code, duelUid);
+    privateLobbyUnsubRef.current = watchPrivateLobby(code, (lobby) => {
+      if (!lobby) return;
+      if (lobby.status === 'ready' && lobby.guestId && !privateActivatingRef.current) {
+        privateActivatingRef.current = true;
+        if (privateLobbyUnsubRef.current) {
+          privateLobbyUnsubRef.current();
+          privateLobbyUnsubRef.current = null;
+        }
+        void activatePrivateLobby(code, duelUid, lobby.guestId).then((gameId) => {
+          setPrivateMatch({ gameId, role: 'player1' });
+          setPrivateDuelScreen('hidden');
+          setOnlineDuel(true);
+        });
+      }
+    });
+  };
+
+  const handleJoinPrivateRoom = async () => {
+    const code = joinInput.trim().toUpperCase();
+    if (code.length < 6) { setJoinError('6 simvol daxil edin'); return; }
+    setJoinLoading(true);
+    setJoinError(null);
+    try {
+      await joinPrivateLobby(code, duelUid);
+      setPrivateCode(code);
+      setPrivateDuelScreen('joined');
+      privateLobbyUnsubRef.current = watchPrivateLobby(code, (lobby) => {
+        if (!lobby) return;
+        if (lobby.status === 'game' && lobby.gameId) {
+          if (privateLobbyUnsubRef.current) {
+            privateLobbyUnsubRef.current();
+            privateLobbyUnsubRef.current = null;
+          }
+          setPrivateMatch({ gameId: lobby.gameId, role: 'player2' });
+          setPrivateDuelScreen('hidden');
+          setOnlineDuel(true);
+        }
+      });
+    } catch (e) {
+      setJoinError(e instanceof Error ? e.message : 'Xəta baş verdi');
+    } finally {
+      setJoinLoading(false);
+    }
   };
 
   const handleShareLink = async () => {
@@ -338,7 +441,8 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
       <DuelGame
         currentUserId={duelUid}
         displayName={displayName}
-        onExit={() => setOnlineDuel(false)}
+        onExit={() => { setOnlineDuel(false); setPrivateMatch(null); }}
+        initialMatch={privateMatch ?? undefined}
       />
     );
   }
@@ -359,13 +463,23 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
           >
             {t('duel.find_opponent')}
           </button>
-          <button
-            type="button"
-            onClick={() => void handleShareLink()}
-            className="mb-2 w-full rounded-xl border border-[rgba(255,255,255,0.1)] bg-white/[0.06] py-2.5 text-sm font-semibold text-[rgba(232,232,245,0.82)] transition-transform active:scale-[0.98]"
-          >
-            <span className="mr-1.5" aria-hidden>🔗</span>Duel linki paylaş
-          </button>
+          <div className="mb-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setPrivateDuelScreen('menu')}
+              className="flex-1 rounded-xl border border-[rgba(255,190,80,0.35)] bg-gradient-to-r from-[rgba(255,160,40,0.18)] to-[rgba(255,100,60,0.12)] py-2.5 text-sm font-bold text-[rgba(255,220,140,0.95)] shadow-[0_4px_18px_rgba(255,150,50,0.15)] transition-transform active:scale-[0.98]"
+            >
+              <span className="mr-1.5" aria-hidden>🎮</span>Xüsusi duel
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleShareLink()}
+              className="rounded-xl border border-[rgba(255,255,255,0.1)] bg-white/[0.06] px-4 py-2.5 text-sm font-semibold text-[rgba(232,232,245,0.7)] transition-transform active:scale-[0.98]"
+              aria-label="Duel linki paylaş"
+            >
+              🔗
+            </button>
+          </div>
           <p className="mb-3 text-center text-[10px] leading-snug text-[rgba(232,232,245,0.42)]">
             {t('duel.find_opponent_sub')}
           </p>
@@ -488,6 +602,148 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
                 {t('duel.home')}
               </button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ── Private Duel Panel ─────────────────────────────────────────── */}
+      {privateDuelScreen !== 'hidden' ? (
+        <div className="fixed inset-0 z-[65] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-[360px] rounded-[22px] border border-white/[0.12] bg-gradient-to-b from-[rgba(255,140,40,0.10)] via-[rgba(18,18,28,0.96)] to-[rgba(12,12,18,0.99)] px-6 py-7 shadow-[0_24px_64px_rgba(0,0,0,0.55)]">
+
+            {/* Header */}
+            <div className="mb-5 flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#ffcc80]/80">
+                Xüsusi duel
+              </p>
+              <button
+                type="button"
+                onClick={closePrivateDuel}
+                className="text-lg leading-none text-white/35 transition-colors hover:text-white/70"
+                aria-label="Bağla"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* ── MENU screen ── */}
+            {privateDuelScreen === 'menu' && (
+              <>
+                <h2 className="mb-1 text-center font-display text-lg font-bold text-white">
+                  Bacı ilə oyna
+                </h2>
+                <p className="mb-6 text-center text-[12px] leading-relaxed text-[rgba(232,232,245,0.48)]">
+                  Otaq aç, kodu dostuna göndər — ya da onun kodunu daxil et
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void handleCreatePrivateRoom()}
+                  className="mb-3 w-full rounded-xl bg-gradient-to-r from-[#f59e0b] to-[#ef4444] py-3 text-sm font-bold text-white shadow-[0_10px_28px_rgba(245,158,11,0.28)] transition-transform active:scale-[0.98]"
+                >
+                  Yeni otaq aç
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrivateDuelScreen('joining')}
+                  className="w-full rounded-xl border border-white/15 bg-white/[0.05] py-3 text-sm font-semibold text-[rgba(232,232,245,0.78)] transition-transform active:scale-[0.98]"
+                >
+                  Koda qoşul
+                </button>
+              </>
+            )}
+
+            {/* ── HOSTING screen — waiting for guest ── */}
+            {privateDuelScreen === 'hosting' && (
+              <>
+                <h2 className="mb-1 text-center font-display text-lg font-bold text-white">
+                  Otaq açıldı
+                </h2>
+                <p className="mb-4 text-center text-[12px] text-[rgba(232,232,245,0.50)]">
+                  Bu kodu dostuna göndər
+                </p>
+                <div className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3">
+                  <span className="font-mono text-2xl font-bold tracking-[0.25em] text-white">
+                    {privateCode}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void handleCopyPrivateCode(privateCode)}
+                    className="rounded-lg border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white/80 transition-colors hover:bg-white/20 active:scale-95"
+                  >
+                    Kopyala
+                  </button>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-[13px] text-[rgba(232,232,245,0.55)]">
+                  <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-amber-400/70" />
+                  Rəqib gözlənilir...
+                </div>
+              </>
+            )}
+
+            {/* ── JOINED screen — guest waiting for host to start ── */}
+            {privateDuelScreen === 'joined' && (
+              <>
+                <h2 className="mb-1 text-center font-display text-lg font-bold text-white">
+                  Qoşulundu!
+                </h2>
+                <p className="mb-4 text-center text-[12px] text-[rgba(232,232,245,0.50)]">
+                  Otaq kodu
+                </p>
+                <div className="mb-5 flex items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3">
+                  <span className="font-mono text-2xl font-bold tracking-[0.25em] text-white">
+                    {privateCode}
+                  </span>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-[13px] text-[rgba(232,232,245,0.55)]">
+                  <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-400/70" />
+                  Oyun başlayır...
+                </div>
+              </>
+            )}
+
+            {/* ── JOINING screen — enter friend's code ── */}
+            {privateDuelScreen === 'joining' && (
+              <>
+                <h2 className="mb-1 text-center font-display text-lg font-bold text-white">
+                  Koda qoşul
+                </h2>
+                <p className="mb-5 text-center text-[12px] text-[rgba(232,232,245,0.50)]">
+                  Dostunun otaq kodunu daxil et
+                </p>
+                <input
+                  type="text"
+                  value={joinInput}
+                  onChange={(e) =>
+                    setJoinInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))
+                  }
+                  placeholder="AB12CD"
+                  maxLength={6}
+                  autoFocus
+                  className="mb-3 w-full rounded-xl border border-white/15 bg-white/[0.07] px-4 py-3 text-center font-mono text-2xl font-bold tracking-[0.25em] text-white placeholder-white/20 outline-none focus:border-amber-500/60 transition-colors"
+                />
+                {joinError ? (
+                  <p className="mb-3 text-center text-[12px] text-rose-400">{joinError}</p>
+                ) : (
+                  <div className="mb-3 h-5" />
+                )}
+                <button
+                  type="button"
+                  onClick={() => void handleJoinPrivateRoom()}
+                  disabled={joinLoading || joinInput.trim().length < 6}
+                  className="w-full rounded-xl bg-gradient-to-r from-[#f59e0b] to-[#ef4444] py-3 text-sm font-bold text-white shadow-[0_10px_28px_rgba(245,158,11,0.28)] transition-transform active:scale-[0.98] disabled:opacity-40"
+                >
+                  {joinLoading ? 'Yüklənir...' : 'Qoşul'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrivateDuelScreen('menu')}
+                  className="mt-3 w-full text-center text-[12px] text-[rgba(232,232,245,0.38)] transition-colors hover:text-[rgba(232,232,245,0.65)]"
+                >
+                  Geri
+                </button>
+              </>
+            )}
+
           </div>
         </div>
       ) : null}
