@@ -34,6 +34,7 @@ const DUELS = 'duels';
 const MATCHMAKING = 'matchmaking';
 const WORDS_COUNT = 10;
 const ROOM_ATTEMPTS = 40;
+const DUEL_DURATION_S = 60;
 
 export type RtdbDuelWord = {
   id: string;
@@ -350,6 +351,11 @@ export function DuelGame({ currentUserId, displayName, onExit, initialMatch }: D
   const [role, setRole] = useState<'player1' | 'player2' | null>(null);
   const [words, setWords] = useState<RtdbDuelWord[]>([]);
   const [idx, setIdx] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(DUEL_DURATION_S);
+  const [timesUp, setTimesUp] = useState(false);
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Indices already shown in this session — never repeat. */
+  const shownIdxsRef = useRef<Set<number>>(new Set());
   const [p1, setP1] = useState(0);
   const [p2, setP2] = useState(0);
   const [answered, setAnswered] = useState(false);
@@ -397,6 +403,7 @@ export function DuelGame({ currentUserId, displayName, onExit, initialMatch }: D
     await new Promise((r) => setTimeout(r, 550 + Math.random() * 450));
     const w = await pickWords();
     simulationRef.current = true;
+    shownIdxsRef.current = new Set();
     setWords(w);
     setGameId('sim');
     setRole('player1');
@@ -406,6 +413,8 @@ export function DuelGame({ currentUserId, displayName, onExit, initialMatch }: D
     setP1(0);
     setP2(0);
     setIdx(0);
+    setTimeLeft(DUEL_DURATION_S);
+    setTimesUp(false);
     setAnswered(false);
     setPicked(null);
     setPhase('play');
@@ -421,11 +430,14 @@ export function DuelGame({ currentUserId, displayName, onExit, initialMatch }: D
       simulationRef.current = true;
       void (async () => {
         const w = await pickWords();
+        shownIdxsRef.current = new Set();
         setWords(w);
         setOpponentUid('sim_rival');
         const av = PLAYER_AVATARS[Math.floor(Math.random() * PLAYER_AVATARS.length)]?.id ?? 'pretzel';
         setOpponentProfile({ displayName: t('duel.training_partner'), avatar: av });
-        setP1(0); setP2(0); setIdx(0); setAnswered(false); setPicked(null);
+        setP1(0); setP2(0); setIdx(0);
+        setTimeLeft(DUEL_DURATION_S); setTimesUp(false);
+        setAnswered(false); setPicked(null);
         setPhase('play');
       })();
       return;
@@ -437,16 +449,21 @@ export function DuelGame({ currentUserId, displayName, onExit, initialMatch }: D
         const snap = await get(ref(requireRtdb(), `${DUELS}/${gid}`));
         const data = snap.val() as { words?: RtdbDuelWord[] } | null;
         setWords(Array.isArray(data?.words) ? data!.words! : []);
+        shownIdxsRef.current = new Set();
+        setTimeLeft(DUEL_DURATION_S); setTimesUp(false);
         setPhase('play'); setIdx(0); setAnswered(false); setPicked(null);
       } catch {
         // Firebase unavailable — fall back to simulation
         const w = await pickWords();
         simulationRef.current = true;
+        shownIdxsRef.current = new Set();
         setWords(w); setGameId('sim');
         const av = PLAYER_AVATARS[Math.floor(Math.random() * PLAYER_AVATARS.length)]?.id ?? 'pretzel';
         setOpponentUid('sim_rival');
         setOpponentProfile({ displayName: t('duel.training_partner'), avatar: av });
-        setP1(0); setP2(0); setIdx(0); setAnswered(false); setPicked(null);
+        setP1(0); setP2(0); setIdx(0);
+        setTimeLeft(DUEL_DURATION_S); setTimesUp(false);
+        setAnswered(false); setPicked(null);
         setPhase('play');
       }
     })();
@@ -468,6 +485,9 @@ export function DuelGame({ currentUserId, displayName, onExit, initialMatch }: D
       const snap = await get(ref(requireRtdb(), `${DUELS}/${gid}`));
       const data = snap.val() as { words?: RtdbDuelWord[] } | null;
       setWords(Array.isArray(data?.words) ? data!.words! : []);
+      shownIdxsRef.current = new Set();
+      setTimeLeft(DUEL_DURATION_S);
+      setTimesUp(false);
       setPhase('play');
       setIdx(0);
       setAnswered(false);
@@ -624,8 +644,34 @@ export function DuelGame({ currentUserId, displayName, onExit, initialMatch }: D
     return () => clearInterval(tid);
   }, [gameId, phase]);
 
+  /** 60-second countdown — starts when game begins, ends game when it hits 0. */
+  useEffect(() => {
+    if (phase !== 'play' || timesUp) {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      return;
+    }
+    timerIntervalRef.current = window.setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          setTimesUp(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    };
+  }, [phase, timesUp]);
+
   const handlePick = async (a: Article) => {
-    if (!current || answered || !gameId || !role) return;
+    if (!current || answered || !gameId || !role || timesUp) return;
     setPicked(a);
     setAnswered(true);
     const ok = a === current.article;
@@ -634,7 +680,15 @@ export function DuelGame({ currentUserId, displayName, onExit, initialMatch }: D
     window.setTimeout(() => {
       setAnswered(false);
       setPicked(null);
-      setIdx((i) => (i + 1 >= words.length ? 0 : i + 1));
+      // Mark current index as shown — never return to it
+      shownIdxsRef.current.add(idx);
+      const unseen = words.map((_, i) => i).filter((i) => !shownIdxsRef.current.has(i));
+      if (unseen.length === 0) {
+        // All words used up — end by time-up
+        setTimesUp(true);
+      } else {
+        setIdx(unseen[0]!);
+      }
     }, 650);
   };
 
@@ -712,6 +766,22 @@ export function DuelGame({ currentUserId, displayName, onExit, initialMatch }: D
       <div className="artikl-scene w-full max-w-[420px]">
         <div className="px-4 pt-3">
           <p className="text-center text-[10px] text-[var(--artikl-muted)]">{summary}</p>
+
+          {/* ── Countdown timer ── */}
+          <div className="mt-2 flex items-center justify-center gap-1.5">
+            <span
+              className={`font-mono text-2xl font-bold tabular-nums transition-colors ${
+                timeLeft <= 10
+                  ? 'animate-pulse text-rose-400'
+                  : timeLeft <= 20
+                  ? 'text-amber-400'
+                  : 'text-white/60'
+              }`}
+            >
+              0:{String(timeLeft).padStart(2, '0')}
+            </span>
+          </div>
+
           <div className="mt-3 flex items-stretch justify-between gap-3">
             <div className="min-w-0 flex-1 rounded-xl border border-emerald-400/25 bg-gradient-to-br from-emerald-500/10 to-white/[0.04] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
               <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300/90">
@@ -892,6 +962,69 @@ export function DuelGame({ currentUserId, displayName, onExit, initialMatch }: D
           {t('duel.exit')}
         </button>
       </div>
+
+      {/* ── Times-up result overlay ── */}
+      {timesUp && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[rgba(18,18,28,0.98)] p-6 text-center shadow-2xl">
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-400/90">
+              Duel
+            </p>
+            <h2 className="mt-1 font-display text-2xl font-bold text-white">Vaxt bitdi! ⏱</h2>
+            <div className="mt-5 flex items-center justify-center gap-6">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-300/80">
+                  {myLabel}
+                </p>
+                <p className="mt-1 font-mono text-4xl font-bold tabular-nums text-white">
+                  {myScore}
+                </p>
+              </div>
+              <span className="text-2xl text-white/25">:</span>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-violet-300/80">
+                  {oppLabel}
+                </p>
+                <p className="mt-1 font-mono text-4xl font-bold tabular-nums text-white">
+                  {oppScore}
+                </p>
+              </div>
+            </div>
+            <p className="mt-4 text-base font-semibold text-white">
+              {myScore > oppScore
+                ? t('duel.victory')
+                : myScore < oppScore
+                ? t('duel.defeat')
+                : 'Bərabər! 🤝'}
+            </p>
+            <div className="mt-6 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  shownIdxsRef.current = new Set();
+                  setTimeLeft(DUEL_DURATION_S);
+                  setTimesUp(false);
+                  setP1(0);
+                  setP2(0);
+                  setIdx(0);
+                  setAnswered(false);
+                  setPicked(null);
+                }}
+                className="w-full rounded-xl bg-gradient-to-r from-[#7c6cf8] to-[#b84fd4] py-3 text-sm font-bold text-white shadow-[0_8px_24px_rgba(124,108,248,0.3)] transition-transform active:scale-[0.98]"
+              >
+                Yenidən
+              </button>
+              <button
+                type="button"
+                onClick={exitOnlineDuel}
+                className="w-full rounded-xl border border-white/15 py-3 text-sm font-semibold text-[rgba(232,232,245,0.75)]"
+              >
+                {t('duel.exit')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
