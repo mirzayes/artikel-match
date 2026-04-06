@@ -32,7 +32,6 @@ import { ArticleButton, type ArticleBtnMode } from './quiz/ArticleButton';
 
 const DUELS = 'duels';
 const MATCHMAKING = 'matchmaking';
-const WORDS_COUNT = 10;
 const ROOM_ATTEMPTS = 40;
 const DUEL_DURATION_S = 60;
 
@@ -355,7 +354,7 @@ export function DuelGame({ currentUserId, displayName, onExit, initialMatch }: D
   const [idx, setIdx] = useState(0);
   const [timeLeft, setTimeLeft] = useState(DUEL_DURATION_S);
   const [timesUp, setTimesUp] = useState(false);
-  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerIntervalRef = useRef<any>(null);
   /** Indices already shown in this session — never repeat. */
   const shownIdxsRef = useRef<Set<number>>(new Set());
   const [p1, setP1] = useState(0);
@@ -655,6 +654,7 @@ export function DuelGame({ currentUserId, displayName, onExit, initialMatch }: D
       }
       return;
     }
+    // @ts-ignore
     timerIntervalRef.current = window.setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
