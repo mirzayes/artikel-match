@@ -25,15 +25,15 @@ function trimEnv(key: string): string {
   }
 }
 
-/** Offline-shaped config used when any VITE_FIREBASE_* value is unset or empty. */
+/** Fallback config used when any VITE_FIREBASE_* value is unset or empty. */
 const PLACEHOLDER_FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyDummy-ArtikelMatch-DevOnlyKey000000',
-  authDomain: 'artikel-match-offline.firebaseapp.com',
-  databaseURL: 'https://artikel-match-offline-default-rtdb.firebaseio.com',
-  projectId: 'artikel-match-offline',
-  storageBucket: 'artikel-match-offline.appspot.com',
-  messagingSenderId: '000000000000',
-  appId: '1:000000000000:web:000000000000000000000',
+  apiKey: 'AIzaSyCrPuWNbhqz9tHji4EQuLPwofmqmYuBmQc',
+  authDomain: 'artikelmatch.firebaseapp.com',
+  databaseURL: 'https://artikelmatch-default-rtdb.europe-west1.firebasedatabase.app',
+  projectId: 'artikelmatch',
+  storageBucket: 'artikelmatch.firebasestorage.app',
+  messagingSenderId: '114813253843',
+  appId: '1:114813253843:web:8e343716880f52f76bfc26',
 } as const;
 
 function buildFirebaseConfig() {
