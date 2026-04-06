@@ -74,38 +74,40 @@ function shuffleInPlace<T>(arr: T[]): void {
   }
 }
 
-async function loadA1Words(): Promise<RtdbDuelWord[]> {
+async function loadAllDuelWords(): Promise<RtdbDuelWord[]> {
   const base = import.meta.env.BASE_URL ?? '/';
   const trimmed = base.endsWith('/') ? base : `${base}/`;
   const res = await fetch(`${trimmed}goethe-lexicon.json`, { cache: 'no-store' });
   if (!res.ok) throw new Error(`goethe-lexicon.json: ${res.status}`);
   const data = (await res.json()) as LexiconRoot;
-  const a1 = data.A1;
-  if (!Array.isArray(a1) || a1.length === 0) throw new Error('No A1 words in lexicon');
-  return a1
-    .filter(
-      (w): w is LexiconRow =>
-        typeof w?.id === 'string' &&
-        typeof w?.word === 'string' &&
-        (w.article === 'der' || w.article === 'die' || w.article === 'das'),
-    )
-    .map((w) => {
+  const rows: RtdbDuelWord[] = [];
+  for (const level of Object.keys(data)) {
+    const bucket = data[level];
+    if (!Array.isArray(bucket)) continue;
+    for (const w of bucket as LexiconRow[]) {
+      if (
+        typeof w?.id !== 'string' ||
+        typeof w?.word !== 'string' ||
+        (w.article !== 'der' && w.article !== 'die' && w.article !== 'das')
+      ) continue;
       const az = w.translations?.az?.trim();
-      return {
+      rows.push({
         id: w.id,
         article: w.article,
         word: w.word,
         translation: az || w.translation,
         ...(w.category ? { category: w.category } : {}),
-      };
-    });
+      });
+    }
+  }
+  if (rows.length === 0) throw new Error('No words in lexicon');
+  return rows;
 }
 
 async function pickWords(): Promise<RtdbDuelWord[]> {
-  const pool = await loadA1Words();
-  if (pool.length < WORDS_COUNT) throw new Error(`Need at least ${WORDS_COUNT} A1 words`);
+  const pool = await loadAllDuelWords();
   shuffleInPlace(pool);
-  return pool.slice(0, WORDS_COUNT);
+  return pool;
 }
 
 /**
@@ -680,17 +682,11 @@ export function DuelGame({ currentUserId, displayName, onExit, initialMatch }: D
     window.setTimeout(() => {
       setAnswered(false);
       setPicked(null);
-      // Mark current index as shown
+      // Mark current index as shown — never revisit it this session
       shownIdxsRef.current.add(idx);
       const unseen = words.map((_, i) => i).filter((i) => !shownIdxsRef.current.has(i));
-      if (unseen.length === 0) {
-        // All words cycled — reset shown set but never repeat the word just answered
-        shownIdxsRef.current = new Set([idx]);
-        const fresh = words.map((_, i) => i).filter((i) => i !== idx);
-        setIdx(fresh[Math.floor(Math.random() * fresh.length)] ?? 0);
-      } else {
-        setIdx(unseen[0]!);
-      }
+      // Pick randomly from remaining unseen words
+      setIdx(unseen[Math.floor(Math.random() * unseen.length)] ?? idx);
     }, 650);
   };
 
