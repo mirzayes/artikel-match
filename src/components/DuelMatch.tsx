@@ -231,52 +231,76 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
 
   const handleCreatePrivateRoom = async () => {
     const code = generateRoomCode();
+    console.log('[PrivateDuel] HOST flow start, code=', code, 'uid=', duelUid);
     setPrivateCode(code);
     setPrivateDuelScreen('hosting');
     privateActivatingRef.current = false;
-    await createPrivateLobby(code, duelUid);
+
+    // Attach watcher BEFORE creating room so we never miss an update
     privateLobbyUnsubRef.current = watchPrivateLobby(code, (lobby) => {
       if (!lobby) return;
+      console.log('[PrivateDuel] HOST watcher fired, status=', lobby.status, lobby);
       if (lobby.status === 'ready' && lobby.guestId && !privateActivatingRef.current) {
+        console.log('[PrivateDuel] HOST detected guest joined — activating game');
         privateActivatingRef.current = true;
         if (privateLobbyUnsubRef.current) {
           privateLobbyUnsubRef.current();
           privateLobbyUnsubRef.current = null;
         }
         void activatePrivateLobby(code, duelUid, lobby.guestId).then((gameId) => {
+          console.log('[PrivateDuel] HOST starting game, gameId=', gameId);
           setPrivateMatch({ gameId, role: 'player1' });
           setPrivateDuelScreen('hidden');
           setOnlineDuel(true);
-          // Room cleanup handled by activatePrivateLobby (8 s delay for guest)
+        }).catch((err) => {
+          console.error('[PrivateDuel] HOST activatePrivateLobby failed', err);
         });
       }
     });
+
+    try {
+      await createPrivateLobby(code, duelUid);
+    } catch (err) {
+      console.error('[PrivateDuel] HOST createPrivateLobby failed', err);
+      // Clean up watcher and reset UI on failure
+      if (privateLobbyUnsubRef.current) {
+        privateLobbyUnsubRef.current();
+        privateLobbyUnsubRef.current = null;
+      }
+      setPrivateDuelScreen('menu');
+      showToast('Otaq açılmadı. Firebase icazəsini yoxla.');
+    }
   };
 
   const handleJoinPrivateRoom = async () => {
     const code = joinInput.trim().toUpperCase();
     if (code.length < 6) { setJoinError('6 simvol daxil edin'); return; }
+    console.log('[PrivateDuel] GUEST flow start, code=', code, 'uid=', duelUid);
     setJoinLoading(true);
     setJoinError(null);
     try {
       await joinPrivateLobby(code, duelUid);
+      console.log('[PrivateDuel] GUEST joined OK, now watching for game start');
       setPrivateCode(code);
       setPrivateDuelScreen('joined');
       privateLobbyUnsubRef.current = watchPrivateLobby(code, (lobby) => {
         if (!lobby) return;
+        console.log('[PrivateDuel] GUEST watcher fired, status=', lobby.status, lobby);
         if (lobby.status === 'game' && lobby.gameId) {
+          console.log('[PrivateDuel] GUEST starting game, gameId=', lobby.gameId);
           if (privateLobbyUnsubRef.current) {
             privateLobbyUnsubRef.current();
             privateLobbyUnsubRef.current = null;
           }
           const gid = lobby.gameId;
-          deletePrivateRoom(code); // guest removes the room immediately
+          deletePrivateRoom(code);
           setPrivateMatch({ gameId: gid, role: 'player2' });
           setPrivateDuelScreen('hidden');
           setOnlineDuel(true);
         }
       });
     } catch (e) {
+      console.error('[PrivateDuel] GUEST joinPrivateLobby failed', e);
       setJoinError(e instanceof Error ? e.message : 'Xəta baş verdi');
     } finally {
       setJoinLoading(false);

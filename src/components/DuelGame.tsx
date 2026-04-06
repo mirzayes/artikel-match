@@ -16,6 +16,7 @@ import {
 } from 'firebase/database';
 import type { Article } from '../types';
 import { isFirebaseConfigured, isFirebaseLive, requireRtdb, rtdb } from '../lib/firebase';
+import { db as roomsDb } from '../firebase';
 import { sendFriendRequest } from '../lib/friendsRtdb';
 import {
   PLAYER_AVATARS,
@@ -223,8 +224,6 @@ export async function findRandomMatch(currentUserId: string): Promise<{
 
 /* ── Private lobby helpers (Firebase RTDB /rooms/{code}) ─────────────── */
 
-import { db as roomsDb } from '../firebase';
-
 const ROOMS = 'rooms';
 
 export type PrivateLobbyStatus = 'waiting' | 'ready' | 'game';
@@ -245,21 +244,39 @@ function roomRef(code: string) {
 
 /** Host: creates /rooms/{code} with status "waiting". */
 export async function createPrivateLobby(code: string, hostId: string): Promise<void> {
-  await set(roomRef(code), {
-    status: 'waiting',
-    host: true,
-    hostId,
-    createdAt: serverTimestamp(),
-  });
+  const path = `rooms/${code}`;
+  console.log(`[PrivateDuel] HOST creating room at /${path}`, { hostId });
+  try {
+    await set(roomRef(code), {
+      status: 'waiting',
+      host: true,
+      hostId,
+      createdAt: serverTimestamp(),
+    });
+    console.log(`[PrivateDuel] HOST room created OK at /${path}`);
+  } catch (err) {
+    console.error(`[PrivateDuel] HOST failed to create room at /${path}`, err);
+    throw err;
+  }
 }
 
 /** Guest: reads /rooms/{code}, validates it is still open, then marks "ready". */
 export async function joinPrivateLobby(code: string, guestId: string): Promise<void> {
+  const path = `rooms/${code}`;
+  console.log(`[PrivateDuel] GUEST joining room at /${path}`, { guestId });
   const snap = await get(roomRef(code));
-  if (!snap.exists()) throw new Error('Otaq tapılmadı');
+  if (!snap.exists()) {
+    console.error(`[PrivateDuel] GUEST room not found at /${path}`);
+    throw new Error('Otaq tapılmadı');
+  }
   const lobby = snap.val() as PrivateLobby;
-  if (lobby.status !== 'waiting') throw new Error('Otaq artıq doludur');
+  console.log(`[PrivateDuel] GUEST read room:`, lobby);
+  if (lobby.status !== 'waiting') {
+    console.error(`[PrivateDuel] GUEST room not open, status=${lobby.status}`);
+    throw new Error('Otaq artıq doludur');
+  }
   await update(roomRef(code), { status: 'ready', guest: true, guestId });
+  console.log(`[PrivateDuel] GUEST wrote status=ready to /${path}`);
 }
 
 /** Subscribe to /rooms/{code} via onValue; returns the unsubscribe fn. */
@@ -267,9 +284,19 @@ export function watchPrivateLobby(
   code: string,
   cb: (lobby: PrivateLobby | null) => void,
 ): () => void {
-  return onValue(roomRef(code), (snap) => {
-    cb((snap.val() as PrivateLobby | null) ?? null);
-  });
+  const path = `rooms/${code}`;
+  console.log(`[PrivateDuel] Attaching onValue listener to /${path}`);
+  return onValue(
+    roomRef(code),
+    (snap) => {
+      const data = (snap.val() as PrivateLobby | null) ?? null;
+      console.log(`[PrivateDuel] onValue fired for /${path}:`, data);
+      cb(data);
+    },
+    (err) => {
+      console.error(`[PrivateDuel] onValue error for /${path}:`, err);
+    },
+  );
 }
 
 /**
@@ -281,8 +308,10 @@ export async function activatePrivateLobby(
   hostId: string,
   guestId: string,
 ): Promise<string> {
+  console.log(`[PrivateDuel] HOST activating room rooms/${code}`, { hostId, guestId });
   const gameId = await createRtdbDuelRoom(hostId, guestId);
   await update(roomRef(code), { status: 'game', gameId });
+  console.log(`[PrivateDuel] HOST wrote status=game, gameId=${gameId}`);
   // Remove room after 8 s — gives guest time to read gameId
   window.setTimeout(() => void remove(roomRef(code)), 8000);
   return gameId;
@@ -290,6 +319,7 @@ export async function activatePrivateLobby(
 
 /** Guest (or either side): explicitly removes /rooms/{code} once game is live. */
 export function deletePrivateRoom(code: string): void {
+  console.log(`[PrivateDuel] Removing room rooms/${code}`);
   void remove(roomRef(code));
 }
 
