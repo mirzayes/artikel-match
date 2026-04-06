@@ -221,85 +221,76 @@ export async function findRandomMatch(currentUserId: string): Promise<{
   });
 }
 
-/* ── Private lobby helpers ───────────────────────────────────────────── */
+/* ── Private lobby helpers (Firebase RTDB /rooms/{code}) ─────────────── */
 
-const PRIVATE_LOBBIES = 'private-lobbies';
+import { db as roomsDb } from '../firebase';
+
+const ROOMS = 'rooms';
 
 export type PrivateLobbyStatus = 'waiting' | 'ready' | 'game';
 
 export interface PrivateLobby {
-  hostId: string;
   status: PrivateLobbyStatus;
+  host?: boolean;
+  guest?: boolean;
+  hostId?: string;
   guestId?: string;
   gameId?: string;
 }
 
-const lsPrivateKey = (code: string) => `duel-private-${code}`;
+/** Returns a DatabaseReference for /rooms/{code}. */
+function roomRef(code: string) {
+  return ref(roomsDb, `${ROOMS}/${code}`);
+}
 
+/** Host: creates /rooms/{code} with status "waiting". */
 export async function createPrivateLobby(code: string, hostId: string): Promise<void> {
-  const data: PrivateLobby = { hostId, status: 'waiting' };
-  if (isFirebaseConfigured && isFirebaseLive) {
-    const db = requireRtdb();
-    await set(ref(db, `${PRIVATE_LOBBIES}/${code}`), { ...data, createdAt: serverTimestamp() });
-  } else {
-    try { localStorage.setItem(lsPrivateKey(code), JSON.stringify(data)); } catch { /* ignore */ }
-  }
+  await set(roomRef(code), {
+    status: 'waiting',
+    host: true,
+    hostId,
+    createdAt: serverTimestamp(),
+  });
 }
 
+/** Guest: reads /rooms/{code}, validates it is still open, then marks "ready". */
 export async function joinPrivateLobby(code: string, guestId: string): Promise<void> {
-  if (isFirebaseConfigured && isFirebaseLive) {
-    const db = requireRtdb();
-    const lobbyRef = ref(db, `${PRIVATE_LOBBIES}/${code}`);
-    const snap = await get(lobbyRef);
-    if (!snap.exists()) throw new Error('Otaq tapılmadı');
-    const lobby = snap.val() as PrivateLobby;
-    if (lobby.status !== 'waiting') throw new Error('Otaq artıq doludur');
-    await update(lobbyRef, { guestId, status: 'ready' });
-  } else {
-    const raw = localStorage.getItem(lsPrivateKey(code));
-    if (!raw) throw new Error('Otaq tapılmadı');
-    const lobby = JSON.parse(raw) as PrivateLobby;
-    if (lobby.status !== 'waiting') throw new Error('Otaq artıq doludur');
-    localStorage.setItem(lsPrivateKey(code), JSON.stringify({ ...lobby, guestId, status: 'ready' }));
-  }
+  const snap = await get(roomRef(code));
+  if (!snap.exists()) throw new Error('Otaq tapılmadı');
+  const lobby = snap.val() as PrivateLobby;
+  if (lobby.status !== 'waiting') throw new Error('Otaq artıq doludur');
+  await update(roomRef(code), { status: 'ready', guest: true, guestId });
 }
 
+/** Subscribe to /rooms/{code} via onValue; returns the unsubscribe fn. */
 export function watchPrivateLobby(
   code: string,
   cb: (lobby: PrivateLobby | null) => void,
 ): () => void {
-  if (isFirebaseConfigured && isFirebaseLive) {
-    const db = requireRtdb();
-    return onValue(ref(db, `${PRIVATE_LOBBIES}/${code}`), (snap) => {
-      cb((snap.val() as PrivateLobby | null) ?? null);
-    });
-  }
-  const id = window.setInterval(() => {
-    try {
-      const raw = localStorage.getItem(lsPrivateKey(code));
-      cb(raw ? (JSON.parse(raw) as PrivateLobby) : null);
-    } catch { cb(null); }
-  }, 500);
-  return () => clearInterval(id);
+  return onValue(roomRef(code), (snap) => {
+    cb((snap.val() as PrivateLobby | null) ?? null);
+  });
 }
 
+/**
+ * Host: creates the shared duel room, writes gameId back to /rooms/{code},
+ * then schedules cleanup so the guest has time to read gameId.
+ */
 export async function activatePrivateLobby(
   code: string,
   hostId: string,
   guestId: string,
 ): Promise<string> {
-  if (isFirebaseConfigured && isFirebaseLive) {
-    const gameId = await createRtdbDuelRoom(hostId, guestId);
-    const db = requireRtdb();
-    await update(ref(db, `${PRIVATE_LOBBIES}/${code}`), { status: 'game', gameId });
-    return gameId;
-  }
-  const raw = localStorage.getItem(lsPrivateKey(code));
-  if (raw) {
-    const lobby = JSON.parse(raw) as PrivateLobby;
-    localStorage.setItem(lsPrivateKey(code), JSON.stringify({ ...lobby, status: 'game', gameId: 'sim' }));
-  }
-  return 'sim';
+  const gameId = await createRtdbDuelRoom(hostId, guestId);
+  await update(roomRef(code), { status: 'game', gameId });
+  // Remove room after 8 s — gives guest time to read gameId
+  window.setTimeout(() => void remove(roomRef(code)), 8000);
+  return gameId;
+}
+
+/** Guest (or either side): explicitly removes /rooms/{code} once game is live. */
+export function deletePrivateRoom(code: string): void {
+  void remove(roomRef(code));
 }
 
 /* ─────────────────────────────────────────────────────────────────────── */

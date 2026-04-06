@@ -21,6 +21,7 @@ import {
   joinPrivateLobby,
   watchPrivateLobby,
   activatePrivateLobby,
+  deletePrivateRoom,
 } from './DuelGame';
 
 const DUEL_GOAL = 20;
@@ -246,6 +247,7 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
           setPrivateMatch({ gameId, role: 'player1' });
           setPrivateDuelScreen('hidden');
           setOnlineDuel(true);
+          // Room cleanup handled by activatePrivateLobby (8 s delay for guest)
         });
       }
     });
@@ -267,7 +269,9 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
             privateLobbyUnsubRef.current();
             privateLobbyUnsubRef.current = null;
           }
-          setPrivateMatch({ gameId: lobby.gameId, role: 'player2' });
+          const gid = lobby.gameId;
+          deletePrivateRoom(code); // guest removes the room immediately
+          setPrivateMatch({ gameId: gid, role: 'player2' });
           setPrivateDuelScreen('hidden');
           setOnlineDuel(true);
         }
