@@ -85,6 +85,8 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
   const playerAvatarId = useGameStore((s) => s.avatar);
   const playerEmoji = avatarIdToEmoji(playerAvatarId);
   const [onlineDuel, setOnlineDuel] = useState(false);
+  // gameActive gates the local bot practice game; false = show static menu only
+  const [gameActive] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const duelUid = useMemo(() => getOrCreateDuelUserId(), []);
@@ -329,7 +331,7 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
 
   /** Bot: after a random delay, increment opponentProgress by 1. */
   useEffect(() => {
-    if (winner) return;
+    if (!gameActive || winner) return;
     const delay = randomOpponentDelayMs();
     const id = window.setTimeout(() => {
       setOpponentProgress((o) => {
@@ -343,7 +345,7 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
       });
     }, delay);
     return () => clearTimeout(id);
-  }, [opponentProgress, winner]);
+  }, [opponentProgress, winner, gameActive]);
 
   const triggerXpPop = useCallback(() => {
     setXpPop(true);
@@ -435,35 +437,6 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
 
   const barPct = (v: number) => `${Math.min(100, (v / DUEL_GOAL) * 100)}%`;
 
-  if (loadErr) {
-    return (
-      <div
-        className="flex min-h-[50dvh] flex-col items-center justify-center gap-4 px-6 pb-32 text-center text-sm"
-        style={{ background: 'var(--artikl-bg)', color: 'var(--artikl-muted2)' }}
-      >
-        <p>{loadErr}</p>
-        <button
-          type="button"
-          onClick={onExitHome}
-          className="rounded-xl border border-white/15 px-4 py-2 text-white/80"
-        >
-          {t('duel.home')}
-        </button>
-      </div>
-    );
-  }
-
-  if (!current) {
-    return (
-      <div
-        className="flex min-h-[50dvh] flex-col items-center justify-center pb-32 text-sm"
-        style={{ background: 'var(--artikl-bg)', color: 'var(--artikl-muted2)' }}
-      >
-        {t('quiz.loading')}
-      </div>
-    );
-  }
-
   if (onlineDuel) {
     return (
       <DuelGame
@@ -484,6 +457,7 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
         <QuizTopBar stats={levelStats} xpPop={xpPop} playerEmoji={playerEmoji} />
 
         <div className="px-5 pb-3 pt-1">
+          {/* ── Static menu buttons — always visible ── */}
           <button
             type="button"
             onClick={() => setOnlineDuel(true)}
@@ -511,101 +485,110 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
           <p className="mb-3 text-center text-[10px] leading-snug text-[rgba(232,232,245,0.42)]">
             {t('duel.find_opponent_sub')}
           </p>
-          <p className="text-center text-[11px] font-bold uppercase tracking-wider text-[rgba(232,232,245,0.45)]">
-            {t('duel.race_to', { n: DUEL_GOAL })}
-          </p>
-          <div className="mt-3 flex items-center justify-between gap-3 text-sm font-semibold">
-            <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="text-emerald-300/90">{t('duel.you')}</span>
-              <div
-                className="h-2 overflow-hidden rounded-full bg-white/10"
-                role="progressbar"
-                aria-valuenow={playerProgress}
-                aria-valuemin={0}
-                aria-valuemax={DUEL_GOAL}
-              >
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"
-                  style={{ width: barPct(playerProgress) }}
-                />
-              </div>
-              <span className="tabular-nums text-white">{playerProgress}</span>
-            </div>
-            <span className="shrink-0 text-lg text-white/30" aria-hidden>
-              :
-            </span>
-            <div className="flex min-w-0 flex-1 flex-col items-end gap-1 text-right">
-              <span className="text-rose-300/90">{t('duel.opponent')}</span>
-              <div
-                className="h-2 w-full overflow-hidden rounded-full bg-white/10"
-                role="progressbar"
-                aria-valuenow={opponentProgress}
-                aria-valuemin={0}
-                aria-valuemax={DUEL_GOAL}
-              >
-                <div
-                  className="ml-auto h-full rounded-full bg-gradient-to-l from-violet-500 to-fuchsia-400 transition-all duration-300"
-                  style={{ width: barPct(opponentProgress) }}
-                />
-              </div>
-              <span className="tabular-nums text-white">{opponentProgress}</span>
-            </div>
-          </div>
-          <p className="mt-2 text-center text-[10px] text-[rgba(232,232,245,0.38)]">
-            {t('duel.opponent_hint', { penalty: PLAYER_WRONG_PENALTY })}
-          </p>
+
+          {/* ── Game content: only after game is explicitly started ── */}
+          {gameActive && (
+            <>
+              {loadErr ? (
+                <p className="mt-4 text-center text-sm text-[rgba(232,232,245,0.55)]">{loadErr}</p>
+              ) : !current ? (
+                <p className="mt-4 text-center text-sm text-[rgba(232,232,245,0.45)]">{t('quiz.loading')}</p>
+              ) : (
+                <>
+                  <p className="text-center text-[11px] font-bold uppercase tracking-wider text-[rgba(232,232,245,0.45)]">
+                    {t('duel.race_to', { n: DUEL_GOAL })}
+                  </p>
+                  <div className="mt-3 flex items-center justify-between gap-3 text-sm font-semibold">
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <span className="text-emerald-300/90">{t('duel.you')}</span>
+                      <div
+                        className="h-2 overflow-hidden rounded-full bg-white/10"
+                        role="progressbar"
+                        aria-valuenow={playerProgress}
+                        aria-valuemin={0}
+                        aria-valuemax={DUEL_GOAL}
+                      >
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"
+                          style={{ width: barPct(playerProgress) }}
+                        />
+                      </div>
+                      <span className="tabular-nums text-white">{playerProgress}</span>
+                    </div>
+                    <span className="shrink-0 text-lg text-white/30" aria-hidden>:</span>
+                    <div className="flex min-w-0 flex-1 flex-col items-end gap-1 text-right">
+                      <span className="text-rose-300/90">{t('duel.opponent')}</span>
+                      <div
+                        className="h-2 w-full overflow-hidden rounded-full bg-white/10"
+                        role="progressbar"
+                        aria-valuenow={opponentProgress}
+                        aria-valuemin={0}
+                        aria-valuemax={DUEL_GOAL}
+                      >
+                        <div
+                          className="ml-auto h-full rounded-full bg-gradient-to-l from-violet-500 to-fuchsia-400 transition-all duration-300"
+                          style={{ width: barPct(opponentProgress) }}
+                        />
+                      </div>
+                      <span className="tabular-nums text-white">{opponentProgress}</span>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-center text-[10px] text-[rgba(232,232,245,0.38)]">
+                    {t('duel.opponent_hint', { penalty: PLAYER_WRONG_PENALTY })}
+                  </p>
+                </>
+              )}
+            </>
+          )}
         </div>
 
-        <WordCard
-          wordKey={current.id}
-          word={current.word}
-          correctArticle={current.article}
-          translation={currentDisplayGloss}
-          translationRtl={isRtlGlossLang(glossLang)}
-          glossLang={glossLang}
-          wordVisible={wordVisible}
-          showAnswer={phase === 'answered'}
-          highlightArticle={phase === 'answered' ? current.article : null}
-          glowArticle={isCorrectPick ? current.article : null}
-          comboToast={null}
-          comboToastVisible={false}
-          cardLabel={t('duel.card_label')}
-          wrongAffixTeach={wrongAffixTeachDuel}
-        />
-
-        {phase === 'answered' ? (
-          <FeedbackBar ok={isCorrectPick} fact={isCorrectPick ? getArticleFact(current.word) : null}>
-            {isCorrectPick ? (
-              <>{t('duel.feedback_correct', { article: current.article, word: current.word, gloss: currentDisplayGloss })}</>
-            ) : (
-              <>
-                {t('duel.feedback_wrong', {
-                  penalty: PLAYER_WRONG_PENALTY,
-                  article: current.article,
-                  word: current.word,
-                  gloss: currentDisplayGloss,
-                })}
-              </>
-            )}
-          </FeedbackBar>
-        ) : null}
-
-        <div className="artikl-btns">
-          {(['der', 'die', 'das'] as const).map((a) => (
-            <ArticleButton
-              key={a}
-              article={a}
-              mode={btnMode(a)}
-              disabled={inputLocked}
-              onPick={handlePick}
+        {gameActive && current && (
+          <>
+            <WordCard
+              wordKey={current.id}
+              word={current.word}
+              correctArticle={current.article}
+              translation={currentDisplayGloss}
+              translationRtl={isRtlGlossLang(glossLang)}
+              glossLang={glossLang}
+              wordVisible={wordVisible}
+              showAnswer={phase === 'answered'}
+              highlightArticle={phase === 'answered' ? current.article : null}
+              glowArticle={isCorrectPick ? current.article : null}
+              comboToast={null}
+              comboToastVisible={false}
+              cardLabel={t('duel.card_label')}
+              wrongAffixTeach={wrongAffixTeachDuel}
             />
-          ))}
-        </div>
+
+            {phase === 'answered' ? (
+              <FeedbackBar ok={isCorrectPick} fact={isCorrectPick ? getArticleFact(current.word) : null}>
+                {isCorrectPick ? (
+                  <>{t('duel.feedback_correct', { article: current.article, word: current.word, gloss: currentDisplayGloss })}</>
+                ) : (
+                  <>{t('duel.feedback_wrong', { penalty: PLAYER_WRONG_PENALTY, article: current.article, word: current.word, gloss: currentDisplayGloss })}</>
+                )}
+              </FeedbackBar>
+            ) : null}
+
+            <div className="artikl-btns">
+              {(['der', 'die', 'das'] as const).map((a) => (
+                <ArticleButton
+                  key={a}
+                  article={a}
+                  mode={btnMode(a)}
+                  disabled={inputLocked}
+                  onPick={handlePick}
+                />
+              ))}
+            </div>
+          </>
+        )}
 
         <div className="artikl-flex-space" />
       </div>
 
-      {winner ? (
+      {gameActive && winner ? (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/72 px-4 backdrop-blur-sm">
           <div className="glass-card max-w-sm rounded-2xl p-6 text-center shadow-2xl">
             <h2 className="font-display text-xl font-bold text-white sm:text-2xl">
