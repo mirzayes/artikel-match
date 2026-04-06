@@ -680,12 +680,14 @@ export function DuelGame({ currentUserId, displayName, onExit, initialMatch }: D
     window.setTimeout(() => {
       setAnswered(false);
       setPicked(null);
-      // Mark current index as shown — never return to it
+      // Mark current index as shown
       shownIdxsRef.current.add(idx);
       const unseen = words.map((_, i) => i).filter((i) => !shownIdxsRef.current.has(i));
       if (unseen.length === 0) {
-        // All words used up — end by time-up
-        setTimesUp(true);
+        // All words cycled — reset shown set but never repeat the word just answered
+        shownIdxsRef.current = new Set([idx]);
+        const fresh = words.map((_, i) => i).filter((i) => i !== idx);
+        setIdx(fresh[Math.floor(Math.random() * fresh.length)] ?? 0);
       } else {
         setIdx(unseen[0]!);
       }
