@@ -239,6 +239,7 @@
     "invite_copied": "Kopyalandı!",
     "invite_close": "Bağla",
     "loading": "Yüklənir…",
+    "empty_global": "Hələ oyunçu yoxdur",
     "season_countdown_dh": "Liqa yenilənməsinə qalıb: {{days}} gün {{hours}} saat",
     "season_countdown_hm": "Liqa yenilənməsinə qalıb: {{hours}} saat {{minutes}} dəq",
     "season_countdown_m": "Liqa yenilənməsinə qalıb: {{minutes}} dəq",

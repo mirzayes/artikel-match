@@ -9,6 +9,7 @@ import { LEARN_BLOCKS_UNLOCK_ALL_COST } from '../../lib/learnBlocks';
 import {
   chunkNounsIntoMissions,
   formatMissionRange,
+  getMissionOrderedNouns,
   isMissionGateOpen,
   isMissionMastered,
   LEARNING_MISSION_ARTIK_REWARD,
@@ -218,7 +219,10 @@ export function LearningTopicHub({
     [levelNouns, knownWordIds, masteryByWordId],
   );
 
-  const missions = useMemo(() => chunkNounsIntoMissions(levelNouns), [levelNouns]);
+  const missions = useMemo(
+    () => chunkNounsIntoMissions(getMissionOrderedNouns(selectedLevel, levelNouns)),
+    [selectedLevel, levelNouns],
+  );
 
   const repeatDueCount = useMemo(
     () =>

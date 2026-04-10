@@ -13,6 +13,7 @@
       }
     },
     "users": {
+      ".indexOn": ["profile/xp"],
       "$userId": {
         ".read": "auth != null",
         ".write": "auth != null"

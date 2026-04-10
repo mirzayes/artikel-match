@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { Analytics } from '@vercel/analytics/react';
 import App from './App';
 import { AppErrorBoundary } from './AppErrorBoundary';
 import { VocabularyProvider } from './context/VocabularyContext';
@@ -12,7 +13,10 @@ createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <VocabularyProvider>
         <GlossLanguageProvider>
-          <App />
+          <>
+            <App />
+            <Analytics />
+          </>
         </GlossLanguageProvider>
       </VocabularyProvider>
     </StrictMode>

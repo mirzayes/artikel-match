@@ -1,4 +1,4 @@
-import { onValue, ref, set, query, orderByChild, limitToLast } from 'firebase/database';
+import { onValue, ref, update, query, orderByChild, limitToLast } from 'firebase/database';
 import { isFirebaseLive, rtdb } from './firebase';
 
 export interface LeaderboardEntry {
@@ -8,9 +8,23 @@ export interface LeaderboardEntry {
   totalXp: number;
 }
 
+type ProfileSnap = {
+  xp?: unknown;
+  name?: unknown;
+  displayName?: unknown;
+  avatar?: unknown;
+};
+
+function profileDisplayName(p: ProfileSnap | null | undefined): string {
+  if (!p) return 'Oyunçu';
+  if (typeof p.name === 'string' && p.name.trim()) return p.name.trim().slice(0, 32);
+  if (typeof p.displayName === 'string' && p.displayName.trim()) return p.displayName.trim().slice(0, 32);
+  return 'Oyunçu';
+}
+
 /**
- * Writes the user's current XP to `leaderboard/{uid}`.
- * Called whenever totalXp changes.
+ * Syncs XP + public leaderboard fields to `users/{uid}/profile`:
+ * `xp`, `name`, `avatar` (RTDB query: orderByChild('profile/xp')).
  */
 export async function syncLeaderboardXp(
   userId: string,
@@ -19,11 +33,14 @@ export async function syncLeaderboardXp(
   avatar: string,
 ): Promise<void> {
   if (!userId.trim() || !rtdb || !isFirebaseLive) return;
+  const trimmedName = displayName.trim().slice(0, 32) || 'Oyunçu';
+  const xp = Math.max(0, Math.floor(totalXp));
+  const av = avatar || 'pretzel';
   try {
-    await set(ref(rtdb, `leaderboard/${userId}`), {
-      displayName: displayName.trim().slice(0, 32) || 'Oyunçu',
-      avatar: avatar || 'pretzel',
-      totalXp: Math.max(0, Math.floor(totalXp)),
+    await update(ref(rtdb, `users/${userId}/profile`), {
+      xp,
+      name: trimmedName,
+      avatar: av,
     });
   } catch {
     /* silent */
@@ -31,30 +48,32 @@ export async function syncLeaderboardXp(
 }
 
 /**
- * Subscribes to the top N leaderboard entries (by totalXp descending).
- * Returns an unsubscribe function.
+ * Real-time top N users by `users/{uid}/profile/xp` (descending).
  */
-export function subscribeLeaderboard(
-  limit: number,
-  cb: (entries: LeaderboardEntry[]) => void,
-): () => void {
+export function subscribeLeaderboard(limit: number, cb: (entries: LeaderboardEntry[]) => void): () => void {
   if (!rtdb || !isFirebaseLive) {
     cb([]);
     return () => {};
   }
 
-  const q = query(ref(rtdb, 'leaderboard'), orderByChild('totalXp'), limitToLast(limit));
+  const q = query(ref(rtdb, 'users'), orderByChild('profile/xp'), limitToLast(limit));
 
   return onValue(q, (snap) => {
     const entries: LeaderboardEntry[] = [];
     snap.forEach((child) => {
-      const val = child.val() as Record<string, unknown> | null;
-      if (!val) return;
+      const uid = child.key;
+      if (!uid) return;
+      const val = child.val() as { profile?: ProfileSnap } | null;
+      const p = val?.profile;
+      const xpRaw = p?.xp;
+      const xp = typeof xpRaw === 'number' && !Number.isNaN(xpRaw) ? Math.max(0, Math.floor(xpRaw)) : null;
+      if (xp === null) return;
+
       entries.push({
-        uid: child.key!,
-        displayName: typeof val.displayName === 'string' ? val.displayName : 'Oyunçu',
-        avatar: typeof val.avatar === 'string' ? val.avatar : 'pretzel',
-        totalXp: typeof val.totalXp === 'number' ? val.totalXp : 0,
+        uid,
+        displayName: profileDisplayName(p),
+        avatar: typeof p?.avatar === 'string' ? p.avatar : 'pretzel',
+        totalXp: xp,
       });
     });
     entries.sort((a, b) => b.totalXp - a.totalXp);

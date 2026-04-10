@@ -154,7 +154,7 @@ export function LeaderboardView({
       setLoading(false);
       return;
     }
-    const unsub = subscribeLeaderboard(100, (entries) => {
+    const unsub = subscribeLeaderboard(10, (entries) => {
       setFirebaseEntries(entries);
       setLoading(false);
     });
@@ -163,8 +163,14 @@ export function LeaderboardView({
 
   const userLeague = getLeague(totalXpAllLevels);
 
+  const firebaseGlobalEmpty = isFirebaseLive && !loading && firebaseEntries.length === 0;
+
   const allRows: LeaderRow[] = useMemo(() => {
     const userName = displayName.trim() || 'Sən';
+
+    if (firebaseGlobalEmpty) {
+      return [{ uid: userId, name: userName, avatar, xp: totalXpAllLevels, isUser: true, rank: 1 }];
+    }
 
     if (isFirebaseLive && firebaseEntries.length > 0) {
       const hasUser = firebaseEntries.some((e) => e.uid === userId);
@@ -200,7 +206,7 @@ export function LeaderboardView({
       xp: r.xp,
       isUser: r.isUser,
     }));
-  }, [firebaseEntries, totalXpAllLevels, displayName, userId, avatar]);
+  }, [firebaseEntries, firebaseGlobalEmpty, totalXpAllLevels, displayName, userId, avatar, loading]);
 
   const leagueRows = useMemo(() => {
     return allRows.filter((r) => {
@@ -391,6 +397,11 @@ export function LeaderboardView({
               <p className="pb-3 pt-1 text-center text-[11px] text-artikl-caption">
                 {t('leaderboard.loading')}
               </p>
+            </div>
+          ) : firebaseGlobalEmpty ? (
+            <div className="py-12 text-center">
+              <span className="text-3xl">🏅</span>
+              <p className="mt-2 text-sm text-artikl-caption">{t('leaderboard.empty_global')}</p>
             </div>
           ) : leagueRanked.length === 0 ? (
             <div className="py-12 text-center">

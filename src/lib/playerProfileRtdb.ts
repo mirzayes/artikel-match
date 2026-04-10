@@ -31,8 +31,12 @@ export async function setPlayerAvatar(userId: string, avatarId: string): Promise
 export async function setPlayerProfileDisplayName(userId: string, name: string): Promise<void> {
   if (!userId.trim() || !rtdb || !isFirebaseLive) return;
   const trimmed = name.trim().slice(0, 32);
+  const label = trimmed || 'Oyunçu';
   try {
-    await set(ref(rtdb, `users/${userId}/profile/displayName`), trimmed);
+    await update(ref(rtdb, `users/${userId}/profile`), {
+      displayName: label,
+      name: label,
+    });
   } catch {
     /* no user-facing errors */
   }
