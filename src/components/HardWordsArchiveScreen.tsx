@@ -45,38 +45,38 @@ export function HardWordsArchiveScreen({
           <button
             type="button"
             onClick={onBack}
-            className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-semibold text-[rgba(232,232,245,0.85)] transition-colors hover:border-white/20 hover:bg-white/[0.07] active:scale-[0.98]"
+            className="rounded-xl border border-white/12 bg-[var(--artikl-surface)] px-3 py-2 text-sm font-semibold text-artikl-text transition-colors hover:border-[var(--artikl-border2)] hover:bg-[var(--artikl-surface2)] active:scale-[0.98]"
           >
             ← Geri
           </button>
-          <h1 className="min-w-0 flex-1 truncate font-display text-lg font-bold tracking-tight text-white sm:text-xl">
+          <h1 className="min-w-0 flex-1 truncate font-display text-lg font-bold tracking-tight text-artikl-text sm:text-xl">
             Çətin sözlər — arxiv
           </h1>
         </div>
-        <p className="mt-2 text-center text-[11px] text-[rgba(232,232,245,0.45)]">
+        <p className="mt-2 text-center text-[11px] text-artikl-caption">
           {level} · {entries.length} söz
         </p>
       </motion.header>
 
       <div className="mx-auto w-full max-w-md flex-1">
         {entries.length === 0 ? (
-          <p className="mt-8 text-center text-sm text-[rgba(232,232,245,0.45)]">Arxiv boşdur.</p>
+          <p className="mt-8 text-center text-sm text-artikl-caption">Arxiv boşdur.</p>
         ) : (
           <ul className="space-y-1.5">
             {entries.map((entry) => (
               <li
                 key={entry.id}
-                className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.07] bg-white/[0.03] px-2.5 py-2 sm:px-3"
+                className="flex items-center justify-between gap-2 rounded-xl border border-[var(--artikl-border)] bg-[var(--artikl-surface)] px-2.5 py-2 sm:px-3"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-sans text-[13px] font-semibold leading-tight text-white">
+                  <p className="truncate font-sans text-[13px] font-semibold leading-tight text-artikl-text">
                     <span className={`font-semibold capitalize ${articleText[entry.article]}`}>
                       {entry.article}
                     </span>{' '}
                     {entry.word}
                   </p>
                   <p
-                    className="truncate text-[11px] leading-tight text-[rgba(232,232,245,0.4)]"
+                    className="truncate text-[11px] leading-tight text-artikl-caption"
                     style={
                       isRtlGlossLang(glossLang)
                         ? { direction: 'rtl', textAlign: 'right' as const }
@@ -93,7 +93,7 @@ export function HardWordsArchiveScreen({
                 <button
                   type="button"
                   onClick={() => onRemoveFromHard(entry.id)}
-                  className="shrink-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-semibold text-[rgba(232,232,245,0.65)] transition-colors hover:border-white/16 hover:bg-white/[0.07] active:scale-[0.97]"
+                  className="shrink-0 rounded-lg border border-[var(--artikl-border)] bg-[var(--artikl-surface)] px-2 py-1 text-[10px] font-semibold text-artikl-text transition-colors hover:border-white/16 hover:bg-[var(--artikl-surface2)] active:scale-[0.97]"
                 >
                   Çıxart
                 </button>
@@ -105,7 +105,7 @@ export function HardWordsArchiveScreen({
         <button
           type="button"
           onClick={onStartReview}
-          className="mt-6 w-full rounded-2xl border border-transparent bg-[var(--artikl-accent)] py-3.5 text-sm font-semibold text-white shadow-lg shadow-violet-900/25 transition-transform active:scale-[0.98]"
+          className="mt-6 w-full rounded-2xl border-2 border-purple-600 bg-purple-600 py-3.5 text-sm font-semibold text-white shadow-lg transition-transform active:scale-[0.98] dark:border-transparent dark:bg-[var(--artikl-accent)] dark:shadow-violet-900/25"
         >
           Səhv və çətin sözləri təkrarla
         </button>

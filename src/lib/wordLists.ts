@@ -1,7 +1,7 @@
 import type { GoetheLevel, NounEntry, WordSrsEntry } from '../types';
 import { GOETHE_LEVELS } from '../types';
 import { shuffleInPlace } from './vokabelnCsv';
-import { isSrsDue } from './srs';
+import { isMatureDueForIntervalRepeat, isSrsDue } from './srs';
 
 /** «Ən çox səhv edilənlər»: yalnız bu qədər və ya daha çox səhv olan sözlər. */
 export const TOP_WRONG_MIN_ERRORS = 5;
@@ -103,8 +103,35 @@ export function getLearningSessionPool(
   return copy.slice(0, Math.min(limit, copy.length));
 }
 
+function cmpNextReview(
+  a: NounEntry,
+  b: NounEntry,
+  srsByWordId: Record<string, WordSrsEntry>,
+): number {
+  const ta = Date.parse(srsByWordId[a.id]?.nextReview ?? '') || 0;
+  const tb = Date.parse(srsByWordId[b.id]?.nextReview ?? '') || 0;
+  return ta - tb;
+}
+
+/** Sessiya əvvəlində: Artik üçün «yeni» vs «təkrar» (köhnə SRS streak). */
+export function classifyLessonCoinWordType(
+  wordId: string,
+  knownWordIds: string[],
+  srsByWordId: Record<string, WordSrsEntry>,
+): 'new' | 'review' {
+  const known = new Set(knownWordIds);
+  if (known.has(wordId)) return 'review';
+  const e = srsByWordId[wordId];
+  if (!e || e.streak < 1) return 'new';
+  return 'review';
+}
+
 /**
- * SRS: əvvəlcə `next_review ≤ indi` olanlar (köhnədən yeniyə), çatmırsa — yeni sözlərdən doldur.
+ * SRS öyrənmə növbəsi:
+ * - «Bilinən» amma növbəsi çatmış sözlər (Təkrar) əvvəl.
+ * - Sonra öyrənilməkdə olan və növbəsi çatan / heç vaxt görülməmişlər.
+ * - Gələcək növbəli sözlər sessiyaya düşmür (24 saat və s. gözləyir).
+ * `reviewOnly`: yalnız «mənimsənilmiş» sözlər, SRS intervalı ≥ ~24 saat və növbəsi çatmış (qısa «səhv→1 dəq» sıraya düşmür).
  */
 export function getSrsLearningSessionPool(
   nounsInLevel: NounEntry[],
@@ -112,19 +139,32 @@ export function getSrsLearningSessionPool(
   srsByWordId: Record<string, WordSrsEntry>,
   limit: number,
   now: Date = new Date(),
+  opts?: { reviewOnly?: boolean },
 ): NounEntry[] {
-  const eligible = filterLearningQuizPool(nounsInLevel, knownWordIds);
-  if (!eligible.length || limit <= 0) return [];
+  if (limit <= 0 || nounsInLevel.length === 0) return [];
 
-  const due = eligible
-    .filter((n) => isSrsDue(srsByWordId[n.id], now))
-    .sort((a, b) => {
-      const ta = Date.parse(srsByWordId[a.id]?.nextReview ?? '');
-      const tb = Date.parse(srsByWordId[b.id]?.nextReview ?? '');
-      const fa = Number.isFinite(ta) ? ta : 0;
-      const fb = Number.isFinite(tb) ? tb : 0;
-      return fa - fb;
-    });
+  const known = new Set(knownWordIds);
+  const reviewOnly = opts?.reviewOnly === true;
+
+  const masteredDue = nounsInLevel
+    .filter((n) => known.has(n.id))
+    .filter((n) =>
+      reviewOnly
+        ? isMatureDueForIntervalRepeat(srsByWordId[n.id], now)
+        : isSrsDue(srsByWordId[n.id], now),
+    )
+    .sort((a, b) => cmpNextReview(a, b, srsByWordId));
+
+  const inProgress = nounsInLevel.filter((n) => !known.has(n.id));
+  const inProgressDue = reviewOnly
+    ? []
+    : inProgress
+        .filter((n) => {
+          const e = srsByWordId[n.id];
+          if (!e) return true;
+          return isSrsDue(e, now);
+        })
+        .sort((a, b) => cmpNextReview(a, b, srsByWordId));
 
   const pickedIds = new Set<string>();
   const out: NounEntry[] = [];
@@ -138,15 +178,22 @@ export function getSrsLearningSessionPool(
     }
   };
 
-  pushUnique(due);
-
-  if (out.length < limit) {
-    const rest = eligible.filter((n) => !pickedIds.has(n.id));
-    shuffleInPlace(rest);
-    pushUnique(rest);
-  }
+  pushUnique(masteredDue);
+  pushUnique(inProgressDue);
 
   return out;
+}
+
+export function countDueWordsForLevel(
+  nounsInLevel: NounEntry[],
+  knownWordIds: string[],
+  srsByWordId: Record<string, WordSrsEntry>,
+  kind: 'mixed' | 'review_only',
+  now: Date = new Date(),
+): number {
+  return getSrsLearningSessionPool(nounsInLevel, knownWordIds, srsByWordId, 99_999, now, {
+    reviewOnly: kind === 'review_only',
+  }).length;
 }
 
 /**

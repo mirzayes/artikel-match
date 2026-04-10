@@ -38,6 +38,35 @@ export async function setPlayerProfileDisplayName(userId: string, name: string):
   }
 }
 
+/**
+ * Admin: RTDB `users/{uid}/isAlpha` = true (Firebase Console, Admin SDK və ya bu funksiya ilə).
+ * Client yazısı üçün qaydalarda icazə olmalıdır.
+ */
+export async function markAsAlphaTester(uid: string): Promise<void> {
+  const id = uid.trim();
+  if (!id || !rtdb || !isFirebaseLive) return;
+  try {
+    await set(ref(rtdb, `users/${id}/isAlpha`), true);
+  } catch {
+    /* Admin / qaydalar */
+  }
+}
+
+export function subscribeIsAlphaTester(userId: string, cb: (isAlpha: boolean) => void): () => void {
+  if (!rtdb || !isFirebaseLive) {
+    cb(false);
+    return () => {};
+  }
+  const id = userId.trim();
+  if (!id) {
+    cb(false);
+    return () => {};
+  }
+  return onValue(ref(rtdb, `users/${id}/isAlpha`), (snap) => {
+    cb(snap.val() === true);
+  });
+}
+
 export type PublicPlayerProfile = {
   avatar?: string;
   displayName?: string;

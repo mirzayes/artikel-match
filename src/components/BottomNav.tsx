@@ -1,12 +1,16 @@
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { DUEL_MIN_ARTIK_BALANCE } from '../lib/duelEntry';
 
-export type Tab = 'home' | 'quiz' | 'exam' | 'duel' | 'lexicon';
+export type Tab = 'home' | 'quiz' | 'exam' | 'duel' | 'leaders' | 'lexicon';
 
 interface BottomNavProps {
   active: Tab;
   onChange: (t: Tab) => void;
   variant?: 'light' | 'dark';
+  /** Duel üçün: balans bu həddən aşağıdırsa düymə solğun və klik Mağazaya. */
+  artikBalance?: number;
+  onDuelInsufficientArtik?: () => void;
 }
 
 function DarkNavIcon({ tab }: { tab: Tab }) {
@@ -61,6 +65,23 @@ function DarkNavIcon({ tab }: { tab: Tab }) {
       </svg>
     );
   }
+  if (tab === 'leaders') {
+    return (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path
+          d="M12 15a7 7 0 100-14 7 7 0 000 14z"
+          stroke="currentColor"
+          strokeWidth="1.3"
+        />
+        <path
+          d="M8.21 13.89L7 23l5-3 5 3-1.21-9.12"
+          stroke="currentColor"
+          strokeWidth="1.3"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
@@ -74,28 +95,44 @@ function DarkNavIcon({ tab }: { tab: Tab }) {
   );
 }
 
-export function BottomNav({ active, onChange, variant = 'dark' }: BottomNavProps) {
+export function BottomNav({
+  active,
+  onChange,
+  variant = 'dark',
+  artikBalance,
+  onDuelInsufficientArtik,
+}: BottomNavProps) {
   const { t } = useTranslation();
+  const duelBlocked =
+    typeof artikBalance === 'number' && artikBalance < DUEL_MIN_ARTIK_BALANCE;
   const items: { id: Tab; labelKey: string }[] = [
     { id: 'home', labelKey: 'nav.home' },
     { id: 'quiz', labelKey: 'nav.quiz' },
     { id: 'exam', labelKey: 'nav.exam' },
     { id: 'duel', labelKey: 'nav.duel' },
+    { id: 'leaders', labelKey: 'nav.leaders' },
     { id: 'lexicon', labelKey: 'nav.lexicon' },
   ];
 
   if (variant === 'dark') {
     return (
       <nav className="fixed bottom-0 left-0 right-0 z-[100] bg-gradient-to-t from-[var(--artikl-bg)] from-40% to-transparent pb-[max(0px,env(safe-area-inset-bottom))]">
-        <div className="artikl-nav-bar artikl-nav-bar--five">
+        <div className="artikl-nav-bar artikl-nav-bar--six">
           {items.map((item) => {
             const on = active === item.id;
+            const duelDim = item.id === 'duel' && duelBlocked;
             return (
               <button
                 key={item.id}
                 type="button"
-                onClick={() => onChange(item.id)}
-                className={`artikl-ni ${on ? 'artikl-ni-on' : ''}`}
+                onClick={() => {
+                  if (item.id === 'duel' && duelBlocked) {
+                    onDuelInsufficientArtik?.();
+                    return;
+                  }
+                  onChange(item.id);
+                }}
+                className={['artikl-ni', on ? 'artikl-ni-on' : '', duelDim ? 'opacity-50' : ''].join(' ')}
               >
                 <span className="artikl-ni-icon">
                   <DarkNavIcon tab={item.id} />
@@ -118,12 +155,22 @@ export function BottomNav({ active, onChange, variant = 'dark' }: BottomNavProps
         <div className={`flex w-full max-w-md items-stretch gap-1 rounded-[24px] p-1.5 ${shell}`}>
           {items.map((item) => {
             const isOn = active === item.id;
+            const duelDim = item.id === 'duel' && duelBlocked;
             return (
               <button
                 key={item.id}
                 type="button"
-                onClick={() => onChange(item.id)}
-                className="relative flex flex-1 flex-col items-center gap-0.5 rounded-[18px] py-2 text-[10px] font-semibold transition-colors"
+                onClick={() => {
+                  if (item.id === 'duel' && duelBlocked) {
+                    onDuelInsufficientArtik?.();
+                    return;
+                  }
+                  onChange(item.id);
+                }}
+                className={[
+                  'relative flex flex-1 flex-col items-center gap-0.5 rounded-[18px] py-2 text-[10px] font-semibold transition-colors',
+                  duelDim ? 'opacity-50' : '',
+                ].join(' ')}
               >
                 {isOn ? (
                   <motion.div
@@ -132,7 +179,7 @@ export function BottomNav({ active, onChange, variant = 'dark' }: BottomNavProps
                     transition={{ type: 'spring', stiffness: 420, damping: 32 }}
                   />
                 ) : null}
-                <span className={`relative z-10 ${isOn ? 'text-white' : 'text-stone-400'}`} aria-hidden>
+                <span className={`relative z-10 ${isOn ? 'text-artikl-text' : 'text-stone-400'}`} aria-hidden>
                   {item.id === 'home' ? (
                     <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                       <path
@@ -164,6 +211,11 @@ export function BottomNav({ active, onChange, variant = 'dark' }: BottomNavProps
                         d="M14.5 4l2.1 2.1M4 20l4-4M9 9l-5 5M19 9l-4-4M9 9l4 4M5 5l4 4"
                       />
                     </svg>
+                  ) : item.id === 'leaders' ? (
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                      <path d="M12 15a7 7 0 100-14 7 7 0 000 14z" />
+                      <path d="M8.21 13.89L7 23l5-3 5 3-1.21-9.12" strokeLinejoin="round" />
+                    </svg>
                   ) : (
                     <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                       <path
@@ -174,7 +226,7 @@ export function BottomNav({ active, onChange, variant = 'dark' }: BottomNavProps
                     </svg>
                   )}
                 </span>
-                <span className={`relative z-10 ${isOn ? 'text-white' : 'text-stone-500'}`}>{t(item.labelKey)}</span>
+                <span className={`relative z-10 ${isOn ? 'text-artikl-text' : 'text-stone-500'}`}>{t(item.labelKey)}</span>
               </button>
             );
           })}

@@ -6,6 +6,7 @@ import {
   type AffixWrongTeachHighlight,
 } from '../../lib/predictArticleFromAffixRules';
 import type { Article, NounTranslationLang } from '../../types';
+import { SpeakWordButton } from '../SpeakWordButton';
 
 interface WordCardProps {
   wordKey: string;
@@ -166,11 +167,18 @@ export function WordCard({
         <div
           className={`artikl-word-motion ${playIn && wordVisible ? 'artikl-word-in' : ''}`.trim()}
         >
-          <p
-            className={`artikl-word-main german-word ${!wordVisible ? 'artikl-word-fade' : ''}`.trim()}
-          >
-            {wordMainContent}
-          </p>
+          <div className="flex w-full max-w-full flex-wrap items-center justify-center gap-1.5">
+            <p
+              className={`artikl-word-main german-word !w-auto max-w-full ${!wordVisible ? 'artikl-word-fade' : ''}`.trim()}
+            >
+              {wordMainContent}
+            </p>
+            <SpeakWordButton
+              word={word}
+              disabled={!wordVisible}
+              className="text-[clamp(0.95rem,4vw,1.35rem)]"
+            />
+          </div>
         </div>
         {wrongAffixMessage ? (
           <p className="artikl-wrong-affix-msg" role="status">

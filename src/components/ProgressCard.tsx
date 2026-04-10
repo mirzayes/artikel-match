@@ -42,7 +42,7 @@ export function ProgressCard({
   ]
     .filter(Boolean)
     .join(' ');
-  const subC = variant === 'dark' ? 'text-[rgba(232,232,245,0.45)]' : 'text-stone-500';
+  const subC = variant === 'dark' ? 'text-artikl-caption' : 'text-stone-500';
 
   const pct =
     progress && progress.total > 0
@@ -66,7 +66,7 @@ export function ProgressCard({
             className={`stat-value font-sans font-bold tracking-tight tabular-nums ${
               highlight
                 ? variant === 'dark'
-                  ? 'text-3xl text-white sm:text-4xl'
+                  ? 'text-3xl text-artikl-text sm:text-4xl'
                   : 'text-3xl text-stone-900 sm:text-4xl'
                 : variant === 'dark'
                   ? 'text-2xl font-semibold sm:text-[1.75rem]'

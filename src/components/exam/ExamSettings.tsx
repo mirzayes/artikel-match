@@ -56,13 +56,13 @@ export function ExamSettings({
   };
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-[var(--artikl-bg)] px-4 pb-36 pt-[max(12px,env(safe-area-inset-top))] text-stone-200 sm:px-6">
+    <div className="flex min-h-[100dvh] flex-col bg-[var(--artikl-bg)] px-4 pb-36 pt-[max(12px,env(safe-area-inset-top))] text-[#1A1A2E] dark:text-stone-200 sm:px-6">
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         className="mx-auto w-full max-w-md pt-4"
       >
-        <h1 className="mb-6 text-center font-display text-xl font-bold tracking-wide text-white sm:text-2xl">
+        <h1 className="mb-6 text-center font-display text-xl font-bold tracking-wide text-artikl-text sm:text-2xl">
           {t('exam.settings_title')}
         </h1>
 
@@ -79,10 +79,9 @@ export function ExamSettings({
                   className={[
                     'rounded-full px-3.5 py-2 text-sm font-semibold transition-colors',
                     on
-                      ? 'text-white'
-                      : 'border border-white/12 bg-transparent text-[rgba(232,232,245,0.55)] hover:border-white/18 hover:bg-white/[0.04]',
+                      ? 'border-2 border-purple-600 bg-purple-600 text-white dark:border-transparent dark:bg-[var(--artikl-accent)] dark:text-white'
+                      : 'border-2 border-purple-600 bg-white text-purple-600 dark:border-[var(--artikl-border)] dark:bg-transparent dark:text-[var(--artikl-muted2)] hover:dark:border-[var(--artikl-border2)] hover:dark:bg-[var(--artikl-surface)]',
                   ].join(' ')}
-                  style={on ? { backgroundColor: 'var(--artikl-accent)', border: '1px solid transparent' } : undefined}
                 >
                   {lvl}
                 </button>
@@ -104,8 +103,8 @@ export function ExamSettings({
                   className={[
                     'min-w-[4.5rem] rounded-full px-4 py-2.5 text-sm font-semibold transition-colors',
                     on
-                      ? 'border border-violet-400/50 bg-gradient-to-br from-violet-600/35 to-fuchsia-600/25 text-white'
-                      : 'border border-white/12 bg-transparent text-[rgba(232,232,245,0.55)] hover:border-white/18 hover:bg-white/[0.04]',
+                      ? 'border-2 border-purple-600 bg-purple-600 text-white dark:border-violet-400/50 dark:bg-gradient-to-br dark:from-violet-600/35 dark:to-fuchsia-600/25'
+                      : 'border-2 border-purple-600 bg-white text-purple-600 dark:border-[var(--artikl-border)] dark:bg-transparent dark:text-[var(--artikl-muted2)] hover:dark:border-[var(--artikl-border2)] hover:dark:bg-[var(--artikl-surface)]',
                   ].join(' ')}
                 >
                   {presetLabel(p)}
@@ -124,8 +123,8 @@ export function ExamSettings({
               className={[
                 'rounded-2xl border px-4 py-3 text-sm font-semibold transition-colors',
                 topics === 'all'
-                  ? 'border-violet-400/45 bg-violet-600/20 text-white'
-                  : 'border-white/12 bg-transparent text-[rgba(232,232,245,0.55)] hover:border-white/18',
+                  ? 'border-2 border-purple-600 bg-purple-600 text-white dark:border-violet-400/45 dark:bg-violet-600/20'
+                  : 'border-2 border-purple-600 bg-white text-purple-600 dark:border-[var(--artikl-border)] dark:bg-transparent dark:text-[var(--artikl-muted2)] hover:dark:border-[var(--artikl-border2)]',
               ].join(' ')}
             >
               {t('exam.topic_all')}
@@ -137,30 +136,32 @@ export function ExamSettings({
               className={[
                 'rounded-2xl border px-4 py-3 text-sm font-semibold transition-colors',
                 topics === 'wrong'
-                  ? 'border-rose-400/45 bg-rose-600/20 text-white'
-                  : 'border-white/12 bg-transparent text-[rgba(232,232,245,0.55)] hover:border-white/18',
-                !wrongOnlyAvailable ? 'cursor-not-allowed opacity-45' : '',
+                  ? 'border-2 border-purple-600 bg-purple-600 text-white dark:border-rose-400/45 dark:bg-rose-600/20'
+                  : 'border-2 border-purple-600 bg-white text-purple-600 dark:border-[var(--artikl-border)] dark:bg-transparent dark:text-[var(--artikl-muted2)] hover:dark:border-[var(--artikl-border2)]',
+                !wrongOnlyAvailable
+                  ? 'cursor-not-allowed text-[#9CA3AF] dark:text-[var(--artikl-muted2)] dark:opacity-45'
+                  : '',
               ].join(' ')}
             >
               {t('exam.topic_wrong')}
             </button>
           </div>
           {topics === 'wrong' && !wrongOnlyAvailable ? (
-            <p className="mt-3 text-center text-xs text-amber-400/90">
+            <p className="mt-3 text-center text-xs text-[#4B5563] dark:text-amber-400/90">
               {t('exam.wrong_only_unavailable')}
             </p>
           ) : null}
         </section>
 
         {glossLoading ? (
-          <p className="mt-4 text-center text-xs text-[rgba(232,232,245,0.5)]">{t('exam.gloss_loading')}</p>
+          <p className="mt-4 text-center text-xs text-artikl-muted2">{t('exam.gloss_loading')}</p>
         ) : null}
 
         <button
           type="button"
           onClick={handleStart}
           disabled={(topics === 'wrong' && !wrongOnlyAvailable) || !canStartWithGloss}
-          className="mt-8 w-full rounded-2xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-purple-600 py-4 text-[15px] font-semibold text-white shadow-lg shadow-violet-900/30 transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-8 w-full rounded-2xl border-2 border-purple-600 bg-purple-600 py-4 text-[15px] font-semibold text-white shadow-lg transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:border-purple-300 disabled:bg-purple-300 disabled:text-[#9CA3AF] dark:bg-gradient-to-r dark:from-violet-600 dark:via-fuchsia-600 dark:to-purple-600 dark:shadow-violet-900/30 dark:disabled:opacity-50"
         >
           {t('dashboard.start_exam')}
         </button>

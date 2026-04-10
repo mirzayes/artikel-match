@@ -47,10 +47,10 @@ export function PlayerRegistrationScreen({ onComplete }: PlayerRegistrationScree
           <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-[#e8d4ff]/85">
             {t('registration.welcome')}
           </p>
-          <h1 className="mt-2 text-center font-display text-xl font-bold text-white sm:text-2xl">
+          <h1 className="mt-2 text-center font-display text-xl font-bold text-artikl-text sm:text-2xl">
             {t('registration.title')}
           </h1>
-          <p className="mt-2 text-center text-[11px] text-[rgba(232,232,245,0.5)]">
+          <p className="mt-2 text-center text-[11px] text-artikl-muted2">
             {t('registration.subtitle')}
           </p>
 
@@ -67,7 +67,7 @@ export function PlayerRegistrationScreen({ onComplete }: PlayerRegistrationScree
           </div>
 
           <div className="mt-5">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-[rgba(232,232,245,0.45)]">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-artikl-caption">
               {t('profile.pick_avatar')}
             </p>
             <div className="mt-2.5 flex flex-wrap justify-center gap-2">
@@ -102,7 +102,7 @@ export function PlayerRegistrationScreen({ onComplete }: PlayerRegistrationScree
           <div className="mt-6">
             <label
               htmlFor="reg-display-name"
-              className="text-[10px] font-semibold uppercase tracking-wider text-[rgba(232,232,245,0.45)]"
+              className="text-[10px] font-semibold uppercase tracking-wider text-artikl-caption"
             >
               {t('registration.player_name_label')}
             </label>
@@ -113,7 +113,7 @@ export function PlayerRegistrationScreen({ onComplete }: PlayerRegistrationScree
               value={draftName}
               onChange={(e) => setDraftName(e.target.value)}
               placeholder={t('profile.name_placeholder')}
-              className="mt-2 w-full rounded-xl border border-white/15 bg-black/25 px-3 py-3 text-sm text-white placeholder:text-[rgba(232,232,245,0.25)] outline-none focus:border-[#a89ff8]/55"
+              className="mt-2 w-full rounded-xl border border-white/15 bg-black/25 px-3 py-3 text-sm text-artikl-text placeholder:text-artikl-caption outline-none focus:border-[#a89ff8]/55"
             />
           </div>
 
@@ -122,7 +122,7 @@ export function PlayerRegistrationScreen({ onComplete }: PlayerRegistrationScree
             whileTap={{ scale: 0.98 }}
             onClick={handleOk}
             disabled={!draftName.trim()}
-            className="mt-6 w-full rounded-xl bg-gradient-to-r from-[#7c6cf8] to-[#c44fd9] py-3.5 text-sm font-bold text-white shadow-[0_6px_24px_rgba(124,108,248,0.35)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+            className="mt-6 w-full rounded-xl border-2 border-purple-600 bg-purple-600 py-3.5 text-sm font-bold text-white shadow-[0_6px_24px_rgba(124,108,248,0.35)] transition-opacity disabled:cursor-not-allowed disabled:border-purple-200 disabled:bg-purple-200 disabled:text-[#9CA3AF] dark:border-transparent dark:bg-gradient-to-r dark:from-[#7c6cf8] dark:to-[#c44fd9] dark:disabled:opacity-40"
           >
             {t('profile.ok')}
           </motion.button>

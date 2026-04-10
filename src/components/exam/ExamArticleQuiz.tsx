@@ -13,6 +13,7 @@ import { useVocabulary } from '../../context/VocabularyContext';
 import { isRtlGlossLang, resolveVokabelRowGloss } from '../../lib/nounTranslation';
 import { buildFiniteQuestionOrder, buildInfiniteCycleOrder, examQuestionCount } from './examDeck';
 import { avatarIdToEmoji } from '../../lib/playerProfileRtdb';
+import { vibrateCorrectAnswer, vibrateWrongAnswer } from '../../lib/answerFeedbackMedia';
 import { useGameStore } from '../../store/useGameStore';
 
 function parseArticleInput(raw: string): Article | null {
@@ -134,8 +135,10 @@ export function ExamArticleQuiz({ config, rows, levelStats, onRecord, onFinish }
       triggerXpPop();
       setSessionAnswered((n) => n + 1);
       if (ok) {
+        vibrateCorrectAnswer();
         setSessionCorrect((n) => n + 1);
       } else {
+        vibrateWrongAnswer();
         loseLife();
       }
     },
@@ -150,6 +153,7 @@ export function ExamArticleQuiz({ config, rows, levelStats, onRecord, onFinish }
       return;
     }
     if (a !== current.article) {
+      vibrateWrongAnswer();
       setRecoverErr('Düzgün deyil');
       return;
     }
@@ -231,7 +235,7 @@ export function ExamArticleQuiz({ config, rows, levelStats, onRecord, onFinish }
               type="button"
               onClick={handleEndInfinite}
               disabled={sessionAnswered === 0}
-              className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-[rgba(232,232,245,0.85)] transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-artikl-text transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Testi bitir
             </button>

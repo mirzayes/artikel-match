@@ -9,12 +9,16 @@ interface FriendsNotificationLayerProps {
   userId: string;
 }
 
+function shortId(id: string): string {
+  return id.length > 14 ? `${id.slice(0, 14)}…` : id;
+}
+
 /**
  * Всплывающее уведомление о новом запросе в друзья (слушает `users/{userId}/incomingFriendRequests`).
  */
 export function FriendsNotificationLayer({ userId }: FriendsNotificationLayerProps) {
   const { t } = useTranslation();
-  const [fromId, setFromId] = useState<string | null>(null);
+  const [popup, setPopup] = useState<{ fromId: string; fromName: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -32,7 +36,10 @@ export function FriendsNotificationLayer({ userId }: FriendsNotificationLayerPro
         const key = snap.key;
         if (!key || baseline.has(key)) return;
         baseline.add(key);
-        setFromId(key);
+        const v = snap.val() as { fromName?: string } | null;
+        const fromName =
+          typeof v?.fromName === 'string' && v.fromName.trim() ? v.fromName.trim() : shortId(key);
+        setPopup({ fromId: key, fromName });
       });
     })();
 
@@ -42,30 +49,28 @@ export function FriendsNotificationLayer({ userId }: FriendsNotificationLayerPro
     };
   }, [userId]);
 
-  const short = (id: string) => (id.length > 14 ? `${id.slice(0, 14)}…` : id);
-
   return (
     <AnimatePresence>
-      {fromId ? (
+      {popup ? (
         <motion.div
-          key={fromId}
+          key={popup.fromId}
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
           transition={{ type: 'spring', stiffness: 420, damping: 32 }}
           className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-[120] w-[min(100%,380px)] -translate-x-1/2 px-4"
         >
-          <div className="rounded-2xl border border-white/12 bg-[#12121a]/96 p-4 shadow-[0_12px_48px_rgba(0,0,0,0.45)] backdrop-blur-xl">
-            <p className="text-sm font-semibold text-white">{t('friends.request_title')}</p>
+          <div className="friends-notification-card rounded-2xl border border-white/12 bg-[#12121a]/96 p-4 shadow-[0_12px_48px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+            <p className="text-sm font-semibold text-artikl-text">{t('friends.request_title')}</p>
             <p className="mt-1 text-[12px] leading-snug text-[var(--artikl-muted2)]">
               <Trans
                 i18nKey="friends.invite_message"
-                values={{ id: short(fromId) }}
+                values={{ name: popup.fromName }}
                 components={{
                   highlight: (
                     <span
-                      className="font-mono text-[11px] text-[var(--artikl-accent2)]"
-                      title={fromId}
+                      className="font-semibold text-[var(--artikl-accent2)]"
+                      title={popup.fromId}
                     />
                   ),
                 }}
@@ -77,11 +82,11 @@ export function FriendsNotificationLayer({ userId }: FriendsNotificationLayerPro
                 disabled={busy}
                 onClick={() => {
                   setBusy(true);
-                  void acceptFriendRequest(userId, fromId)
-                    .then(() => setFromId(null))
+                  void acceptFriendRequest(userId, popup.fromId)
+                    .then(() => setPopup(null))
                     .finally(() => setBusy(false));
                 }}
-                className="flex-1 rounded-xl bg-[#7c6cf8] py-2.5 text-xs font-bold text-white shadow-[0_6px_24px_rgba(124,108,248,0.3)] active:scale-[0.98] disabled:opacity-50"
+                className="flex-1 rounded-xl border-2 border-purple-600 bg-purple-600 py-2.5 text-xs font-bold text-white shadow-[0_6px_24px_rgba(124,108,248,0.3)] active:scale-[0.98] disabled:border-purple-200 disabled:bg-purple-200 disabled:text-[#9CA3AF] dark:border-transparent dark:bg-[#7c6cf8] dark:disabled:opacity-50"
               >
                 {t('friends.accept')}
               </button>
@@ -90,11 +95,11 @@ export function FriendsNotificationLayer({ userId }: FriendsNotificationLayerPro
                 disabled={busy}
                 onClick={() => {
                   setBusy(true);
-                  void declineFriendRequest(userId, fromId)
-                    .then(() => setFromId(null))
+                  void declineFriendRequest(userId, popup.fromId)
+                    .then(() => setPopup(null))
                     .finally(() => setBusy(false));
                 }}
-                className="flex-1 rounded-xl border border-white/15 py-2.5 text-xs font-semibold text-[rgba(232,232,245,0.8)] active:scale-[0.98] disabled:opacity-50"
+                className="flex-1 rounded-xl border border-white/15 py-2.5 text-xs font-semibold text-artikl-text active:scale-[0.98] disabled:opacity-50"
               >
                 {t('friends.decline')}
               </button>

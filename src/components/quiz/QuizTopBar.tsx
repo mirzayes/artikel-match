@@ -47,10 +47,12 @@ export function QuizTopBar({ stats, xpPop, hearts, playerEmoji }: QuizTopBarProp
         <div className="artikl-streak-icon" aria-hidden>
           <svg viewBox="0 0 14 14" fill="none">
             <path
+              className="artikl-streak-flame-outer"
               d="M7 1C7 1 3 5 3 8.5C3 10.9 4.8 13 7 13C9.2 13 11 10.9 11 8.5C11 5 7 1 7 1Z"
-              fill="#f5c842"
+              fill="#F59E0B"
             />
             <path
+              className="artikl-streak-flame-inner"
               d="M7 7C7 7 5 9 5 10.2C5 11.2 5.9 12 7 12C8.1 12 9 11.2 9 10.2C9 9 7 7 7 7Z"
               fill="#ff8c00"
             />

@@ -65,7 +65,7 @@ export function QuizWordAiExplain({ wordId, article, word, translation }: Props)
   return (
     <div className="mt-3 rounded-xl border border-violet-400/15 bg-violet-500/[0.06] p-4 text-left">
       <p className="text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-violet-200/55">İzah</p>
-      <p className="mt-2 text-sm leading-relaxed text-[rgba(232,232,245,0.82)]">{text}</p>
+      <p className="mt-2 text-sm leading-relaxed text-artikl-text">{text}</p>
     </div>
   );
 }

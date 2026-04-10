@@ -1,6 +1,8 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app';
+import { getAuth, signInAnonymously, type Auth } from 'firebase/auth';
 import { getDatabase, type Database } from 'firebase/database';
 import { getFirestore, type Firestore } from 'firebase/firestore';
+import { isDeviceSessionKicked } from './deviceSessionFlags';
 
 const FIREBASE_ENV_KEYS = [
   'VITE_FIREBASE_API_KEY',
@@ -25,15 +27,20 @@ function trimEnv(key: string): string {
   }
 }
 
-/** Fallback config used when any VITE_FIREBASE_* value is unset or empty. */
+/**
+ * Fallback config used when any VITE_FIREBASE_* value is unset or empty.
+ * These are intentionally non-functional placeholders so the app can still
+ * boot in offline / development mode without a real .env file.
+ * Set real values in .env (see .env.example).
+ */
 const PLACEHOLDER_FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyCrPuWNbhqz9tHji4EQuLPwofmqmYuBmQc',
-  authDomain: 'artikelmatch.firebaseapp.com',
-  databaseURL: 'https://artikelmatch-default-rtdb.europe-west1.firebasedatabase.app',
-  projectId: 'artikelmatch',
-  storageBucket: 'artikelmatch.firebasestorage.app',
-  messagingSenderId: '114813253843',
-  appId: '1:114813253843:web:8e343716880f52f76bfc26',
+  apiKey: 'MISSING_API_KEY',
+  authDomain: 'example.firebaseapp.com',
+  databaseURL: 'https://example-default-rtdb.firebaseio.com',
+  projectId: 'example',
+  storageBucket: 'example.appspot.com',
+  messagingSenderId: '000000000000',
+  appId: '0:000000000000:web:0000000000000000',
 } as const;
 
 function buildFirebaseConfig() {
@@ -55,6 +62,12 @@ function buildFirebaseConfig() {
 
 /** `true` when every listed VITE_FIREBASE_* is present and non-empty after trim. */
 export const isFirebaseConfigured = FIREBASE_ENV_KEYS.every((k) => trimEnv(k) !== '');
+
+/** Realtime Database URL set and not a dev placeholder (required for referralCodes / RTDB writes). */
+export function isRealtimeDatabaseUrlConfigured(): boolean {
+  const u = trimEnv('VITE_FIREBASE_DATABASE_URL');
+  return u !== '' && !u.includes('example-default-rtdb.firebaseio.com');
+}
 
 /**
  * Use for cloud-backed paths (RTDB writes, presence, etc.).
@@ -83,7 +96,35 @@ function initFirebase(): {
 
 const { app, rtdb, db } = initFirebase();
 
-export { app, rtdb, db };
+let auth: Auth | null = null;
+if (app) {
+  try {
+    auth = getAuth(app);
+  } catch {
+    auth = null;
+  }
+}
+
+export { app, auth, rtdb, db };
+
+/**
+ * RTDB qaydaları çox vaxt `auth != null` tələb edir.
+ * Anonim giriş — `referralCodes` və digər yazılar üçün.
+ */
+export async function ensureAnonymousFirebaseUser(): Promise<string | null> {
+  if (!app || !auth || !isFirebaseLive) return null;
+  if (isDeviceSessionKicked()) return null;
+  if (auth.currentUser) return auth.currentUser.uid;
+  try {
+    const cred = await signInAnonymously(auth);
+    return cred.user.uid;
+  } catch (e) {
+    if (import.meta.env.DEV) {
+      console.warn('[firebase] Anonymous sign-in failed (enable Anonymous in Firebase Console → Auth):', e);
+    }
+    return null;
+  }
+}
 
 /** App + RTDB instances exist (may still be placeholder-backed). */
 export const isFirebaseReady = app !== null && rtdb !== null;

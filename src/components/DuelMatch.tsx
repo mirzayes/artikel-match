@@ -14,6 +14,7 @@ import { getArticleFact } from '../data/articleFacts';
 import { avatarIdToEmoji } from '../lib/playerProfileRtdb';
 import { useGameStore } from '../store/useGameStore';
 import { getAffixWrongTeachHighlight } from '../lib/predictArticleFromAffixRules';
+import { readStoredDuelLevel } from '../lib/duelLevelStorage';
 import {
   DuelGame,
   getOrCreateDuelUserId,
@@ -40,6 +41,18 @@ function generateRoomCode(): string {
 
 function buildInviteLink(code: string): string {
   return `${window.location.origin}${window.location.pathname}?room=${code}`;
+}
+
+/** 6-character private room code from `?room=` (same charset as generated codes). */
+function parseRoomCodeFromLocationSearch(search: string): string | null {
+  try {
+    const raw = new URLSearchParams(search).get('room')?.trim();
+    if (!raw) return null;
+    const code = raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    return code.length === 6 ? code : null;
+  } catch {
+    return null;
+  }
 }
 
 function storeInvite(code: string): void {
@@ -83,6 +96,7 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
   const { nounsByLevel } = useVocabulary();
   const nouns = nounsByLevel[level];
   const playerAvatarId = useGameStore((s) => s.avatar);
+  const duelCoins = useGameStore((s) => s.coins);
   const playerEmoji = avatarIdToEmoji(playerAvatarId);
   const [onlineDuel, setOnlineDuel] = useState(false);
   // gameActive gates the local bot practice game; false = show static menu only
@@ -90,12 +104,23 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const duelUid = useMemo(() => getOrCreateDuelUserId(), []);
+  /** Ensures `?room=` auto-join runs once (URL is stripped after first parse). */
+  const privateDuelUrlJoinStartedRef = useRef(false);
 
   /* ── Private duel state ───────────────────────────────────────────── */
-  const [privateDuelScreen, setPrivateDuelScreen] =
-    useState<'hidden' | 'menu' | 'hosting' | 'joining' | 'joined'>('hidden');
+  const [privateDuelScreen, setPrivateDuelScreen] = useState<
+    'hidden' | 'menu' | 'hosting' | 'joining' | 'joined'
+  >(() =>
+    typeof window !== 'undefined' && parseRoomCodeFromLocationSearch(window.location.search)
+      ? 'joining'
+      : 'hidden',
+  );
   const [privateCode, setPrivateCode] = useState('');
-  const [joinInput, setJoinInput] = useState('');
+  const [joinInput, setJoinInput] = useState(() =>
+    typeof window !== 'undefined'
+      ? parseRoomCodeFromLocationSearch(window.location.search) ?? ''
+      : '',
+  );
   const [joinError, setJoinError] = useState<string | null>(null);
   const [joinLoading, setJoinLoading] = useState(false);
   const [privateMatch, setPrivateMatch] = useState<{
@@ -249,7 +274,7 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
           privateLobbyUnsubRef.current();
           privateLobbyUnsubRef.current = null;
         }
-        void activatePrivateLobby(code, duelUid, lobby.guestId).then((gameId) => {
+        void activatePrivateLobby(code, duelUid, lobby.guestId, readStoredDuelLevel(level)).then((gameId) => {
           console.log('[PrivateDuel] HOST starting game, gameId=', gameId);
           setPrivateMatch({ gameId, role: 'player1' });
           setPrivateDuelScreen('hidden');
@@ -274,40 +299,56 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
     }
   };
 
-  const handleJoinPrivateRoom = async () => {
-    const code = joinInput.trim().toUpperCase();
-    if (code.length < 6) { setJoinError('6 simvol daxil edin'); return; }
-    console.log('[PrivateDuel] GUEST flow start, code=', code, 'uid=', duelUid);
-    setJoinLoading(true);
-    setJoinError(null);
-    try {
-      await joinPrivateLobby(code, duelUid);
-      console.log('[PrivateDuel] GUEST joined OK, now watching for game start');
-      setPrivateCode(code);
-      setPrivateDuelScreen('joined');
-      privateLobbyUnsubRef.current = watchPrivateLobby(code, (lobby) => {
-        if (!lobby) return;
-        console.log('[PrivateDuel] GUEST watcher fired, status=', lobby.status, lobby);
-        if (lobby.status === 'game' && lobby.gameId) {
-          console.log('[PrivateDuel] GUEST starting game, gameId=', lobby.gameId);
-          if (privateLobbyUnsubRef.current) {
-            privateLobbyUnsubRef.current();
-            privateLobbyUnsubRef.current = null;
+  const handleJoinPrivateRoom = useCallback(
+    async (explicitCode?: string) => {
+      const code = (explicitCode ?? joinInput).trim().toUpperCase();
+      if (code.length < 6) {
+        setJoinError('6 simvol daxil edin');
+        return;
+      }
+      console.log('[PrivateDuel] GUEST flow start, code=', code, 'uid=', duelUid);
+      setJoinLoading(true);
+      setJoinError(null);
+      try {
+        await joinPrivateLobby(code, duelUid);
+        console.log('[PrivateDuel] GUEST joined OK, now watching for game start');
+        setPrivateCode(code);
+        setPrivateDuelScreen('joined');
+        privateLobbyUnsubRef.current = watchPrivateLobby(code, (lobby) => {
+          if (!lobby) return;
+          console.log('[PrivateDuel] GUEST watcher fired, status=', lobby.status, lobby);
+          if (lobby.status === 'game' && lobby.gameId) {
+            console.log('[PrivateDuel] GUEST starting game, gameId=', lobby.gameId);
+            if (privateLobbyUnsubRef.current) {
+              privateLobbyUnsubRef.current();
+              privateLobbyUnsubRef.current = null;
+            }
+            const gid = lobby.gameId;
+            deletePrivateRoom(code);
+            setPrivateMatch({ gameId: gid, role: 'player2' });
+            setPrivateDuelScreen('hidden');
+            setOnlineDuel(true);
           }
-          const gid = lobby.gameId;
-          deletePrivateRoom(code);
-          setPrivateMatch({ gameId: gid, role: 'player2' });
-          setPrivateDuelScreen('hidden');
-          setOnlineDuel(true);
-        }
-      });
-    } catch (e) {
-      console.error('[PrivateDuel] GUEST joinPrivateLobby failed', e);
-      setJoinError(e instanceof Error ? e.message : 'Xəta baş verdi');
-    } finally {
-      setJoinLoading(false);
-    }
-  };
+        });
+      } catch (e) {
+        console.error('[PrivateDuel] GUEST joinPrivateLobby failed', e);
+        setJoinError(e instanceof Error ? e.message : 'Xəta baş verdi');
+      } finally {
+        setJoinLoading(false);
+      }
+    },
+    [joinInput, duelUid],
+  );
+
+  useEffect(() => {
+    if (privateDuelUrlJoinStartedRef.current) return;
+    if (typeof window === 'undefined') return;
+    const code = parseRoomCodeFromLocationSearch(window.location.search);
+    if (!code) return;
+    privateDuelUrlJoinStartedRef.current = true;
+    window.history.replaceState({}, '', `${window.location.pathname}${window.location.hash}`);
+    void handleJoinPrivateRoom(code);
+  }, [handleJoinPrivateRoom]);
 
   const handleShareLink = async () => {
     const code = generateRoomCode();
@@ -442,6 +483,7 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
       <DuelGame
         currentUserId={duelUid}
         displayName={displayName}
+        defaultDuelLevel={level}
         onExit={() => { setOnlineDuel(false); setPrivateMatch(null); }}
         initialMatch={privateMatch ?? undefined}
       />
@@ -458,31 +500,45 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
 
         <div className="px-5 pb-3 pt-1">
           {/* ── Static menu buttons — always visible ── */}
+          {/* Coin balance display */}
+          <div className="mb-3 flex items-center justify-center gap-2">
+            <span className="flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1.5">
+              <span className="font-mono text-lg font-bold tabular-nums text-[#7C3AED] dark:text-amber-200">
+                {t('common.balance_display', { amount: duelCoins })}
+              </span>
+            </span>
+          </div>
+
           <button
             type="button"
             onClick={() => setOnlineDuel(true)}
-            className="mb-2 w-full rounded-xl border border-[rgba(167,139,250,0.35)] bg-gradient-to-r from-[rgba(124,108,248,0.22)] to-[rgba(196,79,217,0.14)] py-3 text-sm font-bold text-white shadow-[0_8px_28px_rgba(124,108,248,0.22)] transition-transform active:scale-[0.98]"
+            className="duel-cta-random mb-2 w-full rounded-xl border border-[rgba(168,85,247,0.5)] bg-gradient-to-r from-[rgba(124,108,248,0.28)] via-[rgba(168,85,247,0.20)] to-[rgba(196,79,217,0.18)] py-4 text-[15px] font-bold text-artikl-heading shadow-[0_8px_32px_rgba(168,85,247,0.35)] transition-all active:scale-[0.98] hover:shadow-[0_10px_40px_rgba(168,85,247,0.45)]"
           >
-            {t('duel.find_opponent')}
+            <span className="flex items-center justify-center gap-2">
+              <span aria-hidden>⚔️</span>
+              {t('duel.random_opponent')}
+              <span className="flex items-center gap-1 rounded-full border border-amber-400/25 bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold tabular-nums text-[#7C3AED] dark:text-amber-200">
+                🪙 {duelCoins}
+              </span>
+            </span>
           </button>
-          <div className="mb-2 flex gap-2">
+          <div className="mb-2 grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => setPrivateDuelScreen('menu')}
-              className="flex-1 rounded-xl border border-[rgba(255,190,80,0.35)] bg-gradient-to-r from-[rgba(255,160,40,0.18)] to-[rgba(255,100,60,0.12)] py-2.5 text-sm font-bold text-[rgba(255,220,140,0.95)] shadow-[0_4px_18px_rgba(255,150,50,0.15)] transition-transform active:scale-[0.98]"
+              className="duel-cta-private rounded-xl border border-[rgba(255,190,80,0.35)] bg-gradient-to-br from-[rgba(255,160,40,0.18)] to-[rgba(255,100,60,0.12)] py-3.5 text-[13px] font-bold text-[rgba(255,220,140,0.95)] shadow-[0_4px_18px_rgba(255,150,50,0.15)] transition-transform active:scale-[0.98]"
             >
-              <span className="mr-1.5" aria-hidden>🎮</span>Xüsusi duel
+              {t('duel.private_duel_grid_btn')}
             </button>
             <button
               type="button"
               onClick={() => void handleShareLink()}
-              className="rounded-xl border border-[rgba(255,255,255,0.1)] bg-white/[0.06] px-4 py-2.5 text-sm font-semibold text-[rgba(232,232,245,0.7)] transition-transform active:scale-[0.98]"
-              aria-label="Duel linki paylaş"
+              className="rounded-xl border border-[var(--artikl-border2)] bg-[var(--artikl-surface2)] py-3.5 text-[13px] font-semibold text-artikl-text transition-transform active:scale-[0.98]"
             >
-              🔗
+              {t('duel.share_link_btn')}
             </button>
           </div>
-          <p className="mb-3 text-center text-[10px] leading-snug text-[rgba(232,232,245,0.42)]">
+          <p className="mb-4 text-center text-[11px] leading-relaxed text-artikl-muted2">
             {t('duel.find_opponent_sub')}
           </p>
 
@@ -490,19 +546,19 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
           {gameActive && (
             <>
               {loadErr ? (
-                <p className="mt-4 text-center text-sm text-[rgba(232,232,245,0.55)]">{loadErr}</p>
+                <p className="mt-4 text-center text-sm text-artikl-muted2">{loadErr}</p>
               ) : !current ? (
-                <p className="mt-4 text-center text-sm text-[rgba(232,232,245,0.45)]">{t('quiz.loading')}</p>
+                <p className="mt-4 text-center text-sm text-artikl-caption">{t('quiz.loading')}</p>
               ) : (
                 <>
-                  <p className="text-center text-[11px] font-bold uppercase tracking-wider text-[rgba(232,232,245,0.45)]">
+                  <p className="text-center text-[11px] font-bold uppercase tracking-wider text-artikl-caption">
                     {t('duel.race_to', { n: DUEL_GOAL })}
                   </p>
                   <div className="mt-3 flex items-center justify-between gap-3 text-sm font-semibold">
                     <div className="flex min-w-0 flex-1 flex-col gap-1">
                       <span className="text-emerald-300/90">{t('duel.you')}</span>
                       <div
-                        className="h-2 overflow-hidden rounded-full bg-white/10"
+                        className="h-2 overflow-hidden rounded-full bg-[var(--artikl-surface2)]"
                         role="progressbar"
                         aria-valuenow={playerProgress}
                         aria-valuemin={0}
@@ -513,13 +569,13 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
                           style={{ width: barPct(playerProgress) }}
                         />
                       </div>
-                      <span className="tabular-nums text-white">{playerProgress}</span>
+                      <span className="tabular-nums text-artikl-text">{playerProgress}</span>
                     </div>
-                    <span className="shrink-0 text-lg text-white/30" aria-hidden>:</span>
+                    <span className="shrink-0 text-lg text-artikl-text/30" aria-hidden>:</span>
                     <div className="flex min-w-0 flex-1 flex-col items-end gap-1 text-right">
                       <span className="text-rose-300/90">{t('duel.opponent')}</span>
                       <div
-                        className="h-2 w-full overflow-hidden rounded-full bg-white/10"
+                        className="h-2 w-full overflow-hidden rounded-full bg-[var(--artikl-surface2)]"
                         role="progressbar"
                         aria-valuenow={opponentProgress}
                         aria-valuemin={0}
@@ -530,10 +586,10 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
                           style={{ width: barPct(opponentProgress) }}
                         />
                       </div>
-                      <span className="tabular-nums text-white">{opponentProgress}</span>
+                      <span className="tabular-nums text-artikl-text">{opponentProgress}</span>
                     </div>
                   </div>
-                  <p className="mt-2 text-center text-[10px] text-[rgba(232,232,245,0.38)]">
+                  <p className="mt-2 text-center text-[10px] text-artikl-caption">
                     {t('duel.opponent_hint', { penalty: PLAYER_WRONG_PENALTY })}
                   </p>
                 </>
@@ -591,24 +647,24 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
       {gameActive && winner ? (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/72 px-4 backdrop-blur-sm">
           <div className="glass-card max-w-sm rounded-2xl p-6 text-center shadow-2xl">
-            <h2 className="font-display text-xl font-bold text-white sm:text-2xl">
+            <h2 className="font-display text-xl font-bold text-artikl-text sm:text-2xl">
               {winner === 'player' ? t('duel.victory') : t('duel.defeat')}
             </h2>
-            <p className="mt-2 text-sm text-[rgba(232,232,245,0.6)]">
+            <p className="mt-2 text-sm text-artikl-muted2">
               {t('duel.score', { you: playerProgress, opp: opponentProgress })}
             </p>
             <div className="mt-6 flex flex-col gap-2">
               <button
                 type="button"
                 onClick={resetDuelSession}
-                className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-3 text-sm font-semibold text-white"
+                className="w-full rounded-xl border-2 border-purple-600 bg-purple-600 py-3 text-sm font-semibold text-white dark:border-transparent dark:bg-gradient-to-r dark:from-violet-600 dark:to-fuchsia-600"
               >
                 {t('duel.again')}
               </button>
               <button
                 type="button"
                 onClick={onExitHome}
-                className="w-full rounded-xl border border-white/15 py-3 text-sm font-semibold text-[rgba(232,232,245,0.75)]"
+                className="w-full rounded-xl border border-[var(--artikl-border2)] py-3 text-sm font-semibold text-artikl-text"
               >
                 {t('duel.home')}
               </button>
@@ -619,8 +675,8 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
 
       {/* ── Private Duel Panel ─────────────────────────────────────────── */}
       {privateDuelScreen !== 'hidden' ? (
-        <div className="fixed inset-0 z-[65] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-[360px] rounded-[22px] border border-white/[0.12] bg-gradient-to-b from-[rgba(255,140,40,0.10)] via-[rgba(18,18,28,0.96)] to-[rgba(12,12,18,0.99)] px-6 py-7 shadow-[0_24px_64px_rgba(0,0,0,0.55)]">
+        <div className="private-duel-modal-scope fixed inset-0 z-[65] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-[360px] rounded-[22px] border border-[var(--artikl-border2)] bg-gradient-to-b from-[rgba(255,140,40,0.10)] via-[rgba(18,18,28,0.96)] to-[rgba(12,12,18,0.99)] px-6 py-7 shadow-[0_24px_64px_rgba(0,0,0,0.55)]">
 
             {/* Header */}
             <div className="mb-5 flex items-center justify-between">
@@ -630,7 +686,7 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
               <button
                 type="button"
                 onClick={closePrivateDuel}
-                className="text-lg leading-none text-white/35 transition-colors hover:text-white/70"
+                className="text-lg leading-none text-[#9CA3AF] transition-colors hover:text-[#4B5563] dark:text-artikl-text/35 hover:dark:text-artikl-text/70"
                 aria-label="Bağla"
               >
                 ✕
@@ -640,10 +696,10 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
             {/* ── MENU screen ── */}
             {privateDuelScreen === 'menu' && (
               <>
-                <h2 className="mb-1 text-center font-display text-lg font-bold text-white">
-                  Bacı ilə oyna
+                <h2 className="mb-1 text-center font-display text-lg font-bold text-artikl-text">
+                  Xüsusi duel
                 </h2>
-                <p className="mb-6 text-center text-[12px] leading-relaxed text-[rgba(232,232,245,0.48)]">
+                <p className="mb-6 text-center text-[12px] leading-relaxed text-artikl-caption">
                   Otaq aç, kodu dostuna göndər — ya da onun kodunu daxil et
                 </p>
                 <button
@@ -656,7 +712,7 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
                 <button
                   type="button"
                   onClick={() => setPrivateDuelScreen('joining')}
-                  className="w-full rounded-xl border border-white/15 bg-white/[0.05] py-3 text-sm font-semibold text-[rgba(232,232,245,0.78)] transition-transform active:scale-[0.98]"
+                  className="w-full rounded-xl border border-[var(--artikl-border2)] bg-[var(--artikl-surface)] py-3 text-sm font-semibold text-artikl-text transition-transform active:scale-[0.98]"
                 >
                   Koda qoşul
                 </button>
@@ -666,25 +722,25 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
             {/* ── HOSTING screen — waiting for guest ── */}
             {privateDuelScreen === 'hosting' && (
               <>
-                <h2 className="mb-1 text-center font-display text-lg font-bold text-white">
+                <h2 className="mb-1 text-center font-display text-lg font-bold text-artikl-text">
                   Otaq açıldı
                 </h2>
-                <p className="mb-4 text-center text-[12px] text-[rgba(232,232,245,0.50)]">
+                <p className="mb-4 text-center text-[12px] text-artikl-muted2">
                   Bu kodu dostuna göndər
                 </p>
-                <div className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3">
-                  <span className="font-mono text-2xl font-bold tracking-[0.25em] text-white">
+                <div className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-[var(--artikl-border2)] bg-[var(--artikl-surface2)] px-4 py-3">
+                  <span className="font-mono text-2xl font-bold tracking-[0.25em] text-artikl-text">
                     {privateCode}
                   </span>
                   <button
                     type="button"
                     onClick={() => void handleCopyPrivateCode(privateCode)}
-                    className="rounded-lg border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white/80 transition-colors hover:bg-white/20 active:scale-95"
+                    className="rounded-lg border border-[var(--artikl-border2)] bg-[var(--artikl-surface2)] px-3 py-1.5 text-[11px] font-semibold text-[#4B5563] transition-colors hover:bg-[var(--artikl-surface2)] active:scale-95 dark:text-artikl-text/80"
                   >
                     Kopyala
                   </button>
                 </div>
-                <div className="flex items-center justify-center gap-2 text-[13px] text-[rgba(232,232,245,0.55)]">
+                <div className="flex items-center justify-center gap-2 text-[13px] text-artikl-muted2">
                   <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-amber-400/70" />
                   Rəqib gözlənilir...
                 </div>
@@ -694,18 +750,18 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
             {/* ── JOINED screen — guest waiting for host to start ── */}
             {privateDuelScreen === 'joined' && (
               <>
-                <h2 className="mb-1 text-center font-display text-lg font-bold text-white">
+                <h2 className="mb-1 text-center font-display text-lg font-bold text-artikl-text">
                   Qoşulundu!
                 </h2>
-                <p className="mb-4 text-center text-[12px] text-[rgba(232,232,245,0.50)]">
+                <p className="mb-4 text-center text-[12px] text-artikl-muted2">
                   Otaq kodu
                 </p>
-                <div className="mb-5 flex items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3">
-                  <span className="font-mono text-2xl font-bold tracking-[0.25em] text-white">
+                <div className="mb-5 flex items-center justify-center rounded-xl border border-[var(--artikl-border2)] bg-[var(--artikl-surface2)] px-4 py-3">
+                  <span className="font-mono text-2xl font-bold tracking-[0.25em] text-artikl-text">
                     {privateCode}
                   </span>
                 </div>
-                <div className="flex items-center justify-center gap-2 text-[13px] text-[rgba(232,232,245,0.55)]">
+                <div className="flex items-center justify-center gap-2 text-[13px] text-artikl-muted2">
                   <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-400/70" />
                   Oyun başlayır...
                 </div>
@@ -715,10 +771,10 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
             {/* ── JOINING screen — enter friend's code ── */}
             {privateDuelScreen === 'joining' && (
               <>
-                <h2 className="mb-1 text-center font-display text-lg font-bold text-white">
+                <h2 className="mb-1 text-center font-display text-lg font-bold text-artikl-text">
                   Koda qoşul
                 </h2>
-                <p className="mb-5 text-center text-[12px] text-[rgba(232,232,245,0.50)]">
+                <p className="mb-5 text-center text-[12px] text-artikl-muted2">
                   Dostunun otaq kodunu daxil et
                 </p>
                 <input
@@ -730,7 +786,7 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
                   placeholder="AB12CD"
                   maxLength={6}
                   autoFocus
-                  className="mb-3 w-full rounded-xl border border-white/15 bg-white/[0.07] px-4 py-3 text-center font-mono text-2xl font-bold tracking-[0.25em] text-white placeholder-white/20 outline-none focus:border-amber-500/60 transition-colors"
+                  className="mb-3 w-full rounded-xl border border-[var(--artikl-border2)] bg-[var(--artikl-surface2)] px-4 py-3 text-center font-mono text-2xl font-bold tracking-[0.25em] text-artikl-text placeholder:text-artikl-caption outline-none focus:border-amber-500/60 transition-colors"
                 />
                 {joinError ? (
                   <p className="mb-3 text-center text-[12px] text-rose-400">{joinError}</p>
@@ -748,7 +804,7 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
                 <button
                   type="button"
                   onClick={() => setPrivateDuelScreen('menu')}
-                  className="mt-3 w-full text-center text-[12px] text-[rgba(232,232,245,0.38)] transition-colors hover:text-[rgba(232,232,245,0.65)]"
+                  className="mt-3 w-full text-center text-[12px] text-artikl-caption transition-colors hover:text-artikl-muted2"
                 >
                   Geri
                 </button>
@@ -762,7 +818,7 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
       {/* Invite-link toast */}
       {toastMsg ? (
         <div
-          className="fixed bottom-24 left-1/2 z-[80] -translate-x-1/2 rounded-2xl bg-[rgba(30,28,48,0.95)] px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_32px_rgba(0,0,0,0.55)] backdrop-blur-md"
+          className="fixed bottom-24 left-1/2 z-[80] -translate-x-1/2 rounded-2xl bg-[rgba(30,28,48,0.95)] px-5 py-3 text-sm font-semibold text-artikl-text shadow-[0_8px_32px_rgba(0,0,0,0.55)] backdrop-blur-md"
           role="status"
           aria-live="polite"
         >

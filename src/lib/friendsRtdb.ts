@@ -1,10 +1,15 @@
-import { get, ref, serverTimestamp, set, update } from 'firebase/database';
+import { get, ref, set, update } from 'firebase/database';
 import { isFirebaseLive, rtdb } from './firebase';
 
 /** Друзья: `users/{uid}/friends/{friendId}` = true */
-/** Входящие: `users/{uid}/incomingFriendRequests/{fromId}` = { from, createdAt } */
+/** Входящие: `users/{uid}/incomingFriendRequests/{fromId}` = { fromName, fromAvatar, timestamp } */
 
-export async function sendFriendRequest(currentUserId: string, targetUserId: string): Promise<void> {
+export async function sendFriendRequest(
+  currentUserId: string,
+  targetUserId: string,
+  fromName: string,
+  fromAvatar: string,
+): Promise<void> {
   if (
     !currentUserId.trim() ||
     !targetUserId.trim() ||
@@ -21,8 +26,9 @@ export async function sendFriendRequest(currentUserId: string, targetUserId: str
   if (edgeMine.exists() || edgeTheirs.exists()) return;
 
   await set(ref(rtdb, `users/${targetUserId}/incomingFriendRequests/${currentUserId}`), {
-    from: currentUserId,
-    createdAt: serverTimestamp(),
+    fromName: fromName.trim() || 'Oyunçu',
+    fromAvatar: fromAvatar.trim() || 'pretzel',
+    timestamp: Date.now(),
   });
 }
 

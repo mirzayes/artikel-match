@@ -1,0 +1,1441 @@
+// ========== src/App.tsx ==========
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { tryNotifyGoldenHourStart } from './lib/coinBonus';
+import { syncDailyLoginStreak } from './lib/dailyLoginStreak';
+import { playMilestoneFanfare, vibrateCoinReward } from './lib/answerFeedbackMedia';
+import { firePioneerBonusConfetti, fireReferralRewardConfetti } from './lib/rewardConfetti';
+import { REFERRAL_REWARD_COINS, subscribeReferralGrants } from './lib/referralRtdb';
+import { useTranslation } from 'react-i18next';
+import { AnimatePresence, motion } from 'framer-motion';
+import { BottomNav, type Tab } from './components/BottomNav';
+import { AmbientOrbs } from './components/layout/AmbientOrbs';
+import { Dashboard } from './components/Dashboard';
+import { ArticleMatchQuiz } from './components/ArticleMatchQuiz';
+import { LearningTopicHub } from './components/learning/LearningTopicHub';
+import { ExamFlow } from './components/exam/ExamFlow';
+import { DuelMatch } from './components/DuelMatch';
+import { getOrCreateDuelUserId } from './components/DuelGame';
+import { FriendsNotificationLayer } from './components/FriendsNotificationLayer';
+import { VocabularyChecker } from './components/VocabularyChecker';
+import { LeaderboardView } from './components/LeaderboardView';
+import { CoinShopSheet } from './components/CoinShopSheet';
+import { MilestoneOverlay } from './components/MilestoneOverlay';
+import { PioneerBonusOverlay } from './components/PioneerBonusOverlay';
+import { WelcomeStarterOverlay } from './components/WelcomeStarterOverlay';
+import { PlayerRegistrationScreen } from './components/PlayerRegistrationScreen';
+import { signOut } from 'firebase/auth';
+import { syncDailyStreak } from './lib/dailyStreak';
+import {
+  auth,
+  ensureAnonymousFirebaseUser,
+  isFirebaseLive,
+  isRealtimeDatabaseUrlConfigured,
+} from './lib/firebase';
+import {
+  claimDeviceSessionLock,
+  getOrCreateLocalDeviceId,
+  subscribeDeviceSessionLock,
+} from './lib/deviceSession';
+import { isDeviceSessionKicked, setDeviceSessionKicked } from './lib/deviceSessionFlags';
+import { bindAppPresence } from './lib/userPresenceRtdb';
+import {
+  setPlayerAvatar,
+  setPlayerProfileDisplayName,
+  subscribeIsAlphaTester,
+} from './lib/playerProfileRtdb';
+import { syncLeaderboardXp } from './lib/leaderboardRtdb';
+import { useQuizProgress } from './hooks/useQuizProgress';
+import { useGameStoreRehydrated } from './hooks/useGameStoreRehydrated';
+import { useGameStore } from './store/useGameStore';
+import { useVocabulary } from './context/VocabularyContext';
+import type { Article, GoetheLevel } from './types';
+import { highestUnlockedGoetheLevel, isLevelGateUnlocked, type LevelGateCheckArgs } from './lib/levelGate';
+import { DUEL_MIN_ARTIK_BALANCE } from './lib/duelEntry';
+
+type LearnQuizConfig = {
+  restrictIds: string[] | null;
+  poolScope: 'selected_level' | 'all_levels';
+  reviewOnly?: boolean;
+};
+
+export default function App() {
+  const { t } = useTranslation();
+  const [tab, setTab] = useState<Tab>('home');
+  /** Öyrənməyə hər girişdə tam sıfırlama (köhnə taymerlər / sessiya «quyruğu» olmasın) */
+  const [learnMountKey, setLearnMountKey] = useState(0);
+  const [learnSubView, setLearnSubView] = useState<'topics' | 'quiz'>('topics');
+  const [learnQuizConfig, setLearnQuizConfig] = useState<LearnQuizConfig | null>(null);
+  const {
+    selectedLevel,
+    setSelectedLevel,
+    stats,
+    totalXpAllLevels,
+    odluSeriya,
+    displayName,
+    setDisplayName,
+    wrongCountByWordId,
+    hardWordIds,
+    knownWordIds,
+    masteryByWordId,
+    srsByWordId,
+    recordAnswer,
+    byLevel,
+    resetProgress,
+    toggleKnownWord,
+    ensureHardWord,
+    removeHardWord,
+    odluDailyGoal,
+    setOdluDailyGoal,
+  } = useQuizProgress();
+  const { nounsByLevel } = useVocabulary();
+
+  const iapLevelUnlocks = useGameStore((s) => s.iapLevelUnlocks);
+  const levelGateCoinUnlocks = useGameStore((s) => s.levelGateCoinUnlocks);
+  const artikBalance = useGameStore((s) => s.coins);
+
+  const rtdbUserId = useMemo(() => getOrCreateDuelUserId(), []);
+  const gameStoreHydrated = useGameStoreRehydrated();
+  const isRegistered = useGameStore((s) => s.isRegistered);
+  const profilePlayerName = useGameStore((s) => s.playerName);
+  const profileAvatar = useGameStore((s) => s.avatar);
+  const migrateQuizProfileRef = useRef(false);
+
+  useEffect(() => {
+    if (!gameStoreHydrated || migrateQuizProfileRef.current) return;
+    migrateQuizProfileRef.current = true;
+    const st = useGameStore.getState();
+    if (st.isRegistered) {
+      const n = st.playerName.trim();
+      if (n) setDisplayName(n);
+      return;
+    }
+    const q = displayName.trim();
+    if (q) {
+      useGameStore.getState().setPlayer(q, useGameStore.getState().avatar);
+    }
+  }, [gameStoreHydrated, displayName, setDisplayName]);
+
+  useEffect(() => {
+    syncDailyStreak();
+  }, []);
+
+  /** İlk giriş: totalXp === 0 — +200 sikkə və tam ekran qarşılama. */
+  useEffect(() => {
+    if (!gameStoreHydrated || !isRegistered) return;
+    const granted = useGameStore.getState().claimWelcomeStarterBonusIfEligible(totalXpAllLevels);
+    if (granted) {
+      vibrateCoinReward();
+      setWelcomeStarterVisible(true);
+    }
+  }, [gameStoreHydrated, isRegistered, totalXpAllLevels]);
+
+  const [coinShopOpen, setCoinShopOpen] = useState(false);
+  const [checkInToast, setCheckInToast] = useState<{ coins: number; dayIndex: number } | null>(null);
+  const [referralRewardToast, setReferralRewardToast] = useState<number | null>(null);
+  const [welcomeStarterVisible, setWelcomeStarterVisible] = useState(false);
+  const [pioneerBonusVisible, setPioneerBonusVisible] = useState(false);
+  /** Bir hesab — bir aktiv cihaz; RTDB kilidi hazır olmayana qədər bulud yazıları gözləyir. */
+  const [deviceSessionReady, setDeviceSessionReady] = useState(() => !isFirebaseLive);
+  const [deviceSessionMessage, setDeviceSessionMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!gameStoreHydrated || !isRegistered) return;
+    syncDailyLoginStreak();
+    const r = useGameStore.getState().claimDailyCheckIn();
+    if (r) {
+      vibrateCoinReward();
+      setCheckInToast({ coins: r.coins, dayIndex: r.dayIndex });
+    }
+    tryNotifyGoldenHourStart();
+  }, [gameStoreHydrated, isRegistered]);
+
+  useEffect(() => {
+    if (!checkInToast) return;
+    const id = window.setTimeout(() => setCheckInToast(null), 5200);
+    return () => clearTimeout(id);
+  }, [checkInToast]);
+
+  useEffect(() => {
+    if (referralRewardToast == null) return;
+    const id = window.setTimeout(() => setReferralRewardToast(null), 4800);
+    return () => clearTimeout(id);
+  }, [referralRewardToast]);
+
+  /* Auto-navigate to Duel tab when opened via invite link (?room=XXX) */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const room = params.get('room');
+    if (!room) return;
+    try { sessionStorage.setItem('duel-auto-join-room', room.toUpperCase()); } catch { /* ignore */ }
+    // Strip ?room= from the URL bar without reloading
+    const clean = window.location.pathname + window.location.hash;
+    window.history.replaceState(null, '', clean);
+    setTab('duel');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = (params.get('ref') || params.get('invite'))?.trim();
+    if (ref && /^[A-Z0-9]{6,12}$/i.test(ref)) {
+      useGameStore.getState().setPendingReferralCode(ref);
+    }
+  }, []);
+
+  /**
+   * Sessiya kilidi: yeni cihaz `lastDeviceId` yazır; köhnə cihaz eyni yolu dinləyir və fərqdə çıxır.
+   */
+  useEffect(() => {
+    if (!isFirebaseLive || !isRealtimeDatabaseUrlConfigured()) {
+      setDeviceSessionReady(true);
+      return;
+    }
+    if (isDeviceSessionKicked()) {
+      setDeviceSessionReady(false);
+      setDeviceSessionMessage(t('session.device_in_use'));
+      return;
+    }
+    let unsubLock: (() => void) | undefined;
+    let cancelled = false;
+    setDeviceSessionReady(false);
+    void (async () => {
+      await ensureAnonymousFirebaseUser();
+      if (cancelled || isDeviceSessionKicked()) return;
+      await claimDeviceSessionLock(rtdbUserId);
+      if (cancelled) return;
+      const local = getOrCreateLocalDeviceId();
+      unsubLock = subscribeDeviceSessionLock(rtdbUserId, local, () => {
+        if (cancelled) return;
+        setDeviceSessionKicked();
+        setDeviceSessionReady(false);
+        if (auth) void signOut(auth);
+        setDeviceSessionMessage(t('session.device_in_use'));
+      });
+      if (!cancelled) setDeviceSessionReady(true);
+    })();
+    return () => {
+      cancelled = true;
+      unsubLock?.();
+    };
+  }, [isFirebaseLive, rtdbUserId, t]);
+
+  useEffect(() => {
+    if (!isFirebaseLive || !deviceSessionReady) return;
+    void bindAppPresence(rtdbUserId);
+  }, [rtdbUserId, isFirebaseLive, deviceSessionReady]);
+
+  useEffect(() => {
+    if (!isFirebaseLive || !deviceSessionReady) return;
+    let unsub: (() => void) | undefined;
+    let cancelled = false;
+    void (async () => {
+      if (!(await ensureAnonymousFirebaseUser())) return;
+      if (cancelled) return;
+      unsub = subscribeReferralGrants(rtdbUserId, (coins) => {
+        useGameStore.getState().earnCoins(coins);
+        vibrateCoinReward();
+        if (coins === REFERRAL_REWARD_COINS) {
+          playMilestoneFanfare();
+          fireReferralRewardConfetti();
+          setReferralRewardToast(coins);
+        }
+      });
+    })();
+    return () => {
+      cancelled = true;
+      unsub?.();
+    };
+  }, [rtdbUserId, isFirebaseLive, deviceSessionReady]);
+
+  /** RTDB `isAlpha` (Pioner) — bir dəfə +1000 Artik və tam ekran. */
+  useEffect(() => {
+    if (!isFirebaseLive || !deviceSessionReady || !gameStoreHydrated || !isRegistered) return;
+    return subscribeIsAlphaTester(rtdbUserId, (isAlpha) => {
+      if (!isAlpha) return;
+      const granted = useGameStore.getState().claimPioneerAlphaBonusOnce();
+      if (!granted) return;
+      playMilestoneFanfare();
+      vibrateCoinReward();
+      firePioneerBonusConfetti();
+      setPioneerBonusVisible(true);
+    });
+  }, [rtdbUserId, isFirebaseLive, deviceSessionReady, gameStoreHydrated, isRegistered]);
+
+  useEffect(() => {
+    if (!isFirebaseLive || !deviceSessionReady) return;
+    const n = (profilePlayerName || displayName).trim();
+    if (!n) return;
+    void setPlayerProfileDisplayName(rtdbUserId, n);
+  }, [displayName, profilePlayerName, rtdbUserId, deviceSessionReady]);
+
+  useEffect(() => {
+    if (!isFirebaseLive || !deviceSessionReady) return;
+    const name = (profilePlayerName || displayName).trim() || 'Oyunçu';
+    void syncLeaderboardXp(rtdbUserId, totalXpAllLevels, name, profileAvatar);
+  }, [totalXpAllLevels, displayName, profilePlayerName, profileAvatar, rtdbUserId, deviceSessionReady]);
+
+  /** Yalnız statistika/mastery yazılır; modal, sessiya, «10 söz» yoxdur (App-də də yoxdur). */
+  const handleLearningRecord = useCallback(
+    (level: GoetheLevel, article: Article, correct: boolean, wordId: string) => {
+      recordAnswer(level, article, correct, wordId, { learningSrs: true });
+    },
+    [recordAnswer],
+  );
+
+  const handleDuelRecord = useCallback(
+    (level: GoetheLevel, article: Article, correct: boolean, wordId: string) => {
+      recordAnswer(level, article, correct, wordId);
+    },
+    [recordAnswer],
+  );
+
+  const handleSaveDisplayName = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      setDisplayName(trimmed);
+      if (isFirebaseLive) void setPlayerProfileDisplayName(rtdbUserId, trimmed);
+    },
+    [rtdbUserId, setDisplayName],
+  );
+
+  const handleRegistrationComplete = useCallback(() => {
+    const st = useGameStore.getState();
+    const name = st.playerName.trim();
+    if (!name) return;
+    setDisplayName(name);
+    if (isFirebaseLive) {
+      void setPlayerProfileDisplayName(rtdbUserId, name);
+      void setPlayerAvatar(rtdbUserId, st.avatar);
+    }
+    setLearnQuizConfig(null);
+    setLearnSubView('topics');
+    setLearnMountKey((k) => k + 1);
+    setTab('quiz');
+  }, [rtdbUserId, setDisplayName]);
+
+  const handleStartDuel = useCallback(() => {
+    if (useGameStore.getState().coins < DUEL_MIN_ARTIK_BALANCE) {
+      setCoinShopOpen(true);
+      return;
+    }
+    setTab('duel');
+  }, []);
+
+  const handleTabChange = useCallback((next: Tab) => {
+    if (next === 'duel' && useGameStore.getState().coins < DUEL_MIN_ARTIK_BALANCE) {
+      setCoinShopOpen(true);
+      return;
+    }
+    setTab((prev) => {
+      if (prev === 'quiz' && next !== 'quiz') {
+        queueMicrotask(() => {
+          setLearnSubView('topics');
+          setLearnQuizConfig(null);
+        });
+      }
+      if (next === 'quiz' && prev !== 'quiz') {
+        queueMicrotask(() => {
+          setLearnMountKey((k) => k + 1);
+          setLearnSubView('topics');
+          setLearnQuizConfig(null);
+        });
+      }
+      return next;
+    });
+  }, []);
+
+  const abandonLearnQuiz = useCallback(() => {
+    setLearnQuizConfig(null);
+    setLearnSubView('topics');
+    setLearnMountKey((k) => k + 1);
+  }, []);
+
+  const startLearnFull = useCallback(() => {
+    setLearnSubView('topics');
+    setLearnQuizConfig(null);
+    setTab('quiz');
+  }, []);
+
+  const startLearnHardFocus = useCallback((wordIds: string[]) => {
+    setLearnQuizConfig({
+      restrictIds: wordIds.length > 0 ? [...wordIds] : null,
+      poolScope: 'selected_level',
+      reviewOnly: false,
+    });
+    setLearnSubView('quiz');
+    setLearnMountKey((k) => k + 1);
+    setTab('quiz');
+  }, []);
+
+  const enterLearnFromProfile = useCallback(() => {
+    setLearnQuizConfig(null);
+    setLearnSubView('topics');
+    setLearnMountKey((k) => k + 1);
+    setTab('quiz');
+  }, []);
+
+  const showRegistrationGate = gameStoreHydrated && !isRegistered;
+
+  const levelGateArgsForClamp: LevelGateCheckArgs = useMemo(
+    () => ({
+      totalXpAllLevels,
+      knownWordIds,
+      masteryByWordId,
+      nounsByLevel,
+      iapLevelUnlocks,
+      levelGateCoinUnlocks,
+    }),
+    [
+      totalXpAllLevels,
+      knownWordIds,
+      masteryByWordId,
+      nounsByLevel,
+      iapLevelUnlocks,
+      levelGateCoinUnlocks,
+    ],
+  );
+
+  useEffect(() => {
+    if (!isLevelGateUnlocked(selectedLevel, levelGateArgsForClamp)) {
+      setSelectedLevel(highestUnlockedGoetheLevel(levelGateArgsForClamp));
+    }
+  }, [selectedLevel, levelGateArgsForClamp, setSelectedLevel]);
+
+  return (
+    <div className="relative min-h-[100dvh] overflow-x-hidden bg-[var(--artikl-bg)]">
+      {!showRegistrationGate ? <MilestoneOverlay /> : null}
+      {!showRegistrationGate ? (
+        <WelcomeStarterOverlay visible={welcomeStarterVisible} onDismiss={() => setWelcomeStarterVisible(false)} />
+      ) : null}
+      {!showRegistrationGate ? (
+        <PioneerBonusOverlay visible={pioneerBonusVisible} onDismiss={() => setPioneerBonusVisible(false)} />
+      ) : null}
+      {!showRegistrationGate ? <AmbientOrbs /> : null}
+
+      <AnimatePresence>
+        {checkInToast && !showRegistrationGate ? (
+          <motion.div
+            key="daily-checkin"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed bottom-[max(5.5rem,env(safe-area-inset-bottom)+4.5rem)] left-1/2 z-[85] w-[min(92vw,360px)] -translate-x-1/2 rounded-2xl border border-amber-400/35 bg-gradient-to-br from-[rgba(245,158,11,0.18)] via-[rgba(24,22,38,0.97)] to-[rgba(14,12,22,0.99)] px-4 py-3.5 text-center shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-md"
+            role="status"
+            aria-live="polite"
+          >
+            <p className="text-lg" aria-hidden>
+              🪙
+            </p>
+            <p className="mt-1 text-[13px] font-bold leading-snug text-white">
+              {t('rewards.check_in_title')}
+            </p>
+            <p className="mt-1 text-[12px] leading-relaxed text-[rgba(232,232,245,0.72)]">
+              {t('rewards.check_in_body', {
+                day: checkInToast.dayIndex,
+                coins: checkInToast.coins,
+              })}
+            </p>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {referralRewardToast != null && !showRegistrationGate ? (
+          <motion.div
+            key="referral-bonus"
+            initial={{ opacity: 0, scale: 0.88, y: 24 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 12 }}
+            transition={{ type: 'spring', stiffness: 320, damping: 24 }}
+            className="fixed left-1/2 top-[max(1.25rem,env(safe-area-inset-top))] z-[210] w-[min(92vw,380px)] -translate-x-1/2 rounded-2xl border border-amber-400/45 bg-gradient-to-br from-[rgba(251,191,36,0.22)] via-[rgba(30,24,48,0.96)] to-[rgba(12,10,20,0.99)] px-4 py-4 text-center shadow-[0_20px_56px_rgba(251,191,36,0.2),0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md"
+            role="status"
+            aria-live="polite"
+          >
+            <p className="text-2xl" aria-hidden>
+              🎉
+            </p>
+            <p className="mt-1 text-[15px] font-extrabold leading-snug text-amber-100">
+              {t('profile.referral_reward_toast_title')}
+            </p>
+            <p className="mt-1.5 text-[13px] font-bold leading-snug text-amber-100">
+              {t('common.reward_credited', { amount: referralRewardToast })}
+            </p>
+            <p className="mt-1 text-[11px] text-[rgba(232,232,245,0.55)]">
+              {t('profile.referral_reward_toast_sub')}
+            </p>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {deviceSessionMessage ? (
+          <motion.div
+            key="device-session-kick"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            className="fixed left-1/2 top-[max(1rem,env(safe-area-inset-top))] z-[220] w-[min(92vw,400px)] -translate-x-1/2 rounded-2xl border border-rose-500/45 bg-gradient-to-br from-[rgba(244,63,94,0.2)] via-[rgba(24,18,32,0.98)] to-[rgba(10,8,16,0.99)] px-4 py-3.5 text-center shadow-[0_16px_48px_rgba(0,0,0,0.55)] backdrop-blur-md"
+            role="alert"
+            aria-live="assertive"
+          >
+            <p className="text-[13px] font-bold leading-snug text-rose-100">{deviceSessionMessage}</p>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-[rgba(232,232,245,0.5)]">
+              {t('session.lock_hint')}
+            </p>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence mode="wait">
+        {showRegistrationGate ? (
+          <motion.div
+            key="player-reg"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            className="relative z-[1] min-h-[100dvh]"
+          >
+            <PlayerRegistrationScreen onComplete={handleRegistrationComplete} />
+          </motion.div>
+        ) : tab === 'home' ? (
+          <motion.div
+            key="home"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+            className="relative z-[1]"
+          >
+            <Dashboard
+              stats={stats}
+              totalXpAllLevels={totalXpAllLevels}
+              odluSeriya={odluSeriya}
+              displayName={displayName}
+              onSaveDisplayName={handleSaveDisplayName}
+              hardWordIds={hardWordIds}
+              knownWordIds={knownWordIds}
+              masteryByWordId={masteryByWordId}
+              selectedLevel={selectedLevel}
+              onLevelChange={setSelectedLevel}
+              onStartQuiz={startLearnFull}
+              onStartLearnHardWords={startLearnHardFocus}
+              onStartExam={() => setTab('exam')}
+              onStartDuel={handleStartDuel}
+              onToggleKnown={toggleKnownWord}
+              onReset={() => {
+                if (window.confirm(t('app.reset_confirm'))) resetProgress();
+              }}
+              onProfileEnterGame={enterLearnFromProfile}
+              odluDailyGoal={odluDailyGoal}
+              onOdluDailyGoalChange={setOdluDailyGoal}
+              dashboardUserId={rtdbUserId}
+            />
+          </motion.div>
+        ) : tab === 'quiz' ? (
+          <motion.div
+            key="quiz"
+            initial={{ opacity: 0, x: 14 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -12 }}
+            transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <AnimatePresence mode="wait">
+              {learnSubView === 'topics' ? (
+                <motion.div
+                  key="learn-topics"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <LearningTopicHub
+                    nounsByLevel={nounsByLevel}
+                    knownWordIds={knownWordIds}
+                    masteryByWordId={masteryByWordId}
+                    selectedLevel={selectedLevel}
+                    onLevelChange={setSelectedLevel}
+                    totalXpAllLevels={totalXpAllLevels}
+                    onNavigateDuel={handleStartDuel}
+                    srsByWordId={srsByWordId}
+                    onStartBlock={(wordIds) => {
+                      setLearnQuizConfig({
+                        restrictIds: [...wordIds],
+                        poolScope: 'selected_level',
+                        reviewOnly: false,
+                      });
+                      setLearnSubView('quiz');
+                      setLearnMountKey((k) => k + 1);
+                    }}
+                    onStartRepeat={() => {
+                      setLearnQuizConfig({
+                        restrictIds: null,
+                        poolScope: 'selected_level',
+                        reviewOnly: true,
+                      });
+                      setLearnSubView('quiz');
+                      setLearnMountKey((k) => k + 1);
+                    }}
+                  />
+                </motion.div>
+              ) : learnQuizConfig ? (
+                <motion.div
+                  key="learn-quiz"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ArticleMatchQuiz
+                    key={`${selectedLevel}-${learnMountKey}`}
+                    level={selectedLevel}
+                    levelStats={stats}
+                    knownWordIds={knownWordIds}
+                    masteryByWordId={masteryByWordId}
+                    srsByWordId={srsByWordId}
+                    totalXpAllLevels={totalXpAllLevels}
+                    odluStreakDays={odluSeriya.streak}
+                    learnPoolScope={learnQuizConfig.poolScope}
+                    restrictToWordIds={learnQuizConfig.restrictIds}
+                    reviewOnly={learnQuizConfig.reviewOnly === true}
+                    progressLevelLabel={
+                      learnQuizConfig.reviewOnly ? t('learning_topics.repeat_chip') : undefined
+                    }
+                    sessionExitButtonLabel={t('learning_topics.back_topics')}
+                    onAbandonSession={abandonLearnQuiz}
+                    onRecord={handleLearningRecord}
+                    onEnsureHardWord={ensureHardWord}
+                    onRemoveHardWord={removeHardWord}
+                    onExitAfterSession={() => {
+                      setLearnQuizConfig(null);
+                      setLearnSubView('topics');
+                      setLearnMountKey((k) => k + 1);
+                    }}
+                  />
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+          </motion.div>
+        ) : tab === 'exam' ? (
+          <motion.div
+            key="exam"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+            className="relative z-[1]"
+          >
+            <ExamFlow
+              defaultLevel={selectedLevel}
+              nounsByLevel={nounsByLevel}
+              knownWordIds={knownWordIds}
+              wrongCountByWordId={wrongCountByWordId}
+              byLevel={byLevel}
+              recordAnswer={recordAnswer}
+              onGoHome={() => setTab('home')}
+            />
+          </motion.div>
+        ) : tab === 'duel' ? (
+          <motion.div
+            key="duel"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+            className="relative z-[1]"
+          >
+            <DuelMatch
+              key={selectedLevel}
+              level={selectedLevel}
+              levelStats={stats}
+              displayName={displayName}
+              onRecord={handleDuelRecord}
+              onExitHome={() => setTab('home')}
+            />
+          </motion.div>
+        ) : tab === 'leaders' ? (
+          <motion.div
+            key="leaders"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+            className="relative z-[1]"
+          >
+            <LeaderboardView
+              totalXpAllLevels={totalXpAllLevels}
+              displayName={displayName}
+              userId={rtdbUserId}
+              avatar={profileAvatar}
+            />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="lexicon"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+            className="relative z-[1]"
+          >
+            <VocabularyChecker />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {isFirebaseLive && deviceSessionReady ? <FriendsNotificationLayer userId={rtdbUserId} /> : null}
+
+      {isRegistered ? (
+        <BottomNav
+          active={tab}
+          onChange={handleTabChange}
+          variant="dark"
+          artikBalance={artikBalance}
+          onDuelInsufficientArtik={() => setCoinShopOpen(true)}
+        />
+      ) : null}
+      {isRegistered ? (
+        <CoinShopSheet open={coinShopOpen} onClose={() => setCoinShopOpen(false)} />
+      ) : null}
+    </div>
+  );
+}
+
+// ========== src/components/Dashboard.tsx ==========
+import { motion } from 'framer-motion';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useVocabulary } from '../context/VocabularyContext';
+import { filterLearningQuizPool } from '../lib/wordLists';
+import { countMasteredInLevel } from '../lib/dashboardBuckets';
+import {
+  GOETHE_LEVELS,
+  LEARNED_FOR_TRAINING_MASTERY,
+  ODLU_DAILY_GOAL_OPTIONS,
+  type GoetheLevel,
+  type LevelProgressStats,
+  type OdluDailyGoalOption,
+} from '../types';
+import { ArticleRpgCard } from './ArticleRpgCard';
+import { OdluSeriyaCard } from './OdluSeriyaCard';
+import { DashboardWordLists } from './DashboardWordLists';
+import { ACHIEVEMENT_DUEL_MASTER, ACHIEVEMENT_MARATHON } from '../lib/achievements';
+import { isGoldenHourLocal } from '../lib/coinBonus';
+import { formatLocalDate } from '../lib/dateKeys';
+import type { OdluSeriyaState } from '../lib/odluStreak';
+import { CoinBalanceMeter } from './CoinBalanceMeter';
+import { LevelMasteryProgressBar } from './LevelMasteryProgressBar';
+import { LeaderboardModal } from './LeaderboardModal';
+import { LevelUnlockModal } from './LevelUnlockModal';
+import { LESSON_DAILY_COIN_CAP, useGameStore } from '../store/useGameStore';
+import {
+  isGoetheLevelGated,
+  isLevelGateUnlocked,
+  type LevelGateCheckArgs,
+} from '../lib/levelGate';
+import { isFirebaseLive } from '../lib/firebase';
+import { subscribeLeaderboard, type LeaderboardEntry } from '../lib/leaderboardRtdb';
+import { DUEL_MIN_ARTIK_BALANCE } from '../lib/duelEntry';
+import { subscribeMatchmakingWaitingCount } from '../lib/matchmakingQueueRtdb';
+import { avatarIdToEmoji } from '../lib/playerProfileRtdb';
+
+/** B1–C1 kilidli: kiçik boz SVG qıfıl. */
+function GrayLockIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M7 11V8a5 5 0 0 1 10 0v3M6 11h12v10H6V11z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/* ─── compact daily-progress ring ─────────────────────────────────────── */
+const RING_R = 52;
+const RING_S = 8;
+const RING_C = 2 * Math.PI * RING_R;
+
+function DailyRing({ current, goal }: { current: number; goal: number }) {
+  const clamped = goal > 0 ? Math.min(1, current / goal) : 0;
+  const offset = RING_C * (1 - clamped);
+  const done = current >= goal;
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative h-[132px] w-[132px]">
+        <svg
+          width={132}
+          height={132}
+          viewBox="0 0 132 132"
+          className="-rotate-90"
+          aria-hidden
+        >
+          <defs>
+            <linearGradient id="dailyRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              {done ? (
+                <>
+                  <stop offset="0%" stopColor="#fb923c" />
+                  <stop offset="100%" stopColor="#f97316" />
+                </>
+              ) : (
+                <>
+                  <stop offset="0%" stopColor="#8b7cff" />
+                  <stop offset="55%" stopColor="#5eead4" />
+                  <stop offset="100%" stopColor="#22d3ee" />
+                </>
+              )}
+            </linearGradient>
+          </defs>
+          <circle
+            cx="66"
+            cy="66"
+            r={RING_R}
+            fill="none"
+            stroke="rgba(255,255,255,0.07)"
+            strokeWidth={RING_S}
+          />
+          <circle
+            cx="66"
+            cy="66"
+            r={RING_R}
+            fill="none"
+            stroke="url(#dailyRingGrad)"
+            strokeWidth={RING_S}
+            strokeLinecap="round"
+            strokeDasharray={RING_C}
+            strokeDashoffset={offset}
+            className="transition-[stroke-dashoffset] duration-700 ease-out"
+          />
+        </svg>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+          <p className="font-display text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">
+            Bu gün
+          </p>
+          <p className="mt-0.5 font-display text-[1.55rem] font-bold leading-none tabular-nums text-white">
+            {current}
+            <span className="text-[1rem] font-semibold text-white/45"> / {goal}</span>
+          </p>
+          {done ? (
+            <span className="mt-1 text-base leading-none" aria-hidden>🔥</span>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── types ────────────────────────────────────────────────────────────── */
+const detailsShell =
+  'rounded-2xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-[14px] overflow-hidden [&_summary::-webkit-details-marker]:hidden shadow-[0_8px_32px_rgba(0,0,0,0.2)]';
+
+const summaryBtn =
+  'flex w-full cursor-pointer list-none items-center justify-between gap-2 px-3 py-3 text-left text-sm font-semibold text-[rgba(232,232,245,0.85)] transition-colors hover:bg-white/[0.04]';
+
+interface DashboardProps {
+  stats: LevelProgressStats;
+  totalXpAllLevels: number;
+  odluSeriya: OdluSeriyaState;
+  displayName: string;
+  onSaveDisplayName: (name: string) => void;
+  hardWordIds: string[];
+  knownWordIds: string[];
+  masteryByWordId: Record<string, number>;
+  selectedLevel: GoetheLevel;
+  onLevelChange: (level: GoetheLevel) => void;
+  onStartQuiz: () => void;
+  onStartLearnHardWords: (wordIds: string[]) => void;
+  onStartExam: () => void;
+  onStartDuel: () => void;
+  onToggleKnown: (wordId: string) => void;
+  onReset: () => void;
+  onProfileEnterGame?: () => void;
+  odluDailyGoal: OdluDailyGoalOption;
+  onOdluDailyGoalChange: (goal: OdluDailyGoalOption) => void;
+  /** RTDB lider cədvəlində öz sətirini vurğulamaq üçün */
+  dashboardUserId?: string;
+}
+
+/* ─── component ────────────────────────────────────────────────────────── */
+export function Dashboard({
+  stats,
+  totalXpAllLevels,
+  odluSeriya,
+  displayName,
+  onSaveDisplayName,
+  hardWordIds,
+  knownWordIds,
+  masteryByWordId,
+  selectedLevel,
+  onLevelChange,
+  onStartQuiz,
+  onStartLearnHardWords,
+  onStartExam,
+  onStartDuel,
+  onToggleKnown,
+  onReset,
+  odluDailyGoal,
+  onOdluDailyGoalChange,
+  dashboardUserId,
+}: DashboardProps) {
+  const { t } = useTranslation();
+  const { wordCountByLevel, usingExternalLexicon, nounsByLevel } = useVocabulary();
+  const coins = useGameStore((s) => s.coins);
+  const achievementIds = useGameStore((s) => s.achievementIds);
+  const iapLevelUnlocks = useGameStore((s) => s.iapLevelUnlocks);
+  const levelGateCoinUnlocks = useGameStore((s) => s.levelGateCoinUnlocks);
+  const claimRewardAdBonus = useGameStore((s) => s.claimRewardAdBonus);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [levelLockTarget, setLevelLockTarget] = useState<GoetheLevel | null>(null);
+  const [adToast, setAdToast] = useState<string | null>(null);
+  const [leaderTop3, setLeaderTop3] = useState<LeaderboardEntry[]>([]);
+  const [matchmakingWaiting, setMatchmakingWaiting] = useState(0);
+  const [simRivalPulse, setSimRivalPulse] = useState(false);
+
+  useEffect(() => subscribeLeaderboard(3, setLeaderTop3), []);
+
+  useEffect(() => subscribeMatchmakingWaitingCount(setMatchmakingWaiting), []);
+
+  useEffect(() => {
+    if (isFirebaseLive) return;
+    const flip = () => setSimRivalPulse(Math.random() < 0.38);
+    flip();
+    const id = window.setInterval(flip, 11000);
+    return () => clearInterval(id);
+  }, []);
+
+  const duelCtaPulse = matchmakingWaiting > 0 || (!isFirebaseLive && simRivalPulse);
+
+  const levelGateArgs: LevelGateCheckArgs = useMemo(
+    () => ({
+      totalXpAllLevels,
+      knownWordIds,
+      masteryByWordId,
+      nounsByLevel,
+      iapLevelUnlocks,
+      levelGateCoinUnlocks,
+    }),
+    [
+      totalXpAllLevels,
+      knownWordIds,
+      masteryByWordId,
+      nounsByLevel,
+      iapLevelUnlocks,
+      levelGateCoinUnlocks,
+    ],
+  );
+
+  const lessonCoinsYmdStore = useGameStore((s) => s.lessonCoinsYmd);
+  const lessonCoinsEarnedStore = useGameStore((s) => s.lessonCoinsEarnedToday);
+  const lessonEarnedToday = useMemo(() => {
+    const today = formatLocalDate(new Date());
+    return lessonCoinsYmdStore === today ? lessonCoinsEarnedStore : 0;
+  }, [lessonCoinsYmdStore, lessonCoinsEarnedStore]);
+  const lessonCapFull = lessonEarnedToday >= LESSON_DAILY_COIN_CAP;
+
+  const handleLevelPick = useCallback(
+    (lvl: GoetheLevel) => {
+      if (!isLevelGateUnlocked(lvl, levelGateArgs)) {
+        setLevelLockTarget(lvl);
+        return;
+      }
+      onLevelChange(lvl);
+    },
+    [levelGateArgs, onLevelChange],
+  );
+
+  const handlePrimaryLearn = useCallback(() => {
+    if (lessonCapFull) return;
+    onStartQuiz();
+  }, [lessonCapFull, onStartQuiz]);
+
+  const handleWatchAd = useCallback(() => {
+    const n = claimRewardAdBonus();
+    if (n == null) setAdToast(t('dashboard.lesson_limit_ad_used'));
+    else setAdToast(t('common.plus_amount_artik', { amount: n }));
+  }, [claimRewardAdBonus, t]);
+
+  useEffect(() => {
+    if (!adToast) return;
+    const id = window.setTimeout(() => setAdToast(null), 2600);
+    return () => clearTimeout(id);
+  }, [adToast]);
+
+  const nounsInLevel = nounsByLevel[selectedLevel];
+  const levelTotal = nounsInLevel.length;
+  const masteredCount = useMemo(
+    () => countMasteredInLevel(nounsInLevel, knownWordIds, masteryByWordId),
+    [nounsInLevel, knownWordIds, masteryByWordId],
+  );
+
+  const learningPoolCount = useMemo(
+    () => filterLearningQuizPool(nounsInLevel, knownWordIds).length,
+    [nounsInLevel, knownWordIds],
+  );
+
+  const masterTheseHandler = () => {
+    const ids = nounsInLevel.filter((n) => hardWordIds.includes(n.id)).map((n) => n.id);
+    onStartLearnHardWords(ids);
+  };
+
+  const userName = displayName.trim() || 'Oyunçu';
+  const duelEntryLocked = coins < DUEL_MIN_ARTIK_BALANCE;
+
+  return (
+    <div className="flex min-h-[100dvh] flex-col bg-[var(--artikl-bg)] px-4 pb-28 pt-[max(12px,env(safe-area-inset-top))] text-[var(--artikl-text)] sm:px-6 sm:pb-32">
+      <div className="mx-auto w-full max-w-[420px]">
+
+        {/* ── Top bar: name · streak · help ── */}
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between gap-2"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <p className="truncate text-sm font-bold text-white">{userName}</p>
+            <span
+              className={[
+                'flex max-w-full flex-wrap items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-bold tabular-nums',
+                odluSeriya.metToday
+                  ? 'border-orange-400/40 bg-orange-500/10 text-orange-200'
+                  : 'border-white/[0.12] bg-white/[0.04] text-[rgba(232,232,245,0.45)]',
+              ].join(' ')}
+              title="Odlu seriya"
+            >
+              <span style={{ filter: odluSeriya.metToday ? 'none' : 'grayscale(1) opacity(0.4)' }}>🔥</span>
+              {odluSeriya.streak}
+              {odluSeriya.streak > 3 ? (
+                <span className="ml-0.5 text-[9px] font-extrabold uppercase tracking-wide text-emerald-300/95">
+                  {t('rewards.odlu_streak_artik_bonus')}
+                </span>
+              ) : null}
+            </span>
+            <CoinBalanceMeter compact showCoinShop />
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {usingExternalLexicon ? (
+              <span className="text-[9px] font-medium text-emerald-400/80">
+                {t('dashboard.external_lexicon_loaded')}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setHelpOpen(true)}
+              className="flex h-8 w-8 items-center justify-center rounded-xl border border-cyan-400/35 bg-white/[0.06] text-sm font-bold text-cyan-200/90 backdrop-blur-[10px] transition-colors hover:border-cyan-300/50 hover:bg-white/[0.1] active:scale-[0.97]"
+              aria-label={t('dashboard.help_title')}
+            >
+              {t('dashboard.help_mark')}
+            </button>
+          </div>
+        </motion.div>
+
+        {isGoldenHourLocal() ? (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-3 rounded-2xl border border-amber-400/40 bg-gradient-to-r from-amber-500/18 via-orange-500/12 to-rose-500/10 px-3 py-2.5 text-center shadow-[0_0_28px_rgba(245,158,11,0.12)]"
+            role="status"
+          >
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-amber-200/90">
+              {t('rewards.golden_hour_chip')}
+            </p>
+            <p className="mt-1 text-[12px] leading-snug text-[rgba(255,248,220,0.88)]">
+              {t('rewards.golden_hour_banner')}
+            </p>
+          </motion.div>
+        ) : null}
+
+        {(achievementIds.includes(ACHIEVEMENT_MARATHON) || achievementIds.includes(ACHIEVEMENT_DUEL_MASTER)) ? (
+          <div className="mt-2 flex flex-wrap justify-center gap-2">
+            {achievementIds.includes(ACHIEVEMENT_MARATHON) ? (
+              <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-200/90">
+                {t('rewards.badge_marathon')}
+              </span>
+            ) : null}
+            {achievementIds.includes(ACHIEVEMENT_DUEL_MASTER) ? (
+              <span className="rounded-full border border-purple-400/35 bg-purple-500/12 px-2.5 py-1 text-[10px] font-semibold text-purple-200/90">
+                {t('rewards.badge_duel_master')}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* ── Level selector ── */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {GOETHE_LEVELS.map((lvl) => {
+            const on = lvl === selectedLevel;
+            const n = wordCountByLevel[lvl];
+            const locked = isGoetheLevelGated(lvl) && !isLevelGateUnlocked(lvl, levelGateArgs);
+            const upperTierLockedVisual =
+              locked && (lvl === 'B1' || lvl === 'B2' || lvl === 'C1');
+            return (
+              <button
+                key={lvl}
+                type="button"
+                onClick={() => handleLevelPick(lvl)}
+                className={[
+                  'rounded-full px-[14px] py-2 text-[13px] font-semibold tabular-nums transition-all',
+                  on
+                    ? 'border border-transparent bg-[var(--artikl-accent)] text-white shadow-[0_0_20px_rgba(124,108,248,0.3)]'
+                    : 'border-[0.5px] border-white/10 bg-white/[0.04] text-[var(--text-muted)] backdrop-blur-[10px] hover:border-white/[0.15] hover:bg-white/[0.07]',
+                  locked ? 'opacity-55' : '',
+                ].join(' ')}
+              >
+                {locked ? (
+                  upperTierLockedVisual ? (
+                    <span className="mr-1 inline-flex shrink-0 text-zinc-500" aria-hidden title="Kilidli">
+                      <GrayLockIcon className="h-3 w-3" />
+                    </span>
+                  ) : (
+                    <span className="mr-0.5 text-[11px] opacity-70 grayscale" aria-hidden>
+                      🔒
+                    </span>
+                  )
+                ) : null}
+                {lvl}
+                <span className="ml-0.5 text-[10px] font-semibold opacity-60">({n})</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Daily progress ring ── */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.94 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.05, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          className="mt-5 flex justify-center"
+        >
+          <DailyRing current={odluSeriya.correctToday} goal={odluSeriya.goal} />
+        </motion.div>
+
+        <p className="mt-1 text-center text-[11px] tabular-nums text-white/40">
+          {odluSeriya.metToday ? (
+            <span className="text-orange-300/90">{t('odlu.daily_done')}</span>
+          ) : (
+            <span>Gündəlik hədəf: {odluSeriya.correctToday}/{odluSeriya.goal}</span>
+          )}
+          {' · '}
+          {masteredCount} / {levelTotal} isim öyrənilib · {selectedLevel}
+        </p>
+
+        <LevelMasteryProgressBar mastered={masteredCount} total={levelTotal} className="mt-2.5" />
+
+        {/* Günlük öyrənmə sikkə limiti (kviz mükafatı) */}
+        <div className="mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3 py-3">
+          <div className="flex items-center justify-between gap-2 text-[11px] font-semibold text-white/70">
+            <span>{t('dashboard.lesson_coin_meter_label')}</span>
+            <span className="tabular-nums text-amber-200/90">
+              {t('common.lesson_meter_ratio', {
+                earned: lessonEarnedToday,
+                cap: LESSON_DAILY_COIN_CAP,
+              })}
+            </span>
+          </div>
+          <div
+            className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/[0.08]"
+            role="progressbar"
+            aria-valuenow={lessonEarnedToday}
+            aria-valuemin={0}
+            aria-valuemax={LESSON_DAILY_COIN_CAP}
+          >
+            <div
+              className={[
+                'h-full rounded-full transition-[width] duration-500',
+                lessonCapFull ? 'bg-gradient-to-r from-rose-500 to-orange-500' : 'bg-[var(--artikl-accent)]',
+              ].join(' ')}
+              style={{
+                width: `${LESSON_DAILY_COIN_CAP > 0 ? Math.min(100, (lessonEarnedToday / LESSON_DAILY_COIN_CAP) * 100) : 0}%`,
+              }}
+            />
+          </div>
+        </div>
+
+        {/* ── Primary action button ── */}
+        <motion.button
+          type="button"
+          onClick={handlePrimaryLearn}
+          disabled={lessonCapFull}
+          whileHover={lessonCapFull ? undefined : { scale: 1.012 }}
+          whileTap={lessonCapFull ? undefined : { scale: 0.97 }}
+          transition={{ type: 'spring', stiffness: 420, damping: 22 }}
+          className={[
+            'mt-5 w-full rounded-[14px] border border-transparent px-4 py-4 text-[15px] font-bold shadow-[0_8px_32px_rgba(124,108,248,0.28)] transition-[box-shadow,opacity]',
+            lessonCapFull
+              ? 'cursor-not-allowed bg-white/10 text-white/45'
+              : 'bg-[var(--artikl-accent)] text-white hover:shadow-[0_10px_40px_rgba(124,108,248,0.38)]',
+          ].join(' ')}
+        >
+          {lessonCapFull ? t('dashboard.lesson_coin_limit_btn') : t('dashboard.primary_learn', { level: selectedLevel })}
+        </motion.button>
+        {lessonCapFull ? (
+          <div className="mt-3 space-y-2 rounded-xl border border-amber-400/20 bg-amber-500/8 px-3 py-3 text-center">
+            <p className="text-[12px] leading-snug text-[rgba(255,248,220,0.92)]">
+              {t('dashboard.lesson_coin_limit_body')}
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                onClick={onStartDuel}
+                className={[
+                  'rounded-lg border border-violet-400/40 bg-violet-500/15 px-3 py-2 text-[11px] font-bold text-violet-100',
+                  duelEntryLocked ? 'opacity-50' : '',
+                ].join(' ')}
+              >
+                {t('dashboard.lesson_limit_duel_cta')}
+              </button>
+              <button
+                type="button"
+                onClick={handleWatchAd}
+                className="rounded-lg border border-white/15 bg-white/[0.06] px-3 py-2 text-[11px] font-semibold text-white/80"
+              >
+                {t('dashboard.lesson_limit_ad_cta')}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {/* ── Secondary actions ── */}
+        <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            onClick={onStartExam}
+            className="rounded-[12px] border-[0.5px] border-white/[0.1] bg-white/[0.04] py-3.5 text-sm font-bold text-[var(--artikl-text)] backdrop-blur-[12px] transition-[transform,background,border-color] hover:border-white/[0.15] hover:bg-white/[0.07] active:scale-[0.97]"
+          >
+            {t('dashboard.secondary_exam')}
+          </button>
+          <button
+            type="button"
+            onClick={onStartDuel}
+            className={[
+              'rounded-[12px] border-[0.5px] border-[rgba(167,139,250,0.35)] bg-[rgba(124,108,248,0.12)] py-3.5 text-sm font-bold text-[#c4b5fd] backdrop-blur-[12px] transition-[transform,background,border-color] hover:border-[rgba(167,139,250,0.5)] hover:bg-[rgba(124,108,248,0.18)] active:scale-[0.97]',
+              duelEntryLocked ? 'opacity-50' : '',
+            ].join(' ')}
+          >
+            {t('dashboard.secondary_duel')}
+          </button>
+        </div>
+
+        {/* ── Təsadüfi rəqib — quick PvP (növbədə gözləyən varsa və ya offline sim — pulse) ── */}
+        <button
+          type="button"
+          onClick={onStartDuel}
+          className={[
+            'mt-3 flex w-full items-center justify-center gap-2.5 rounded-[14px] border border-[rgba(168,85,247,0.35)] bg-gradient-to-r from-[rgba(124,108,248,0.18)] via-[rgba(168,85,247,0.12)] to-[rgba(196,79,217,0.10)] py-3.5 text-sm font-bold text-white shadow-[0_6px_24px_rgba(168,85,247,0.18)] transition-all hover:shadow-[0_8px_32px_rgba(168,85,247,0.28)] active:scale-[0.98]',
+            duelCtaPulse ? 'artikl-duel-cta--pulse' : '',
+            duelEntryLocked ? 'opacity-50' : '',
+          ].join(' ')}
+          title={duelCtaPulse ? t('dashboard.duel_pulse_hint') : undefined}
+        >
+          <span aria-hidden>⚔️</span>
+          {t('duel.random_opponent')}
+          <span className="flex items-center gap-1 rounded-full border border-amber-400/25 bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold tabular-nums text-amber-200">
+            {t('common.balance_display', { amount: coins })}
+          </span>
+        </button>
+
+        {/* ── Çətin sözlər (boşdursa gizlidir) ── */}
+        <DashboardWordLists
+          nounsInLevel={nounsInLevel}
+          hardWordIds={hardWordIds}
+          onToggleKnown={onToggleKnown}
+          onMasterTheseWords={masterTheseHandler}
+        />
+
+        <button
+          type="button"
+          onClick={() => setLeaderboardOpen(true)}
+          className="mt-4 w-full rounded-2xl border-[0.5px] border-[rgba(167,139,250,0.32)] bg-[rgba(124,108,248,0.1)] text-left backdrop-blur-[12px] transition-[transform,border-color] hover:border-[rgba(167,139,250,0.45)] active:scale-[0.99]"
+        >
+          <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-2.5">
+            <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-200/95">
+              {t('dashboard.leaders_strip_title')}
+            </span>
+            <span className="text-lg leading-none" aria-hidden>
+              🏆
+            </span>
+          </div>
+          <div className="space-y-0.5 px-3 py-3">
+            {[0, 1, 2].map((i) => {
+              const e = leaderTop3[i];
+              const rank = i + 1;
+              const isYou = Boolean(e && dashboardUserId && e.uid === dashboardUserId);
+              if (!e) {
+                return (
+                  <div
+                    key={`empty-${i}`}
+                    className="flex items-center gap-2 rounded-lg py-1.5 pl-1 text-[12px] text-white/28"
+                  >
+                    <span className="w-6 text-center text-[11px] font-bold tabular-nums">{rank}</span>
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-white/15 text-sm">
+                      …
+                    </span>
+                    <span className="flex-1 truncate">{t('dashboard.leaders_slot_empty')}</span>
+                  </div>
+                );
+              }
+              return (
+                <div
+                  key={e.uid}
+                  className={[
+                    'flex items-center gap-2 rounded-lg py-1.5 pl-1 pr-2',
+                    isYou ? 'bg-amber-500/10 ring-1 ring-amber-400/25' : '',
+                  ].join(' ')}
+                >
+                  <span className="w-6 text-center text-[11px] font-bold tabular-nums text-white/45">
+                    {rank}
+                  </span>
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-lg leading-none"
+                    aria-hidden
+                  >
+                    {avatarIdToEmoji(e.avatar)}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white/90">
+                    {e.displayName.trim() || t('duel.player_default')}
+                  </span>
+                  <span className="shrink-0 text-[11px] font-bold tabular-nums text-violet-200/85">
+                    {e.totalXp.toLocaleString()} XP
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="border-t border-white/[0.05] px-4 py-2 text-center text-[10px] font-medium text-white/35">
+            {t('dashboard.leaders_strip_tap')}
+          </p>
+        </button>
+
+        <LeaderboardModal
+          open={leaderboardOpen}
+          onClose={() => setLeaderboardOpen(false)}
+          totalXpAllLevels={totalXpAllLevels}
+          displayName={displayName}
+          onSaveDisplayName={onSaveDisplayName}
+        />
+
+        {/* ── Collapsible: stats + settings ── */}
+        <details className={`${detailsShell} mt-4`}>
+          <summary className={summaryBtn}>
+            <span>{t('dashboard.more_insights')}</span>
+            <span className="text-[10px] text-[rgba(232,232,245,0.35)]">{t('dashboard.details_chevron')}</span>
+          </summary>
+          <div className="space-y-3 border-t border-white/[0.06] px-2 pb-4 pt-3">
+            <OdluSeriyaCard odlu={odluSeriya} />
+            <ArticleRpgCard byArticle={stats.byArticle} />
+          </div>
+        </details>
+
+        <details className={`${detailsShell} mt-3`}>
+          <summary className={summaryBtn}>
+            <span>{t('settings.title')}</span>
+            <span className="text-[10px] text-[rgba(232,232,245,0.35)]">{t('dashboard.details_chevron')}</span>
+          </summary>
+          <div className="space-y-4 border-t border-white/[0.06] px-3 pb-4 pt-3">
+            {/* Daily goal selector */}
+            <div>
+              <p className="text-[11px] font-semibold text-[rgba(232,232,245,0.7)]">
+                {t('settings.daily_goal_label')}
+              </p>
+              <p className="mt-0.5 text-[10px] leading-relaxed text-[rgba(232,232,245,0.38)]">
+                {t('settings.daily_goal_hint')}
+              </p>
+              <div className="mt-2 flex gap-2">
+                {ODLU_DAILY_GOAL_OPTIONS.map((opt) => {
+                  const active = opt === odluDailyGoal;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => onOdluDailyGoalChange(opt)}
+                      className={[
+                        'flex-1 rounded-xl py-2.5 text-[13px] font-bold tabular-nums transition-all',
+                        active
+                          ? 'border border-orange-400/50 bg-orange-500/15 text-orange-200 shadow-[0_0_16px_rgba(251,146,60,0.15)]'
+                          : 'border border-white/[0.1] bg-white/[0.04] text-[rgba(232,232,245,0.5)] hover:border-white/[0.15] hover:bg-white/[0.07]',
+                      ].join(' ')}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="h-px bg-white/[0.06]" />
+
+            <p className="text-[10px] leading-relaxed text-[rgba(232,232,245,0.38)]">
+              {t('settings.reset_hint')}
+            </p>
+            <button
+              type="button"
+              onClick={onReset}
+              className="w-full rounded-xl border border-white/14 bg-transparent py-2.5 text-[11px] font-medium text-[rgba(232,232,245,0.55)] transition-colors hover:border-rose-400/40 hover:bg-rose-950/20 hover:text-rose-200/80 active:scale-[0.99]"
+            >
+              {t('settings.reset_button')}
+            </button>
+          </div>
+        </details>
+
+      </div>
+
+      {/* ── Help modal ── */}
+      {helpOpen ? (
+        <div
+          className="fixed inset-0 z-[90] flex items-end justify-center bg-black/55 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-12 backdrop-blur-sm sm:items-center sm:pb-8"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="dashboard-help-title"
+          onClick={() => setHelpOpen(false)}
+        >
+          <div
+            className="w-full max-w-[420px] rounded-2xl border border-white/[0.12] bg-[#14141f]/95 p-4 shadow-2xl backdrop-blur-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 id="dashboard-help-title" className="text-sm font-bold text-white">
+                {t('dashboard.help_title')}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setHelpOpen(false)}
+                className="rounded-xl px-2 py-1 text-xs font-semibold text-[rgba(232,232,245,0.55)] hover:bg-white/[0.06] hover:text-white"
+              >
+                {t('dashboard.help_close')}
+              </button>
+            </div>
+            <p className="text-[11px] leading-relaxed text-[rgba(232,232,245,0.72)]">
+              {t('dashboard.help_body', {
+                mastery: LEARNED_FOR_TRAINING_MASTERY,
+                queue: learningPoolCount,
+              })}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      <LevelUnlockModal
+        open={levelLockTarget !== null}
+        level={levelLockTarget}
+        onClose={() => setLevelLockTarget(null)}
+        totalXpAllLevels={totalXpAllLevels}
+        knownWordIds={knownWordIds}
+        masteryByWordId={masteryByWordId}
+      />
+
+      {adToast ? (
+        <div
+          className="fixed bottom-[max(6rem,env(safe-area-inset-bottom)+5rem)] left-1/2 z-[92] w-[min(90vw,320px)] -translate-x-1/2 rounded-xl border border-white/12 bg-[#1a1a24]/95 px-3 py-2 text-center text-[12px] text-white/90 shadow-lg"
+          role="status"
+        >
+          {adToast}
+        </div>
+      ) : null}
+    </div>
+  );
+}

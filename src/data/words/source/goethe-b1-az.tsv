@@ -6,7 +6,7 @@ Abteilung	die	şöbə
 Achtung	die	diqqət
 Adresse	die	ünvan
 Agentur	die	agentlik
-Ahnung	die	təsəvvür, fikir
+Ahnung	die	təsəvvür, zənn, xəbər
 Aktion	die	aksiya
 Aktivität	die	fəaliyyət
 Alarm	der	siqnal, xəbərdarlıq
@@ -55,7 +55,7 @@ Artikel	der	məqalə; artikel
 Arzt	der	həkim
 Asyl	das	sığınacaq
 Auge	das	göz
-Augenblick	der	an
+Augenblick	der	an, məqam
 Ausbildung	die	təhsil, peşə hazırlığı
 Ausbildungsplatz	der	təcrübə yeri
 Ausdruck	der	ifadə; çap
@@ -170,7 +170,7 @@ Chance	die	şans, imkan
 Chef	der	rəis, patron
 Chemie	die	kimya
 Club	der	klub
-Cola	das	kola
+Cola	die	kola
 Couch	die	divan, kauç
 Cousin	der	əmiuşağı (kişi)
 Cousine	die	əmiuşağı (qadın)
@@ -229,7 +229,7 @@ Einzelheit	die	təfərrüat
 Eis	das	dondurma; buz
 Eisen	das	dəmir
 Eisenbahn	die	dəmir yolu
-Eltern	die	valideynlər
+Eltern	die	valideynlər (yalnız cəm)
 Elternabend	der	valideyn iclası
 Elternbeirat	der	valideyn şurası
 E-Mail	die	elektron məktub
@@ -261,7 +261,7 @@ Ernährung	die	qidalanma
 Eröffnung	die	açılış
 Ersatz	der	əvəz
 Ersatzteil	das	ehtiyat hissə
-Erwachsene	der	böyük, yetkin
+Erwachsene	der	yetkin insan, böyük adam
 Erziehung	die	tərbiyə
 Essen	das	yemək
 Essig	der	sirkə
@@ -270,7 +270,7 @@ Export	der	ixrac
 Fabrik	die	fabrik
 Fach	das	fənn; bölmə
 Fachmann	der	mütəxəssis
-Fachleute	die	mütəxəssislər
+Fachleute	die	mütəxəssislər (yalnız cəm)
 Fähre	die	bərə
 Fahrbahn	die	yol (hərəkət hissəsi)
 Fahrer	der	sürücü
@@ -379,7 +379,7 @@ Gerät	das	cihaz, alət
 Gericht	das	məhkəmə; yemək
 Gerichtsverhandlung	die	məhkəmə iclası
 Geschäft	das	iş; dükan
-Geschäftsleute	die	iş adamları
+Geschäftsleute	die	iş adamları (yalnız cəm)
 Geschenk	das	hədiyyə
 Geschichte	die	tarix; hekayə
 Geschlecht	das	cins
@@ -387,7 +387,7 @@ Geschirr	das	qab-qacaq
 Geschmack	der	dad
 Geschwindigkeit	die	sürət
 Geschwindigkeitsbeschränkung	die	sürət həddi
-Geschwister	die	bacı-qardaşlar
+Geschwister	die	bacı-qardaşlar (yalnız cəm)
 Gesellschaft	die	cəmiyyət; şirkət
 Gesetz	das	qanun
 Gesicht	das	üz
@@ -403,7 +403,7 @@ Gewürz	das	ədviyyat
 Gift	das	zəhər
 Gitarre	die	gitara
 Glas	das	stəkan; şüşə
-Gleis	das	rels yolu, peron
+Gleis	das	perron, dəmir yolu xətti
 Glück	das	uğur, bəxt
 Glückwunsch	der	təbrik
 Gold	das	qızıl
@@ -412,7 +412,7 @@ Gras	das	ot
 Grenze	die	sərhəd
 Grill	der	manqal
 Grippe	die	qrip
-Großeltern	die	nənə, baba
+Großeltern	die	nənə və baba (yalnız cəm)
 Großmutter	die	nənə
 Großstadt	die	böyük şəhər
 Großvater	der	baba
@@ -424,11 +424,11 @@ Gruß	der	salam
 Haar	das	saç
 Hackfleisch	das	qiymə ət
 Hafen	der	liman
-Hähnchen	das	toyuq (erkək)
+Hähnchen	das	cücə toyuğu, bişmiş toyuq
 Halbpension	die	yarım pansion
 Hälfte	die	yarım
 Halle	die	zal
-Hals	der	boğaz
+Hals	der	boyun
 Haltestelle	die	dayanacaq
 Hammer	der	çəkic
 Hand	die	əl
@@ -469,7 +469,7 @@ Holz	das	ağac
 Honig	der	bal
 Hose	die	şalvar
 Hotel	das	otel
-Hühnchen	das	toyuq (dişi)
+Hühnchen	das	toyuq, cücə toyuğu
 Humor	der	yumor
 Hund	der	it
 Hunger	der	aclıq
@@ -552,7 +552,7 @@ Klima	das	iqlim
 Klimaanlage	die	kondisioner
 Klingel	die	zəng
 Klinik	die	klinika
-Kloß	der	küftə
+Kloß	der	kündə, knödel tipli yemək
 Kneipe	die	pivəxana, bar
 Knie	das	diz
 Knochen	der	sümük
@@ -615,7 +615,7 @@ Laden	der	mağaza
 Lage	die	mövqe, vəziyyət
 Lager	das	anbar
 Lampe	die	lampa
-Land	das	ölkə; torpaq; kənd
+Land	das	ölkə
 Landung	die	eniş
 Landwirtschaft	die	kənd təsərrüfatı
 Länge	die	uzunluq
@@ -635,7 +635,7 @@ Leiter	der	rəhbər
 Leiter	die	nərdivan
 Leitung	die	rəhbərlik; xətt
 Leistung	die	nailiyyət; məhsuldarlıq
-Leute	die	insanlar
+Leute	die	insanlar (yalnız cəm)
 Licht	das	işıq
 Liebe	die	sevgi
 Lied	das	mahnı
@@ -697,7 +697,7 @@ Miete	die	kirayə haqqı
 Mieter	der	kirayəçi
 Migrant	der	miqrant
 Migration	die	miqrasiya
-Migrationshintergrund	der	miqrasiya fonu
+Migrationshintergrund	der	miqrasiya keçmişi, miqrasiya mənşəyi
 Milch	die	süd
 Minderheit	die	azlıq
 Mineralwasser	das	mineral su
@@ -706,12 +706,12 @@ Mitarbeiter	der	işçi, əməkdaş
 Mitglied	das	üzv
 Mitte	die	orta
 Mittel	das	vasitə
-Möbel	die	mebel
+Möbel	die	mebel (yalnız cəm)
 Mobiltelefon	das	mobil telefon
 Mode	die	dəb
 Modell	das	model
 Möglichkeit	die	imkan
-Moment	der	an
+Moment	der	an, məqam
 Mond	der	ay
 Monitor	der	monitor
 Motor	der	motor
@@ -797,7 +797,7 @@ Pause	die	fasilə
 Pech	das	uğursuzluq
 Pension	die	pansion; təqaüd
 Person	die	şəxs
-Personal	das	personal
+Personal	das	heyət, işçi heyəti
 Pfeffer	der	istiot
 Pferd	das	at
 Pflanze	die	bitki
@@ -891,7 +891,7 @@ Rezeption	die	qəbul (otel, klinika)
 Rhythmus	der	ritm
 Richter	der	hakim
 Richtung	die	istiqamət
-Rind	das	inək; mal əti
+Rind	das	iribuynuzlu mal-qara; mal əti
 Ring	der	üzük
 Risiko	das	risk
 Rock	der	yubka
@@ -969,7 +969,7 @@ Sekretärin	die	katibə
 Semester	das	semestr
 Sender	der	kanal (TV, radio)
 Sendung	die	veriliş
-Senioren	die	yaşlılar
+Senioren	die	yaşlılar (yalnız cəm)
 Serie	die	serial
 Service	der	xidmət
 Sessel	der	kreslo
@@ -1216,7 +1216,7 @@ Wand	die	divar
 Wanderung	die	gəzinti, piyada səyahət
 Ware	die	mal
 Wärme	die	istilik
-Waschmittel	das	yuyucu toz
+Waschmittel	das	yuyucu vasitə
 Wasser	das	su
 WC	das	tualet
 Wecker	der	zəngli saat
@@ -1289,6 +1289,6 @@ Zusammenarbeit	die	əməkdaşlıq
 Zuschauer	der	tamaşaçı
 Zustand	der	vəziyyət
 Zustimmung	die	razılıq
-Zuwanderer	der	köçmə gələn
+Zuwanderer	der	miqrant, sonradan gələn şəxs
 Zweck	der	məqsəd
 Zwiebel	die	soğan

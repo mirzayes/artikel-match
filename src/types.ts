@@ -32,6 +32,10 @@ export const LEARNING_SESSION_BATCH_SIZE = 20;
 /** Öyrənmə sessiyası: bu qədər düzgün cavab — sessiya tamamlanır. */
 export const LEARNING_SESSION_GOAL = 20;
 
+/** Öyrənmə: hər düzgün cavab üçün Artik (Happy Hours vurğusu ilə vurulur). */
+export const LESSON_CORRECT_NEW_ARTIK = 10;
+export const LESSON_CORRECT_REVIEW_ARTIK = 5;
+
 /**
  * Sessiya əvvəli çəkilən söz sayı (SRS pulu); hədəf + ehtiyat, «bilirəm» ilə sıra qısalsa belə.
  */
@@ -95,15 +99,26 @@ export interface AppProgressState {
    * Açar YYYY-MM-DD.
    */
   dailyCorrectCountByDate: Record<string, number>;
+  /**
+   * Yalnız öyrənmə kvizi: hər gün düzgün cavab sayı (nailiyyət seriyası üçün).
+   * Açar YYYY-MM-DD.
+   */
+  learningCorrectByDate: Record<string, number>;
   /** Liderlər cədvəlində görünən ad (boşdursa «Sən»). */
   displayName: string;
+  /** İstifadəçinin seçdiyi gündəlik hədəf (ODLU SERİYA). Varsayılan: 20. */
+  odluDailyGoal: OdluDailyGoalOption;
 }
 
 /** Gündəlik “öyrənilmiş söz” hədəfi (unikal düzgün cavab) */
 export const DAILY_WORD_GOAL = 20;
 
 /** ODLU SERİYA: gündəlik norma (düzgün cavab) */
-export const ODLU_DAILY_GOAL = 5;
+export const ODLU_DAILY_GOAL = 20;
+
+/** İstifadəçinin seçə biləcəyi gündəlik hədəf variantları */
+export const ODLU_DAILY_GOAL_OPTIONS = [10, 20, 50] as const;
+export type OdluDailyGoalOption = (typeof ODLU_DAILY_GOAL_OPTIONS)[number];
 
 export type ExamQuestionPreset = 10 | 20 | 50 | 'infinite';
 

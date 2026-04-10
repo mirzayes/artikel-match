@@ -8,6 +8,7 @@ import type { Article, GoetheLevel } from '../types';
 import { GOETHE_LEVELS } from '../types';
 import { getNounTranslation, isRtlGlossLang, usesRemoteGlossFile } from '../lib/nounTranslation';
 import { useGlossLanguage, useGlossRemote } from '../hooks/useGlossLanguage';
+import { SpeakWordButton } from './SpeakWordButton';
 
 type FilterArticle = 'all' | Article;
 
@@ -19,9 +20,6 @@ type LexRow = {
   level: GoetheLevel;
   category?: string;
 };
-
-const PAGE_BG = '#08080f';
-const CARD_BG = '#111120';
 
 const artVars: Record<Article, string> = {
   der: 'var(--artikl-der)',
@@ -51,7 +49,7 @@ function IconLearned({ active }: { active: boolean }) {
       {active ? (
         <path
           d="M8 12l2.5 2.5L16 9"
-          stroke="#08080f"
+          stroke="var(--lex-page-bg)"
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -111,7 +109,7 @@ function Chip({ active, onClick, children, className = '' }: ChipProps) {
       className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-medium transition-colors ${className} ${
         active
           ? 'border-transparent text-white'
-          : 'border-[#252540] bg-[#141425] text-[#5a5a80] hover:border-[#3a3a58] hover:text-[#9b8fff]'
+          : 'border-[var(--lex-chip-border)] bg-[var(--lex-chip-bg)] text-[var(--lex-muted)] hover:border-[var(--lex-border-strong)] hover:text-[var(--lex-accent-soft)]'
       }`}
     >
       {children}
@@ -199,17 +197,17 @@ export function VocabularyChecker() {
 
   return (
     <div
-      className="flex min-h-[100dvh] flex-col px-4 pb-28 pt-[max(12px,env(safe-area-inset-top))] sm:px-5 sm:pb-32 sm:pt-6"
-      style={{ background: PAGE_BG, color: '#e8e8f5', fontFamily: "'DM Sans', system-ui, sans-serif" }}
+      className="flex min-h-[100dvh] flex-col bg-[var(--lex-page-bg)] px-4 pb-28 pt-[max(12px,env(safe-area-inset-top))] text-[var(--lex-text)] sm:px-5 sm:pb-32 sm:pt-6"
+      style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
     >
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
         <h1
-          className="text-[28px] font-normal uppercase tracking-[0.08em] sm:text-[32px]"
-          style={{ fontFamily: "Inter, 'DM Sans', system-ui, sans-serif", color: '#9b8fff' }}
+          className="text-[28px] font-normal uppercase tracking-[0.08em] text-[var(--lex-heading)] sm:text-[32px]"
+          style={{ fontFamily: "Inter, 'DM Sans', system-ui, sans-serif" }}
         >
           {t('nav.lexicon')}
         </h1>
-        <p className="mt-1 max-w-xl text-[13px] leading-relaxed" style={{ color: '#5a5a80' }}>
+        <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-[var(--lex-muted)]">
           {t('lexicon.intro')}
         </p>
         {usingExternalLexicon ? (
@@ -219,7 +217,7 @@ export function VocabularyChecker() {
 
       {words.length > 0 ? (
         <>
-          <p className="mt-5 text-[13px]" style={{ color: '#5a5a80' }}>
+          <p className="mt-5 text-[13px] text-[var(--lex-muted)]">
             {t('lexicon.total_words', {
               count: words.length,
               der: countsByArticle.der,
@@ -229,7 +227,7 @@ export function VocabularyChecker() {
           </p>
 
           <div className="mt-4">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: '#3a3a58' }}>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--lex-faint)]">
               {t('lexicon.level')}
             </p>
             <div className="flex flex-wrap gap-2">
@@ -251,14 +249,18 @@ export function VocabularyChecker() {
           </div>
 
           <div className="mt-4">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: '#3a3a58' }}>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--lex-faint)]">
               {t('lexicon.article')}
             </p>
             <div className="flex flex-wrap gap-2">
               <Chip
                 active={filter === 'all'}
                 onClick={() => setFilter('all')}
-                className={filter === 'all' ? 'bg-[#252540] text-[#e8e8f5] ring-1 ring-[#3a3a58]' : ''}
+                className={
+                  filter === 'all'
+                    ? 'bg-[var(--lex-hover-bg)] text-[var(--lex-heading)] ring-1 ring-[var(--lex-border-strong)]'
+                    : ''
+                }
               >
                 {t('lexicon.all')}
               </Chip>
@@ -285,17 +287,15 @@ export function VocabularyChecker() {
 
           {/* shown count + view toggle */}
           <div className="mt-3 flex items-center justify-between gap-2">
-            <p className="text-[11px]" style={{ color: '#3a3a58' }}>
+            <p className="text-[11px] text-[var(--lex-faint)]">
               {t('lexicon.shown', { count: filteredWords.length })}
             </p>
             <button
               type="button"
               onClick={() => setViewMode((v) => (v === 'card' ? 'list' : 'card'))}
-              className="flex h-8 w-8 items-center justify-center rounded-xl border transition-colors hover:bg-[#1a1a28] active:scale-[0.95]"
+              className="flex h-8 w-8 items-center justify-center rounded-xl border border-[var(--lex-chip-border)] bg-[var(--lex-chip-bg)] transition-colors hover:bg-[var(--lex-hover-bg)] active:scale-[0.95]"
               style={{
-                borderColor: '#252540',
-                background: '#141425',
-                color: viewMode === 'list' ? '#9b8fff' : '#5a5a80',
+                color: viewMode === 'list' ? 'var(--lex-accent-soft)' : 'var(--lex-muted)',
               }}
               title={viewMode === 'card' ? 'Siyahı görünüşü' : 'Kart görünüşü'}
               aria-label={viewMode === 'card' ? 'Siyahı görünüşü' : 'Kart görünüşü'}
@@ -306,12 +306,9 @@ export function VocabularyChecker() {
 
           {/* ── LIST VIEW ── */}
           {viewMode === 'list' ? (
-            <div
-              className="mt-4 overflow-hidden rounded-2xl border"
-              style={{ borderColor: '#1c1c30', background: CARD_BG }}
-            >
+            <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--lex-border)] bg-[var(--lex-card-bg)]">
               {filteredWords.length === 0 ? (
-                <p className="py-10 text-center text-sm" style={{ color: '#5a5a80' }}>
+                <p className="py-10 text-center text-sm text-[var(--lex-muted)]">
                   {t('lexicon.no_results')}
                 </p>
               ) : (
@@ -331,7 +328,8 @@ export function VocabularyChecker() {
                         className="flex items-center gap-3 px-3"
                         style={{
                           height: '52px',
-                          borderBottom: idx < filteredWords.length - 1 ? '1px solid #1c1c30' : undefined,
+                          borderBottom:
+                            idx < filteredWords.length - 1 ? '1px solid var(--lex-border)' : undefined,
                           background: known ? 'rgba(52,211,153,0.04)' : undefined,
                         }}
                       >
@@ -352,22 +350,23 @@ export function VocabularyChecker() {
                         {/* word */}
                         <span
                           className="min-w-0 flex-1 truncate text-[15px] font-semibold"
-                          style={{ color: '#e8e8f5' }}
+                          style={{ color: 'var(--lex-heading)' }}
                         >
                           {item.word}
                         </span>
+                        <SpeakWordButton word={item.word} className="text-[14px]" />
 
                         {/* separator + translation */}
                         <span
                           className="hidden shrink-0 text-[13px] sm:inline"
-                          style={{ color: '#3a3a58' }}
+                          style={{ color: 'var(--lex-faint)' }}
                         >
                           —
                         </span>
                         <span
                           className="max-w-[120px] truncate text-[13px] sm:max-w-[180px]"
                           style={{
-                            color: '#5a5a80',
+                            color: 'var(--lex-muted)',
                             ...(isRtlGlossLang(glossLang)
                               ? { direction: 'rtl', textAlign: 'right' as const }
                               : {}),
@@ -381,8 +380,8 @@ export function VocabularyChecker() {
                           <button
                             type="button"
                             onClick={() => toggleHardWord(item.id)}
-                            className="rounded-lg p-1.5 transition-colors hover:bg-[#1a1a28]"
-                            style={{ color: hard ? '#f5c842' : '#3a3a58' }}
+                            className="rounded-lg p-1.5 transition-colors hover:bg-[var(--lex-hover-bg)]"
+                            style={{ color: hard ? '#7C3AED' : 'var(--lex-faint)' }}
                             title={t('lexicon.hard_bookmark_title')}
                             aria-label={t('lexicon.hard_bookmark_aria')}
                             aria-pressed={hard}
@@ -392,8 +391,8 @@ export function VocabularyChecker() {
                           <button
                             type="button"
                             onClick={() => toggleKnownWord(item.id)}
-                            className="rounded-lg p-1.5 transition-colors hover:bg-[#1a1a28]"
-                            style={{ color: known ? '#3ed4a0' : '#3a3a58' }}
+                            className="rounded-lg p-1.5 transition-colors hover:bg-[var(--lex-hover-bg)]"
+                            style={{ color: known ? '#3ed4a0' : 'var(--lex-faint)' }}
                             title={t('lexicon.learned_title')}
                             aria-label={t('lexicon.learned_aria')}
                             aria-pressed={known}
@@ -417,18 +416,15 @@ export function VocabularyChecker() {
                   return (
                     <section key={cat} className="scroll-mt-4">
                       <h2
-                        className="sticky top-0 z-[1] mb-4 border-b py-2.5 text-base font-normal uppercase tracking-[0.1em] backdrop-blur-md"
+                        className="sticky top-0 z-[1] mb-4 border-b border-[var(--lex-border)] bg-[var(--lex-sticky-bg)] py-2.5 text-base font-normal uppercase tracking-[0.1em] text-[var(--lex-heading)] backdrop-blur-md"
                         style={{
                           fontFamily: "Inter, 'DM Sans', system-ui, sans-serif",
-                          background: `${PAGE_BG}e6`,
-                          borderColor: '#1c1c30',
-                          color: '#9b8fff',
                         }}
                       >
                         {cat}
                         <span
-                          className="ml-2 normal-case tracking-normal"
-                          style={{ fontFamily: "'DM Sans', sans-serif", color: '#5a5a80', fontSize: '13px' }}
+                          className="ml-2 normal-case tracking-normal text-[13px] text-[var(--lex-muted)]"
+                          style={{ fontFamily: "'DM Sans', sans-serif" }}
                         >
                           ({items.length})
                         </span>
@@ -445,8 +441,8 @@ export function VocabularyChecker() {
                               transition={{ duration: 0.2 }}
                               className={`relative overflow-hidden rounded-[22px] border p-4 shadow-lg ${known ? 'pb-5' : ''}`}
                               style={{
-                                background: CARD_BG,
-                                borderColor: '#252540',
+                                background: 'var(--lex-card-inner)',
+                                borderColor: 'var(--lex-chip-border)',
                               }}
                             >
                               {known ? (
@@ -461,9 +457,9 @@ export function VocabularyChecker() {
                                 <span
                                   className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider"
                                   style={{
-                                    background: '#141425',
+                                    background: 'var(--lex-level-pill-bg)',
                                     color: '#7c6cf8',
-                                    border: '0.5px solid #252540',
+                                    border: '0.5px solid var(--lex-level-pill-border)',
                                   }}
                                 >
                                   {item.level}
@@ -472,9 +468,9 @@ export function VocabularyChecker() {
                                   <button
                                     type="button"
                                     onClick={() => toggleHardWord(item.id)}
-                                    className="rounded-xl p-2 transition-colors hover:bg-[#1a1a28]"
+                                    className="rounded-xl p-2 transition-colors hover:bg-[var(--lex-hover-bg)]"
                                     style={{
-                                      color: hard ? '#f5c842' : '#5a5a80',
+                                      color: hard ? '#7C3AED' : 'var(--lex-muted)',
                                     }}
                                     title={t('lexicon.hard_bookmark_title')}
                                     aria-label={t('lexicon.hard_bookmark_aria')}
@@ -485,9 +481,9 @@ export function VocabularyChecker() {
                                   <button
                                     type="button"
                                     onClick={() => toggleKnownWord(item.id)}
-                                    className="rounded-xl p-2 transition-colors hover:bg-[#1a1a28]"
+                                    className="rounded-xl p-2 transition-colors hover:bg-[var(--lex-hover-bg)]"
                                     style={{
-                                      color: known ? '#3ed4a0' : '#5a5a80',
+                                      color: known ? '#3ed4a0' : 'var(--lex-muted)',
                                     }}
                                     title={t('lexicon.learned_title')}
                                     aria-label={t('lexicon.learned_aria')}
@@ -499,42 +495,38 @@ export function VocabularyChecker() {
                               </div>
 
                               <div className="mt-3 min-w-0">
-                                <p
-                                  className="text-[11px] font-semibold uppercase tracking-[0.12em]"
-                                  style={{ color: '#3a3a58' }}
-                                >
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--lex-faint)]">
                                   {t('lexicon.german')}
                                 </p>
-                                <p
-                                  className="mt-1 leading-[1.05] tracking-wide"
+                                <div
+                                  className="mt-1 flex flex-wrap items-center gap-2 leading-[1.05] tracking-wide"
                                   style={{ fontFamily: "Inter, 'DM Sans', system-ui, sans-serif" }}
                                 >
-                                  <span
-                                    className="text-xl font-normal uppercase sm:text-2xl"
-                                    style={{ color: artVars[item.article] }}
-                                  >
-                                    {item.article}
-                                  </span>
-                                  <span
-                                    className="ml-2 text-3xl font-normal sm:text-[2.15rem]"
-                                    style={{ color: '#e8e8f5' }}
-                                  >
-                                    {item.word}
-                                  </span>
-                                </p>
+                                  <p className="m-0 min-w-0">
+                                    <span
+                                      className="text-xl font-normal uppercase sm:text-2xl"
+                                      style={{ color: artVars[item.article] }}
+                                    >
+                                      {item.article}
+                                    </span>
+                                    <span
+                                      className="ml-2 text-3xl font-normal sm:text-[2.15rem]"
+                                      style={{ color: 'var(--lex-heading)' }}
+                                    >
+                                      {item.word}
+                                    </span>
+                                  </p>
+                                  <SpeakWordButton word={item.word} className="text-[1.35rem] sm:text-2xl" />
+                                </div>
                               </div>
 
                               <div className="mt-3">
-                                <p
-                                  className="text-[11px] font-semibold uppercase tracking-[0.12em]"
-                                  style={{ color: '#3a3a58' }}
-                                >
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--lex-faint)]">
                                   {translationHeading}
                                 </p>
                                 <p
-                                  className="mt-1 text-sm font-normal leading-snug"
+                                  className="mt-1 text-sm font-normal leading-snug text-[var(--lex-muted)]"
                                   style={{
-                                    color: '#5a5a80',
                                     ...(isRtlGlossLang(glossLang)
                                       ? { direction: 'rtl', textAlign: 'right' as const }
                                       : {}),
@@ -553,7 +545,7 @@ export function VocabularyChecker() {
               </div>
 
               {filteredWords.length === 0 && words.length > 0 ? (
-                <p className="mt-10 text-center text-sm" style={{ color: '#5a5a80' }}>
+                <p className="mt-10 text-center text-sm text-[var(--lex-muted)]">
                   {t('lexicon.no_results')}
                 </p>
               ) : null}
@@ -561,7 +553,7 @@ export function VocabularyChecker() {
           )}
         </>
       ) : (
-        <p className="mt-10 text-center text-sm" style={{ color: '#5a5a80' }}>
+        <p className="mt-10 text-center text-sm text-[var(--lex-muted)]">
           {t('lexicon.empty')}
         </p>
       )}

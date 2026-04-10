@@ -18,6 +18,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "canvas-confetti": "^1.9.4",
     "firebase": "^12.11.0",
     "framer-motion": "^11.11.17",
     "i18next": "^25.10.5",
@@ -28,6 +29,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",

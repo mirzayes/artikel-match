@@ -24,13 +24,13 @@ export class AppErrorBoundary extends Component<Props, State> {
       return (
         <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 bg-[#0a0a0f] px-6 py-12 text-center text-[#f0eeff]">
           <p className="text-sm font-bold text-rose-300">Что-то пошло не так</p>
-          <pre className="max-h-[40vh] max-w-full overflow-auto rounded-xl border border-white/10 bg-black/40 p-4 text-left text-xs text-[rgba(232,232,245,0.85)]">
+          <pre className="max-h-[40vh] max-w-full overflow-auto rounded-xl border border-white/10 bg-black/40 p-4 text-left text-xs text-artikl-text">
             {error.message}
           </pre>
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="rounded-xl bg-[#7c6cf8] px-5 py-3 text-sm font-semibold text-white"
+            className="rounded-xl border-2 border-purple-600 bg-purple-600 px-5 py-3 text-sm font-semibold text-white dark:border-transparent dark:bg-[#7c6cf8]"
           >
             Перезагрузить страницу
           </button>

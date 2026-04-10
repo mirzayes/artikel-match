@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { SpeakWordButton } from './SpeakWordButton';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Article, NounEntry } from '../types';
@@ -47,6 +48,8 @@ export function DashboardWordLists({
     [nounsInLevel, hardWordIds],
   );
 
+  if (hardList.length === 0) return null;
+
   return (
     <div className="mx-auto mt-5 flex w-full max-w-[420px] flex-col gap-4">
       <motion.section
@@ -55,7 +58,7 @@ export function DashboardWordLists({
         className={`${glassPanel} p-4`}
       >
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="font-display text-xs font-bold uppercase tracking-[0.18em] text-white/90">
+          <h2 className="font-display text-xs font-bold uppercase tracking-[0.18em] text-artikl-text/90">
             {t('dashboard.hard_section_title')}
           </h2>
           {hardList.length > 0 ? (
@@ -69,31 +72,26 @@ export function DashboardWordLists({
           ) : null}
         </div>
 
-        {hardList.length === 0 ? (
-          <p className="py-6 text-center text-[12px] leading-relaxed text-[rgba(232,232,245,0.5)]">
-            {t('dashboard.hard_words_empty')}
-          </p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {hardList.map((entry) => (
-              <div
-                key={entry.id}
-                className={`relative flex min-w-0 max-w-full items-center gap-1 rounded-xl border px-2.5 py-2 pr-9 ${articlePillClass[entry.article]}`}
+        <div className="flex flex-wrap gap-2">
+          {hardList.map((entry) => (
+            <div
+              key={entry.id}
+              className={`relative flex min-w-0 max-w-full items-center gap-1 rounded-xl border px-2.5 py-2 pr-14 ${articlePillClass[entry.article]}`}
+            >
+              <p className="min-w-0 flex-1 truncate text-[12px] font-semibold text-artikl-text/95">{entry.word}</p>
+              <SpeakWordButton word={entry.word} className="text-[13px] opacity-80" />
+              <button
+                type="button"
+                onClick={() => onToggleKnown(entry.id)}
+                className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg border border-white/15 bg-black/25 text-emerald-300/95 backdrop-blur-[8px] transition-colors hover:border-emerald-400/40 hover:bg-emerald-500/15 hover:text-emerald-200"
+                aria-label={t('dashboard.archive_word_aria')}
+                title={t('dashboard.archive_word_title')}
               >
-                <p className="min-w-0 truncate text-[12px] font-semibold text-white/95">{entry.word}</p>
-                <button
-                  type="button"
-                  onClick={() => onToggleKnown(entry.id)}
-                  className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg border border-white/15 bg-black/25 text-emerald-300/95 backdrop-blur-[8px] transition-colors hover:border-emerald-400/40 hover:bg-emerald-500/15 hover:text-emerald-200"
-                  aria-label={t('dashboard.archive_word_aria')}
-                  title={t('dashboard.archive_word_title')}
-                >
-                  <CheckIcon />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+                <CheckIcon />
+              </button>
+            </div>
+          ))}
+        </div>
       </motion.section>
     </div>
   );

@@ -69,7 +69,7 @@ export function ExamResults({ correct, total, xpGained, onAgain, onHome }: ExamR
         animate={{ opacity: 1, y: 0 }}
         className="mx-auto w-full max-w-md pt-6"
       >
-        <h1 className="text-center font-display text-2xl font-bold tracking-wide text-white sm:text-3xl">
+        <h1 className="text-center font-display text-2xl font-bold tracking-wide text-artikl-text sm:text-3xl">
           Yekun Nəticə
         </h1>
 
@@ -80,7 +80,7 @@ export function ExamResults({ correct, total, xpGained, onAgain, onHome }: ExamR
             transition={{ type: 'spring', stiffness: 380, damping: 22 }}
             className="mt-4 text-center text-xl font-bold text-transparent sm:text-2xl"
             style={{
-              backgroundImage: 'linear-gradient(90deg, #c4b5fd, #e879f9, #fcd34d)',
+              backgroundImage: 'linear-gradient(90deg, #c4b5fd, #e879f9, #7C3AED)',
               WebkitBackgroundClip: 'text',
               backgroundClip: 'text',
             }}
@@ -92,21 +92,21 @@ export function ExamResults({ correct, total, xpGained, onAgain, onHome }: ExamR
         <div className="glass-card mt-8 rounded-2xl p-6 sm:p-8">
           <div className="grid gap-4 text-center">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-[rgba(232,232,245,0.45)]">
+              <p className="text-xs font-semibold uppercase tracking-wider text-artikl-caption">
                 Dəqiqlik (bu sınaq)
               </p>
-              <p className="mt-1 font-sans text-4xl font-bold tabular-nums text-white">{pct}%</p>
-              <p className="mt-1 text-sm text-[rgba(232,232,245,0.55)]">
+              <p className="mt-1 font-sans text-4xl font-bold tabular-nums text-artikl-text">{pct}%</p>
+              <p className="mt-1 text-sm text-artikl-muted2">
                 {correct} / {total} düzgün
               </p>
             </div>
             <div className="h-px bg-white/10" />
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-[rgba(232,232,245,0.45)]">
+              <p className="text-xs font-semibold uppercase tracking-wider text-artikl-caption">
                 Qazanılan XP
               </p>
-              <p className="mt-1 font-sans text-3xl font-bold tabular-nums text-violet-300">+{xpGained} XP</p>
-              <p className="mt-1 text-xs text-[rgba(232,232,245,0.45)]">Sınaqda ikiqat XP</p>
+              <p className="mt-1 font-sans text-3xl font-bold tabular-nums text-[#7C3AED] dark:text-violet-300">+{xpGained} XP</p>
+              <p className="mt-1 text-xs text-artikl-caption">Sınaqda ikiqat XP</p>
             </div>
           </div>
         </div>
@@ -115,14 +115,14 @@ export function ExamResults({ correct, total, xpGained, onAgain, onHome }: ExamR
           <button
             type="button"
             onClick={onAgain}
-            className="w-full rounded-2xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-purple-600 py-4 text-[15px] font-semibold text-white shadow-lg shadow-violet-900/25 transition-transform active:scale-[0.98]"
+            className="w-full rounded-2xl border-2 border-purple-600 bg-purple-600 py-4 text-[15px] font-semibold text-white shadow-lg transition-transform active:scale-[0.98] dark:border-transparent dark:bg-gradient-to-r dark:from-violet-600 dark:via-fuchsia-600 dark:to-purple-600 dark:shadow-violet-900/25"
           >
             Yeni sınaq
           </button>
           <button
             type="button"
             onClick={onHome}
-            className="w-full rounded-2xl border border-white/14 bg-white/5 py-3.5 text-sm font-semibold text-[rgba(232,232,245,0.75)] transition-colors hover:bg-white/10"
+            className="w-full rounded-2xl border border-white/14 bg-white/5 py-3.5 text-sm font-semibold text-artikl-text transition-colors hover:bg-white/10"
           >
             Ana səhifə
           </button>

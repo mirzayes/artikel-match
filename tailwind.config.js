@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
@@ -9,6 +10,10 @@ export default {
         mono: ['"Space Mono"', 'ui-monospace', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
       },
       colors: {
+        'artikl-heading': 'rgb(var(--artikl-heading-ch) / <alpha-value>)',
+        'artikl-text': 'rgb(var(--artikl-text-ch) / <alpha-value>)',
+        'artikl-muted2': 'var(--artikl-muted2)',
+        'artikl-caption': 'var(--artikl-caption)',
         der: {
           DEFAULT: '#60a5fa',
           soft: 'rgba(96, 165, 250, 0.12)',

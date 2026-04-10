@@ -1,0 +1,503 @@
+/**
+ * Light theme: bütün səhifələrdə oxunaqlı mətn və kartlar.
+ * Yalnız html[data-theme='light'] — qaranlıq tema toxunulmaz.
+ */
+
+/* Ümumi: açıq boz mətn (inherit ilə səhifə kökü) */
+html[data-theme='light'] body {
+  color: #1a1a2e;
+}
+
+/* Köhnə səhifə kökləri: açıq boz mətn ağ fonda */
+html[data-theme='light'] .text-stone-200 {
+  color: #1a1a2e !important;
+}
+
+/* Opacity ilə artikl-text — minimum oxunaqlıq (solid rənglər) */
+html[data-theme='light'] .text-artikl-text\/20,
+html[data-theme='light'] .text-artikl-text\/28,
+html[data-theme='light'] .text-artikl-text\/30,
+html[data-theme='light'] .text-artikl-text\/35 {
+  color: #9ca3af !important;
+}
+
+html[data-theme='light'] .text-artikl-text\/38,
+html[data-theme='light'] .text-artikl-text\/40,
+html[data-theme='light'] .text-artikl-text\/45,
+html[data-theme='light'] .text-artikl-text\/48,
+html[data-theme='light'] .text-artikl-text\/50,
+html[data-theme='light'] .text-artikl-text\/60 {
+  color: #4b5563 !important;
+}
+
+html[data-theme='light'] .text-artikl-text\/70,
+html[data-theme='light'] .text-artikl-text\/80 {
+  color: #374151 !important;
+}
+
+html[data-theme='light'] .text-artikl-text\/85,
+html[data-theme='light'] .text-artikl-text\/90,
+html[data-theme='light'] .text-artikl-text\/95 {
+  color: #1a1a2e !important;
+}
+
+html[data-theme='light'] .text-artikl-heading\/90 {
+  color: #1a1a2e !important;
+}
+
+/* Pastel violet-200 açıq şüşə/violet tint üzərində demək olar ki, yoxdur */
+html[data-theme='light'] .text-violet-200,
+html[data-theme='light'] .text-violet-200\/55,
+html[data-theme='light'] .text-violet-200\/85,
+html[data-theme='light'] .text-violet-200\/90,
+html[data-theme='light'] .text-violet-200\/95 {
+  color: #6d28d9 !important;
+}
+
+/* Açıq bənövşəyi şüşə üstündə ağ mətn → tünd bənövşəyi */
+html[data-theme='light'] .border-violet-400\/35.text-violet-100,
+html[data-theme='light'] .border-violet-400\/40.text-violet-100,
+html[data-theme='light'] button.border-violet-400\/40.text-violet-100,
+html[data-theme='light'] .bg-violet-500\/15.text-violet-100,
+html[data-theme='light'] .bg-violet-500\/\[0\.12\].text-violet-100 {
+  color: #5b21b6 !important;
+}
+
+/* Gradient outline düymələr (açıq şüşə fon) */
+html[data-theme='light'] .from-violet-600\/25.text-violet-100,
+html[data-theme='light'] .from-violet-600\/35.text-violet-50,
+html[data-theme='light'] .to-fuchsia-600\/30.text-violet-50 {
+  color: #5b21b6 !important;
+}
+
+/* Tam dolu CTA — ağ mətn saxlanılır */
+html[data-theme='light'] .bg-gradient-to-r.from-violet-600.to-fuchsia-600.text-white,
+html[data-theme='light'] .from-violet-600.via-fuchsia-600.to-purple-600.text-white,
+html[data-theme='light'] .bg-\[var\(--artikl-accent\)\].text-white {
+  color: #ffffff !important;
+}
+
+/* Sikkə / Artik vurğusu — bənövşəyi (köhnə qəhvəyi chip qaydası ləğv) */
+html[data-theme='light'] #coin-shop-title.text-amber-100,
+html[data-theme='light'] .app-sheet-panel h2.text-amber-100 {
+  color: #7c3aed !important;
+}
+
+/* Çəhrayı / narıncı banner (açıq fon) */
+html[data-theme='light'] .from-rose-500\/12.text-rose-100\/90,
+html[data-theme='light'] .border-rose-400\/25.text-rose-100\/90,
+html[data-theme='light'] .border-rose-400\/30.text-rose-100\/90 {
+  color: #9f1239 !important;
+}
+
+/* Tünd overlay modallarında mətn (app-toast-on-dark) */
+html[data-theme='light'] .app-toast-on-dark .text-artikl-muted2,
+html[data-theme='light'] .app-toast-on-dark.text-artikl-muted2 {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Ağ şüşə düymələr kvizdə */
+html[data-theme='light'] .border-white\/15 {
+  border-color: #e5e7eb !important;
+}
+
+html[data-theme='light'] .border-white\/\[0\.1\],
+html[data-theme='light'] .hover\:border-white\/20:hover {
+  border-color: #d1d5db !important;
+}
+
+html[data-theme='light'] .bg-white\/\[0\.04\],
+html[data-theme='light'] .bg-white\/\[0\.06\] {
+  background-color: #f9fafb !important;
+}
+
+html[data-theme='light'] .hover\:border-white\/25:hover {
+  border-color: #cbd5e1 !important;
+}
+
+/* Modal / sheet panelləri: ağ kart */
+html[data-theme='light'] .app-sheet-panel {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+html[data-theme='light'] .app-sheet-panel .text-artikl-text,
+html[data-theme='light'] .app-sheet-panel .text-artikl-caption,
+html[data-theme='light'] .app-sheet-panel .text-artikl-muted2 {
+  color: #1a1a2e !important;
+}
+
+html[data-theme='light'] .app-sheet-panel .text-artikl-caption {
+  color: #4b5563 !important;
+}
+
+html[data-theme='light'] .app-sheet-panel .border-white\/15 {
+  border-color: #e5e7eb !important;
+  color: #1a1a2e !important;
+}
+
+/* Profil: ring offset ağ fonda */
+html[data-theme='light'] .ring-offset-\[\#14141f\] {
+  --tw-ring-offset-color: #ffffff !important;
+}
+
+/* Dost bildirişi kartı */
+html[data-theme='light'] .friends-notification-card {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+html[data-theme='light'] .friends-notification-card .text-artikl-text {
+  color: #1a1a2e !important;
+}
+
+html[data-theme='light'] .friends-notification-card .text-artikl-muted2 {
+  color: #4b5563 !important;
+}
+
+html[data-theme='light'] .friends-notification-card .text-white {
+  color: #ffffff !important;
+}
+
+/* Yaşıl / cyan çiplər (açıq fon) */
+html[data-theme='light'] .border-emerald-400\/35.text-emerald-100,
+html[data-theme='light'] .border-emerald-400\/35.text-emerald-100\/95,
+html[data-theme='light'] .bg-emerald-500\/15.text-emerald-100,
+html[data-theme='light'] .bg-emerald-500\/15.text-emerald-300 {
+  color: #047857 !important;
+}
+
+html[data-theme='light'] .border-cyan-400\/30.text-cyan-100,
+html[data-theme='light'] .border-cyan-400\/35.text-cyan-100,
+html[data-theme='light'] .bg-cyan-500\/10.text-cyan-100,
+html[data-theme='light'] .bg-cyan-500\/15.text-cyan-100 {
+  color: #0e7490 !important;
+}
+
+/* Bənövşəyi CTA modaldə — ağ mətn */
+html[data-theme='light'] .app-sheet-panel .bg-gradient-to-r.from-violet-600.to-fuchsia-600.text-white,
+html[data-theme='light'] .app-sheet-panel .from-violet-600.to-fuchsia-600.text-sm.font-bold.text-white {
+  color: #ffffff !important;
+}
+
+html[data-theme='light'] .app-sheet-panel .bg-\[\#7c6cf8\].text-white {
+  color: #ffffff !important;
+}
+
+/* Liderlər: açıq kartda cədvəl mətni */
+html[data-theme='light'] .app-sheet-panel table.text-sm {
+  color: #1a1a2e;
+}
+
+html[data-theme='light'] .app-sheet-panel .text-artikl-caption {
+  color: #4b5563 !important;
+}
+
+/* Duel: nəticə kartı (açıq temada kağız) */
+html[data-theme='light'] .duel-result-card {
+  background: #ffffff !important;
+  background-image: none !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08) !important;
+}
+
+html[data-theme='light'] .duel-result-card .text-artikl-text {
+  color: #1a1a2e !important;
+}
+
+html[data-theme='light'] .duel-result-card .text-artikl-text\/20 {
+  color: #9ca3af !important;
+}
+
+html[data-theme='light'] .duel-result-card .text-emerald-200\/80,
+html[data-theme='light'] .duel-result-card .text-emerald-300\/80,
+html[data-theme='light'] .duel-result-card .text-emerald-300 {
+  color: #047857 !important;
+}
+
+html[data-theme='light'] .duel-result-card .text-rose-300\/80,
+html[data-theme='light'] .duel-result-card .text-rose-300 {
+  color: #be123c !important;
+}
+
+html[data-theme='light'] .duel-result-card .text-artikl-caption {
+  color: #4b5563 !important;
+}
+
+/* Leaderboard: gümüş sürüşdürmə və slate mətn */
+html[data-theme='light'] .leaderboard-view-root .text-slate-300\/85 {
+  color: #4b5563 !important;
+}
+
+html[data-theme='light'] .leaderboard-view-root .text-slate-200\/90 {
+  color: #1a1a2e !important;
+}
+
+html[data-theme='light'] .leaderboard-view-root .bg-slate-900\/90 {
+  background: #e5e7eb !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+}
+
+html[data-theme='light'] .leaderboard-view-root .bg-gradient-to-r.from-slate-500.via-slate-200.to-slate-100 {
+  background: #7c3aed !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+html[data-theme='light'] .leaderboard-view-root .text-emerald-400\/80 {
+  color: #047857 !important;
+}
+
+/* Exam / ümumi: ağ divider və ghost düymə */
+html[data-theme='light'] .bg-white\/10 {
+  background-color: #f3f4f6 !important;
+}
+
+html[data-theme='light'] .hover\:bg-white\/10:hover {
+  background-color: #e5e7eb !important;
+}
+
+html[data-theme='light'] .bg-white\/5 {
+  background-color: #f9fafb !important;
+}
+
+html[data-theme='light'] .border-white\/14 {
+  border-color: #e5e7eb !important;
+}
+
+html[data-theme='light'] .bg-white\/10.h-px,
+html[data-theme='light'] .h-px.bg-white\/10 {
+  background-color: #e5e7eb !important;
+}
+
+html[data-theme='light'] .text-violet-300 {
+  color: #6d28d9 !important;
+}
+
+html[data-theme='light'] .border-white\/\[0\.08\] {
+  border-color: #e5e7eb !important;
+}
+
+/* ═══ İsti çalar mətn (amber / sarı / narıncı) və sikkə UI — yalnız açıq tema ═══ */
+
+html[data-theme='light'] .dashboard-lesson-coin-count,
+html[data-theme='light'] .learning-hub-coin-row-count {
+  color: #7c3aed !important;
+  font-weight: 700 !important;
+}
+
+html[data-theme='light'] .dashboard-lesson-coin-track,
+html[data-theme='light'] .learning-hub-lesson-meter-track {
+  background-color: #e5e7eb !important;
+}
+
+html[data-theme='light'] .dashboard-lesson-coin-fill:not(.from-rose-500),
+html[data-theme='light'] .learning-hub-lesson-meter-fill:not(.from-rose-500) {
+  background: #7c3aed !important;
+  background-image: none !important;
+}
+
+html[data-theme='light'] .duel-cta-random {
+  background: #7c3aed !important;
+  background-image: none !important;
+  border-color: #7c3aed !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 24px rgba(124, 58, 237, 0.35) !important;
+}
+
+html[data-theme='light'] .duel-cta-random * {
+  color: #ffffff !important;
+}
+
+html[data-theme='light'] .duel-cta-random .rounded-full.border.border-amber-400\/25 {
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+}
+
+html[data-theme='light'] .duel-cta-private {
+  background: #ffffff !important;
+  background-image: none !important;
+  border: 2px solid #7c3aed !important;
+  color: #7c3aed !important;
+  box-shadow: 0 2px 12px rgba(124, 58, 237, 0.12) !important;
+}
+
+html[data-theme='light'] .duel-cta-private * {
+  color: #7c3aed !important;
+}
+
+html[data-theme='light'] .coin-balance-meter-chip {
+  border-color: rgba(124, 58, 237, 0.35) !important;
+  background: rgba(124, 58, 237, 0.08) !important;
+  color: #7c3aed !important;
+}
+
+html[data-theme='light'] .coin-balance-meter-chip button {
+  border-color: rgba(124, 58, 237, 0.45) !important;
+  background: rgba(124, 58, 237, 0.12) !important;
+  color: #7c3aed !important;
+}
+
+html[data-theme='light'] .coin-balance-meter-track {
+  background-color: #e5e7eb !important;
+}
+
+html[data-theme='light'] .coin-balance-meter-fill {
+  background: #7c3aed !important;
+  background-image: none !important;
+}
+
+html[data-theme='light'] .coin-balance-meter-fill[class*='from-orange'],
+html[data-theme='light'] .coin-balance-meter-fill[class*='from-amber'] {
+  background: linear-gradient(to right, #a855f7, #7c3aed) !important;
+}
+
+html[data-theme='light'] .coin-balance-meter-fill[class*='from-red'] {
+  background: linear-gradient(to right, #f43f5e, #dc2626) !important;
+}
+
+html[data-theme='light'] .text-\[#F59E0B\],
+html[data-theme='light'] .text-\[#F59E0B\]\/85,
+html[data-theme='light'] .text-\[#F59E0B\]\/90 {
+  color: #7c3aed !important;
+}
+
+html[data-theme='light'] .text-\[#D97706\],
+html[data-theme='light'] .text-\[#B45309\] {
+  color: #7c3aed !important;
+}
+
+html[data-theme='light'] .text-\[#FEF3C7\],
+html[data-theme='light'] .text-\[#FEF3C7\]\/88,
+html[data-theme='light'] .text-\[#FEF3C7\]\/92,
+html[data-theme='light'] .text-\[#FEF3C7\]\/95,
+html[data-theme='light'] .text-\[#FFFBEB\] {
+  color: #1a1a2e !important;
+}
+
+html[data-theme='light'] .learning-win-coin-breakdown .tabular-nums.text-\[#FEF3C7\]\/92 {
+  color: #7c3aed !important;
+}
+
+html[data-theme='light'] .app-toast-on-dark .text-\[#FEF3C7\] {
+  color: #fef3c7 !important;
+}
+
+html[data-theme='light'] .coin-balance-meter-chip,
+html[data-theme='light'] .dashboard-lesson-coin-count,
+html[data-theme='light'] .learning-hub-coin-row-count,
+html[data-theme='light'] .font-mono.tabular-nums[class*='text-amber'],
+html[data-theme='light'] .tabular-nums.font-bold[class*='text-amber'] {
+  color: #7c3aed !important;
+}
+
+html[data-theme='light'] .font-mono.text-\[#F59E0B\],
+html[data-theme='light'] .tabular-nums.text-\[#F59E0B\],
+html[data-theme='light'] .font-mono.text-\[#F59E0B\]\/85,
+html[data-theme='light'] .font-mono.text-\[#F59E0B\]\/90 {
+  color: #7c3aed !important;
+}
+
+html[data-theme='light'] button.from-\[\#f59e0b\].to-\[\#ef4444\].text-white,
+html[data-theme='light'] button.bg-gradient-to-r.from-\[\#f59e0b\].to-\[\#ef4444\].text-white {
+  color: #ffffff !important;
+}
+
+html[data-theme='light'] .learning-hub-toast--dark.text-amber-100\/95,
+html[data-theme='light'] .learning-hub-toast--dark.text-amber-100\/95 * {
+  color: rgba(254, 243, 199, 0.95) !important;
+}
+
+html[data-theme='light'] .artikl-streak-flame-outer {
+  fill: #7c3aed !important;
+}
+
+html[data-theme='light'] .artikl-streak-flame-inner {
+  fill: #a78bfa !important;
+}
+
+html[data-theme='light'] .learning-hub-lucky-banner {
+  color: #1a1a2e !important;
+}
+
+html[data-theme='light'] .learning-hub-lucky-badge {
+  color: #7c3aed !important;
+  border-color: rgba(124, 58, 237, 0.45) !important;
+}
+
+/* Tailwind mənbədə kiçik hərfli #f59e0b (gradient düymələrdən fərqli mətn sinifləri) */
+html[data-theme='light'] .text-\[#f59e0b\],
+html[data-theme='light'] .text-\[#f59e0b\]\/85,
+html[data-theme='light'] .text-\[#f59e0b\]\/90,
+html[data-theme='light'] .font-mono.text-\[#f59e0b\],
+html[data-theme='light'] .tabular-nums.text-\[#f59e0b\],
+html[data-theme='light'] .font-semibold.text-\[#f59e0b\]\/90 {
+  color: #7c3aed !important;
+}
+
+/* Açıq sarı etiket: ümumi səhifələrdə tünd; tünd Xüsusi duel overlayində saxla */
+html[data-theme='light'] .text-\[#ffcc80\]\/80 {
+  color: #1a1a2e !important;
+}
+
+html[data-theme='light'] .private-duel-modal-scope .text-\[#ffcc80\]\/80 {
+  color: rgba(255, 204, 128, 0.88) !important;
+}
+
+/* Kviz feedback: səhv — düzgün cavab (strong) açıq qırmızı qutu üstündə */
+html[data-theme='light'] .artikl-feedback.artikl-fb-bad .artikl-fb-text {
+  color: #991b1b !important;
+}
+
+html[data-theme='light'] .artikl-feedback.artikl-fb-bad .artikl-fb-text strong {
+  color: #1a1a2e !important;
+  font-weight: 700 !important;
+}
+
+/* Kviz feedback: düzgün — açıq yaşıl qutu, tünd mətn (almanca sətir görünsün) */
+html[data-theme='light'] .artikl-feedback.artikl-fb-ok {
+  background: #dcfce7 !important;
+  border: 1px solid #86efac !important;
+}
+
+html[data-theme='light'] .artikl-feedback.artikl-fb-ok .artikl-fb-icon {
+  background: #22c55e !important;
+}
+
+html[data-theme='light'] .artikl-feedback.artikl-fb-ok .artikl-fb-text {
+  color: #166534 !important;
+}
+
+html[data-theme='light'] .artikl-feedback.artikl-fb-ok .artikl-fb-text strong {
+  color: #1a1a2e !important;
+  font-weight: 700 !important;
+}
+
+html[data-theme='light'] .artikl-feedback.artikl-fb-ok .artikl-fb-fact {
+  color: #15803d !important;
+}
+
+html[data-theme='light'] .artikl-feedback.artikl-fb-ok .artikl-fb-fact-dot {
+  color: #166534 !important;
+}
+
+/* Topbar: seriya rəqəmi — açıq temada tünd bənövşəyi (token sarı qalır) */
+html[data-theme='light'] .artikl-streak-count {
+  color: #6d28d9 !important;
+}
+
+html[data-theme='light'] .artikl-streak-icon {
+  background: #f3f4f6 !important;
+  border-color: #e5e7eb !important;
+}
+
+/* Dashboard: günlük limit — krem mətn açıq fonda görünmürdü */
+html[data-theme='light'] .dashboard-lesson-cap-banner {
+  border-color: rgba(124, 58, 237, 0.28) !important;
+  background: rgba(124, 58, 237, 0.06) !important;
+}
+
+html[data-theme='light'] .dashboard-lesson-cap-banner-text {
+  color: #374151 !important;
+}

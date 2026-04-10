@@ -1,0 +1,36 @@
+{
+  "rules": {
+    "referralCodes": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && newData.hasChildren(['uid', 'ts']) && newData.child('uid').isString() && newData.child('ts').isNumber()"
+      }
+    },
+    "referralGrants": {
+      "$inviterUid": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "users": {
+      "$userId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "duels": {
+      "$gameId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "leaderboard": {
+      ".read": "auth != null",
+      ".indexOn": ["totalXp"],
+      "$userId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    }
+  }
+}

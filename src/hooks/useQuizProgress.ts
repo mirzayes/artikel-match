@@ -7,7 +7,15 @@ import type {
   RecordAnswerOptions,
   WordSrsEntry,
 } from '../types';
-import { GOETHE_LEVELS, LEARNED_FOR_TRAINING_MASTERY, MAX_MASTERY_LEVEL } from '../types';
+import {
+  GOETHE_LEVELS,
+  LEARNED_FOR_TRAINING_MASTERY,
+  MAX_MASTERY_LEVEL,
+  ODLU_DAILY_GOAL,
+  ODLU_DAILY_GOAL_OPTIONS,
+  type OdluDailyGoalOption,
+} from '../types';
+import { tryUnlockMarathonAchievement } from '../lib/achievements';
 import { clampMastery } from '../lib/smartReview';
 import { xpForCorrectAnswer } from '../lib/scoring';
 import { formatLocalDate, localDateKey } from '../lib/dateKeys';
@@ -150,6 +158,7 @@ function trimDateKeyedMaps(
   daily: Record<string, string[]>,
   activity: Record<string, number>,
   dailyCorrect: Record<string, number>,
+  learningCorrect: Record<string, number>,
   retainDays = 50,
 ) {
   const cutoff = new Date();
@@ -164,6 +173,9 @@ function trimDateKeyedMaps(
   }
   for (const k of Object.keys(dailyCorrect)) {
     if (k < cutoffKey) delete dailyCorrect[k];
+  }
+  for (const k of Object.keys(learningCorrect)) {
+    if (k < cutoffKey) delete learningCorrect[k];
   }
 }
 
@@ -192,6 +204,12 @@ function load(): AppProgressState {
             srsByWordId[id] = { streak: clampMastery(m), lastAttempt: nowIso, nextReview: epoch };
           }
         }
+        const rawGoal = (p as AppProgressState & { odluDailyGoal?: unknown }).odluDailyGoal;
+        const odluDailyGoal: OdluDailyGoalOption =
+          typeof rawGoal === 'number' && (ODLU_DAILY_GOAL_OPTIONS as readonly number[]).includes(rawGoal)
+            ? (rawGoal as OdluDailyGoalOption)
+            : ODLU_DAILY_GOAL;
+
         return {
           selectedLevel: p.selectedLevel,
           byLevel,
@@ -209,9 +227,13 @@ function load(): AppProgressState {
           dailyCorrectCountByDate: normalizeActivityByDate(
             (p as AppProgressState & { dailyCorrectCountByDate?: unknown }).dailyCorrectCountByDate,
           ),
+          learningCorrectByDate: normalizeActivityByDate(
+            (p as AppProgressState & { learningCorrectByDate?: unknown }).learningCorrectByDate,
+          ),
           displayName: normalizeDisplayName(
             (p as AppProgressState & { displayName?: unknown }).displayName,
           ),
+          odluDailyGoal,
         };
       }
     }
@@ -244,7 +266,9 @@ function load(): AppProgressState {
         dailyCorrectWordIdsByDate: {},
         activityAnswerCountByDate: {},
         dailyCorrectCountByDate: {},
+        learningCorrectByDate: {},
         displayName: '',
+        odluDailyGoal: ODLU_DAILY_GOAL,
       };
     }
   } catch {
@@ -261,7 +285,9 @@ function load(): AppProgressState {
     dailyCorrectWordIdsByDate: {},
     activityAnswerCountByDate: {},
     dailyCorrectCountByDate: {},
+    learningCorrectByDate: {},
     displayName: '',
+    odluDailyGoal: ODLU_DAILY_GOAL,
   };
 }
 
@@ -281,8 +307,8 @@ export function useQuizProgress() {
 
   const todayKey = formatLocalDate(new Date());
   const odluSeriya = useMemo(
-    () => computeOdluSeriya(state.dailyCorrectCountByDate, todayKey),
-    [state.dailyCorrectCountByDate, todayKey],
+    () => computeOdluSeriya(state.dailyCorrectCountByDate, todayKey, state.odluDailyGoal),
+    [state.dailyCorrectCountByDate, todayKey, state.odluDailyGoal],
   );
 
   const setSelectedLevel = useCallback((level: GoetheLevel) => {
@@ -291,6 +317,10 @@ export function useQuizProgress() {
 
   const setDisplayName = useCallback((name: string) => {
     setState((s) => ({ ...s, displayName: normalizeDisplayName(name) }));
+  }, []);
+
+  const setOdluDailyGoal = useCallback((goal: OdluDailyGoalOption) => {
+    setState((s) => ({ ...s, odluDailyGoal: goal }));
   }, []);
 
   /** UI/modal/sessiya yoxdur — yalnız state + localStorage. */
@@ -381,7 +411,21 @@ export function useQuizProgress() {
           dailyCorrectCountByDate[day] = (dailyCorrectCountByDate[day] ?? 0) + 1;
         }
 
-        trimDateKeyedMaps(dailyCorrectWordIdsByDate, activityAnswerCountByDate, dailyCorrectCountByDate);
+        const learningCorrectByDate = { ...prev.learningCorrectByDate };
+        if (learningSrs && correct) {
+          learningCorrectByDate[day] = (learningCorrectByDate[day] ?? 0) + 1;
+        }
+
+        trimDateKeyedMaps(
+          dailyCorrectWordIdsByDate,
+          activityAnswerCountByDate,
+          dailyCorrectCountByDate,
+          learningCorrectByDate,
+        );
+
+        if (learningSrs && correct) {
+          queueMicrotask(() => tryUnlockMarathonAchievement(learningCorrectByDate));
+        }
 
         return {
           ...prev,
@@ -393,6 +437,7 @@ export function useQuizProgress() {
           dailyCorrectWordIdsByDate,
           activityAnswerCountByDate,
           dailyCorrectCountByDate,
+          learningCorrectByDate,
           byLevel: {
             ...prev.byLevel,
             [level]: {
@@ -427,6 +472,7 @@ export function useQuizProgress() {
       dailyCorrectWordIdsByDate: {},
       activityAnswerCountByDate: {},
       dailyCorrectCountByDate: {},
+      learningCorrectByDate: {},
     }));
   }, []);
 
@@ -564,5 +610,7 @@ export function useQuizProgress() {
     odluSeriya,
     displayName: state.displayName,
     setDisplayName,
+    odluDailyGoal: state.odluDailyGoal,
+    setOdluDailyGoal,
   };
 }

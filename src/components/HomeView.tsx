@@ -22,25 +22,25 @@ export function HomeView({
   const dayPct = dailyGoal <= 0 ? 0 : Math.min(100, Math.round((dailyLearned / dailyGoal) * 100));
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-[var(--artikl-bg)] px-4 pb-32 pt-8 text-stone-200 sm:px-6 sm:pb-36 sm:pt-12">
+    <div className="flex min-h-[100dvh] flex-col bg-[var(--artikl-bg)] px-4 pb-32 pt-8 text-[#1A1A2E] dark:text-stone-200 sm:px-6 sm:pb-36 sm:pt-12">
       <motion.div
         initial={{ opacity: 0, y: -6 }}
         animate={{ opacity: 1, y: 0 }}
         className="mx-auto w-full max-w-md"
       >
-        <p className="text-center text-lg font-medium text-white sm:text-xl">Salam! 👋</p>
-        <p className="mx-auto mt-2 max-w-sm text-center text-sm leading-relaxed text-[rgba(232,232,245,0.5)]">
+        <p className="text-center text-lg font-medium text-artikl-text sm:text-xl">Salam! 👋</p>
+        <p className="mx-auto mt-2 max-w-sm text-center text-sm leading-relaxed text-artikl-muted2">
           Bu gün bir az alman artiklləri ilə məşq edək.
         </p>
 
         <div className="glass-card mt-8 rounded-2xl p-6 sm:p-8">
           <div className="flex items-center justify-between gap-3">
             <p className="card-label text-left">Bu günün məqsədi</p>
-            <p className="stat-value font-sans text-sm font-semibold tabular-nums text-white/90">
+            <p className="stat-value font-sans text-sm font-semibold tabular-nums text-[#1A1A2E] dark:text-artikl-text/90">
               {dailyLearned} / {dailyGoal} söz
             </p>
           </div>
-          <p className="mt-1 text-xs text-[rgba(232,232,245,0.38)]">
+          <p className="mt-1 text-xs text-artikl-caption">
             Fərqli sözlərə düzgün cavab — məqsədə çatmaq üçün.
           </p>
           <div
@@ -58,7 +58,7 @@ export function HomeView({
               transition={{ type: 'spring', stiffness: 120, damping: 20 }}
             />
           </div>
-          <p className="mt-2 text-right text-[11px] tabular-nums text-[rgba(232,232,245,0.35)]">{dayPct}%</p>
+          <p className="mt-2 text-right text-[11px] tabular-nums text-artikl-caption">{dayPct}%</p>
         </div>
       </motion.div>
 
@@ -80,13 +80,12 @@ export function HomeView({
                   className={[
                     'rounded-full px-3.5 py-2 text-sm font-semibold tracking-tight transition-colors',
                     on
-                      ? 'text-white'
-                      : 'border border-white/12 bg-transparent text-[rgba(232,232,245,0.55)] hover:border-white/18 hover:bg-white/[0.04]',
+                      ? 'border-2 border-purple-600 bg-purple-600 text-white dark:border-transparent dark:bg-[var(--artikl-accent)]'
+                      : 'border-2 border-purple-600 bg-white text-purple-600 dark:border-[var(--artikl-border)] dark:bg-transparent dark:text-[var(--artikl-muted2)] hover:dark:border-[var(--artikl-border2)] hover:dark:bg-[var(--artikl-surface)]',
                   ].join(' ')}
-                  style={on ? { backgroundColor: 'var(--artikl-accent)', border: '1px solid transparent' } : undefined}
                 >
                   {lvl}
-                  <span className="ml-1 tabular-nums text-xs font-medium opacity-75">({n})</span>
+                  <span className="ml-1 tabular-nums text-xs font-medium text-[#9CA3AF] dark:opacity-75">({n})</span>
                 </button>
               );
             })}
@@ -103,7 +102,7 @@ export function HomeView({
         <button
           type="button"
           onClick={() => onStartQuiz()}
-          className="w-full rounded-2xl border border-transparent bg-[var(--artikl-accent)] py-4 text-[16px] font-semibold text-white transition-transform active:scale-[0.98]"
+          className="w-full rounded-2xl border-2 border-purple-600 bg-purple-600 py-4 text-[16px] font-semibold text-white transition-transform active:scale-[0.98] dark:border-transparent dark:bg-[var(--artikl-accent)]"
           style={{
             boxShadow: '0 8px 28px rgba(124, 108, 248, 0.25)',
           }}

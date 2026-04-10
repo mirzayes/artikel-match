@@ -66,7 +66,7 @@ export function DashboardFriendsPanel() {
   if (friendIds.length === 0) {
     return (
       <div className="mx-auto mt-5 w-full max-w-[420px] rounded-2xl border border-white/[0.08] bg-white/[0.04] px-4 py-4 backdrop-blur-[14px]">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-[rgba(232,232,245,0.35)]">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-artikl-caption">
           {t('friends.title')}
         </p>
         <p className="mt-2 text-[11px] leading-relaxed text-[var(--artikl-muted)]">
@@ -78,7 +78,7 @@ export function DashboardFriendsPanel() {
 
   return (
     <div className="mx-auto mt-5 w-full max-w-[420px] rounded-2xl border border-white/[0.08] bg-white/[0.04] px-4 py-4 backdrop-blur-[14px]">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-[rgba(232,232,245,0.35)]">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-artikl-caption">
         {t('friends.title_status')}
       </p>
       <ul className="mt-3 space-y-2">
@@ -89,7 +89,7 @@ export function DashboardFriendsPanel() {
               key={fid}
               className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2"
             >
-              <span className="min-w-0 truncate font-mono text-[11px] text-white/85" title={fid}>
+              <span className="min-w-0 truncate font-mono text-[11px] text-artikl-text/85" title={fid}>
                 {fid.length > 18 ? `${fid.slice(0, 18)}…` : fid}
               </span>
               <span className={`shrink-0 text-[10px] font-semibold ${statusColor(st)}`}>

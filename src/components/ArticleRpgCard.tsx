@@ -59,7 +59,7 @@ export function ArticleRpgCard({ byArticle }: ArticleRpgCardProps) {
               <p
                 className={[
                   'mt-2 font-display text-sm font-semibold tracking-tight',
-                  rank.isUstad ? 'rpg-rank-master' : 'text-[rgba(232,232,245,0.82)]',
+                  rank.isUstad ? 'rpg-rank-master' : 'text-artikl-text',
                 ].join(' ')}
               >
                 {rank.label}

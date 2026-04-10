@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getOrCreateDuelUserId } from './DuelGame';
 import {
@@ -7,9 +7,11 @@ import {
   avatarIdToEmoji,
   setPlayerAvatar,
   subscribeDuelStats,
+  subscribeIsAlphaTester,
   subscribeUserProfile,
 } from '../lib/playerProfileRtdb';
 import { isFirebaseLive } from '../lib/firebase';
+import { publishReferralCodeMapping, REFERRAL_REWARD_COINS } from '../lib/referralRtdb';
 import { useGameStore } from '../store/useGameStore';
 import { syncDailyStreak } from '../lib/dailyStreak';
 
@@ -28,13 +30,36 @@ export function PlayerProfileCard({ onSaveDisplayName, onEnterGame }: PlayerProf
   const storeWins = useGameStore((s) => s.wins);
   const storeTotalDuels = useGameStore((s) => s.totalDuels);
   const storeScore = useGameStore((s) => s.score);
+  const storeCoins = useGameStore((s) => s.coins);
   const [draftName, setDraftName] = useState(playerName);
   const [duelStats, setDuelStats] = useState({ total: 0, wins: 0 });
+  const [isAlphaTester, setIsAlphaTester] = useState(false);
   const [dailyStreak] = useState(() => (typeof window !== 'undefined' ? syncDailyStreak() : 0));
+  const referralCodeDisplay = useGameStore((s) => s.referralCode);
+  const [referralToast, setReferralToast] = useState<string | null>(null);
+
+  /** Profil yüklənəndə kod yaradılır (ad + rəqəmlər) və ekranda göstərilir. */
+  useLayoutEffect(() => {
+    useGameStore.getState().getOrCreateReferralCode();
+  }, []);
 
   useEffect(() => {
     setDraftName(playerName);
   }, [playerName]);
+
+  /** Kod mövcud olanda RTDB: `referralCodes/{kod}` → uid. */
+  useEffect(() => {
+    const code = useGameStore.getState().getOrCreateReferralCode();
+    if (!code || code.length < 6) return;
+    if (!isFirebaseLive) return;
+    void publishReferralCodeMapping(code, userId);
+  }, [userId, referralCodeDisplay, isFirebaseLive]);
+
+  useEffect(() => {
+    if (!referralToast) return;
+    const t = window.setTimeout(() => setReferralToast(null), 2400);
+    return () => clearTimeout(t);
+  }, [referralToast]);
 
   useEffect(() => {
     const unsubP = subscribeUserProfile(userId, (p) => {
@@ -42,9 +67,11 @@ export function PlayerProfileCard({ onSaveDisplayName, onEnterGame }: PlayerProf
       if (id && PLAYER_AVATARS.some((a) => a.id === id)) setAvatar(id);
     });
     const unsubS = subscribeDuelStats(userId, setDuelStats);
+    const unsubA = subscribeIsAlphaTester(userId, setIsAlphaTester);
     return () => {
       unsubP();
       unsubS();
+      unsubA();
     };
   }, [userId, setAvatar]);
 
@@ -86,12 +113,22 @@ export function PlayerProfileCard({ onSaveDisplayName, onEnterGame }: PlayerProf
               {t('profile.my_profile')}
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
-              <h2 className="font-display text-lg font-bold leading-tight text-white sm:text-xl">
-                {playerName.trim() ? playerName.trim() : t('profile.name_empty_hint')}
+              <h2 className="font-display inline-flex flex-wrap items-center gap-x-2 gap-y-0.5 text-lg font-bold leading-tight text-artikl-text sm:text-xl">
+                <span>{playerName.trim() ? playerName.trim() : t('profile.name_empty_hint')}</span>
+                {isAlphaTester ? (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full border border-amber-400/35 bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold tracking-wide text-[#7C3AED] dark:text-amber-100"
+                    title="Pioner"
+                    aria-label="Pioner"
+                  >
+                    <span aria-hidden>👑</span>
+                    Pioner
+                  </span>
+                ) : null}
               </h2>
               {dailyStreak > 0 ? (
                 <span
-                  className="inline-flex items-center gap-0.5 rounded-full border border-orange-400/40 bg-gradient-to-r from-orange-500/25 to-amber-500/15 px-2 py-0.5 text-[13px] font-extrabold tabular-nums text-orange-100 shadow-[0_0_12px_rgba(251,146,60,0.25)]"
+                  className="inline-flex items-center gap-0.5 rounded-full border border-orange-400/40 bg-gradient-to-r from-orange-500/25 to-amber-500/15 px-2 py-0.5 text-[13px] font-extrabold tabular-nums text-[#7C3AED] shadow-[0_0_12px_rgba(251,146,60,0.25)] dark:text-orange-100"
                   title={t('profile.daily_streak_aria', { count: dailyStreak })}
                   aria-label={t('profile.daily_streak_aria', { count: dailyStreak })}
                 >
@@ -100,11 +137,11 @@ export function PlayerProfileCard({ onSaveDisplayName, onEnterGame }: PlayerProf
                 </span>
               ) : null}
             </div>
-            <p className="mt-1 text-[11px] text-[rgba(232,232,245,0.5)]">
+            <p className="mt-1 text-[11px] text-artikl-muted2">
               {t('profile.subtitle')}
             </p>
             {!isFirebaseLive ? (
-              <p className="mt-1 text-[10px] text-[rgba(232,232,245,0.38)]">
+              <p className="mt-1 text-[10px] text-artikl-caption">
                 {t('profile.offline_points', { score: storeScore })}
               </p>
             ) : null}
@@ -116,26 +153,35 @@ export function PlayerProfileCard({ onSaveDisplayName, onEnterGame }: PlayerProf
             <p className="text-[9px] font-semibold uppercase tracking-wider text-emerald-200/75">
               {t('profile.duels_played')}
             </p>
-            <p className="mt-1 font-display text-2xl font-bold tabular-nums text-white">
+            <p className="mt-1 font-display text-2xl font-bold tabular-nums text-artikl-text">
               {totalShown}
             </p>
           </div>
           <div className="rounded-2xl border border-violet-400/28 bg-[rgba(139,92,246,0.1)] px-3 py-3 backdrop-blur-sm">
-            <p className="text-[9px] font-semibold uppercase tracking-wider text-violet-200/85">
+            <p className="text-[9px] font-semibold uppercase tracking-wider text-[#1A1A2E] dark:text-violet-200/85">
               {t('profile.wins')}
             </p>
-            <p className="mt-1 font-display text-2xl font-bold tabular-nums text-white">
+            <p className="mt-1 font-display text-2xl font-bold tabular-nums text-artikl-text">
               {winPct}
-              <span className="text-base font-semibold text-violet-200/90">{t('profile.percent_unit')}</span>
+              <span className="text-base font-semibold text-[#1A1A2E] dark:text-violet-200/90">{t('profile.percent_unit')}</span>
             </p>
-            <p className="mt-0.5 text-[10px] tabular-nums text-[rgba(232,232,245,0.45)]">
+            <p className="mt-0.5 text-[10px] tabular-nums text-artikl-caption">
               {t('profile.stats_ratio', { wins: winsShown, total: totalShown })}
             </p>
           </div>
         </div>
 
+        <div className="mt-3 rounded-2xl border border-amber-400/28 bg-amber-500/[0.08] px-3 py-2.5">
+          <p className="text-[9px] font-semibold uppercase tracking-wider text-[#4B5563] dark:text-amber-200/80">
+            {t('profile.balance_title')}
+          </p>
+          <p className="mt-0.5 font-mono text-lg font-bold tabular-nums text-[#7C3AED] dark:text-amber-100">
+            {t('common.balance_display', { amount: storeCoins })}
+          </p>
+        </div>
+
         <div className="mt-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-[rgba(232,232,245,0.45)]">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-artikl-caption">
             {t('profile.pick_avatar')}
           </p>
           <div className="mt-2.5 flex flex-wrap gap-2">
@@ -167,10 +213,63 @@ export function PlayerProfileCard({ onSaveDisplayName, onEnterGame }: PlayerProf
           </div>
         </div>
 
+        <div className="mt-4 rounded-2xl border border-amber-400/25 bg-amber-500/[0.07] px-3 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-[#4B5563] dark:text-amber-200/85">
+            {t('profile.referral_title')}
+          </p>
+          <p className="mt-1 text-[11px] leading-snug text-artikl-muted2">
+            {t('profile.referral_hint', { coins: REFERRAL_REWARD_COINS })}
+          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <code className="min-w-0 flex-1 truncate rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 font-mono text-[11px] text-[#1A1A2E] dark:text-amber-100/90">
+              {referralCodeDisplay || '…'}
+            </code>
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.96 }}
+              animate={{
+                scale: [1, 1.045, 1],
+                boxShadow: [
+                  '0 8px 28px rgba(124,58,237,0.38)',
+                  '0 12px 36px rgba(124,58,237,0.52)',
+                  '0 8px 28px rgba(124,58,237,0.38)',
+                ],
+              }}
+              transition={{
+                duration: 2.1,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+              onClick={async () => {
+                const code = useGameStore.getState().getOrCreateReferralCode();
+                const link = `${window.location.origin}${window.location.pathname}?ref=${code}`;
+                try {
+                  await navigator.clipboard.writeText(link);
+                } catch {
+                  const ta = document.createElement('textarea');
+                  ta.value = link;
+                  ta.style.cssText = 'position:fixed;opacity:0';
+                  document.body.appendChild(ta);
+                  ta.select();
+                  document.execCommand('copy');
+                  document.body.removeChild(ta);
+                }
+                setReferralToast(t('profile.referral_copied'));
+              }}
+              className="shrink-0 rounded-xl bg-gradient-to-r from-violet-600 via-[#7C3AED] to-violet-800 px-3.5 py-2.5 text-[11px] font-extrabold text-violet-50 ring-2 ring-violet-400/50 ring-offset-2 ring-offset-[#14141f]"
+            >
+              {t('profile.referral_invite_btn', { coins: REFERRAL_REWARD_COINS })}
+            </motion.button>
+          </div>
+          {referralToast ? (
+            <p className="mt-2 text-center text-[11px] font-medium text-emerald-300/95">{referralToast}</p>
+          ) : null}
+        </div>
+
         <div className="mt-4">
           <label
             htmlFor="profile-display-name"
-            className="text-[10px] font-semibold uppercase tracking-wider text-[rgba(232,232,245,0.45)]"
+            className="text-[10px] font-semibold uppercase tracking-wider text-artikl-caption"
           >
             {t('profile.duel_name_label')}
           </label>
@@ -182,7 +281,7 @@ export function PlayerProfileCard({ onSaveDisplayName, onEnterGame }: PlayerProf
               value={draftName}
               onChange={(e) => setDraftName(e.target.value)}
               placeholder={t('profile.name_placeholder')}
-              className="min-w-0 flex-1 rounded-xl border border-white/15 bg-black/25 px-3 py-2.5 text-sm text-white placeholder:text-[rgba(232,232,245,0.25)] outline-none focus:border-[#a89ff8]/55"
+              className="min-w-0 flex-1 rounded-xl border border-white/15 bg-black/25 px-3 py-2.5 text-sm text-artikl-text placeholder:text-artikl-caption outline-none focus:border-[#a89ff8]/55"
             />
             <motion.button
               type="button"
@@ -197,7 +296,7 @@ export function PlayerProfileCard({ onSaveDisplayName, onEnterGame }: PlayerProf
                 if (isFirebaseLive) void setPlayerAvatar(userId, av);
                 window.setTimeout(() => onEnterGame?.(), 160);
               }}
-              className="shrink-0 rounded-xl bg-gradient-to-r from-[#7c6cf8] to-[#c44fd9] px-4 py-2.5 text-sm font-bold text-white shadow-[0_6px_24px_rgba(124,108,248,0.35)]"
+              className="shrink-0 rounded-xl border-2 border-purple-600 bg-purple-600 px-4 py-2.5 text-sm font-bold text-white shadow-[0_6px_24px_rgba(124,108,248,0.35)] dark:border-transparent dark:bg-gradient-to-r dark:from-[#7c6cf8] dark:to-[#c44fd9]"
             >
               {t('profile.ok')}
             </motion.button>

@@ -52,12 +52,12 @@ export function MasteryRing({ fraction, mastered, total, caption }: MasteryRingP
           />
         </svg>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-          <p className="font-display text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">
+          <p className="font-display text-[11px] font-semibold uppercase tracking-[0.2em] text-artikl-text/35">
             {caption}
           </p>
-          <p className="mt-1 font-display text-[1.65rem] font-bold leading-none tabular-nums text-white">
+          <p className="mt-1 font-display text-[1.65rem] font-bold leading-none tabular-nums text-artikl-text">
             {mastered}
-            <span className="text-base font-semibold text-white/45"> / {total}</span>
+            <span className="text-base font-semibold text-artikl-text/45"> / {total}</span>
           </p>
         </div>
       </div>
