@@ -22,15 +22,25 @@
     <script>
       (function () {
         try {
-          if (localStorage.getItem('theme') === 'light') {
+          var key = localStorage.getItem('theme');
+          var useLight =
+            key === 'light' ||
+            (key !== 'dark' &&
+              typeof window.matchMedia === 'function' &&
+              window.matchMedia('(prefers-color-scheme: light)').matches);
+          var m = document.getElementById('meta-theme-color');
+          if (useLight) {
             document.documentElement.setAttribute('data-theme', 'light');
             document.documentElement.classList.remove('dark');
-            var m = document.getElementById('meta-theme-color');
             if (m) m.setAttribute('content', '#ffffff');
           } else {
+            document.documentElement.removeAttribute('data-theme');
             document.documentElement.classList.add('dark');
+            if (m) m.setAttribute('content', '#0a0a0f');
           }
-        } catch (e) {}
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+        }
       })();
     </script>
     <div id="root"></div>

@@ -2,6 +2,15 @@ import { useCallback, useEffect, useState } from 'react';
 
 const STORAGE_KEY = 'theme';
 
+function systemPrefersLight(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.matchMedia('(prefers-color-scheme: light)').matches;
+  } catch {
+    return false;
+  }
+}
+
 function readStoredTheme(): 'light' | 'dark' {
   try {
     const v = localStorage.getItem(STORAGE_KEY);
@@ -9,7 +18,8 @@ function readStoredTheme(): 'light' | 'dark' {
   } catch {
     /* ignore */
   }
-  return 'dark';
+  /* İlk açılış (Vercel daxil): saxlanılan seçim yoxdursa OS üzrə */
+  return systemPrefersLight() ? 'light' : 'dark';
 }
 
 function applyDomTheme(mode: 'light' | 'dark') {
