@@ -44,7 +44,7 @@ import { syncLeaderboardXp } from './lib/leaderboardRtdb';
 import { useQuizProgress } from './hooks/useQuizProgress';
 import { useGameStoreRehydrated } from './hooks/useGameStoreRehydrated';
 import { useSupabaseScoresRealtime } from './hooks/useSupabaseScoresRealtime';
-import { useGameStore } from './store/useGameStore';
+import { syncLessonDailyCoinsToToday, useGameStore } from './store/useGameStore';
 import { useVocabulary } from './context/VocabularyContext';
 import type { Article, GoetheLevel } from './types';
 import { highestUnlockedGoetheLevel, isLevelGateUnlocked, type LevelGateCheckArgs } from './lib/levelGate';
@@ -143,6 +143,20 @@ export default function App() {
 
   useEffect(() => {
     syncDailyStreak();
+  }, []);
+
+  /** Gündəlik öyrənmə limiti (300) — saxlanılmış tarix dünəndirsə, təqvimə görə sıfırlanır. */
+  useEffect(() => {
+    if (!gameStoreHydrated) return;
+    syncLessonDailyCoinsToToday();
+  }, [gameStoreHydrated]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') syncLessonDailyCoinsToToday();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
 
   /** İlk giriş: totalXp === 0 — +200 sikkə və tam ekran qarşılama. */

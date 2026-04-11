@@ -447,6 +447,17 @@ export const useGameStore = create<PlayerStore>()(
       merge: (persisted, current) => {
         const p = persisted as Partial<PlayerStore> | undefined;
         if (!p || typeof p !== 'object') return current;
+        const today = formatLocalDate(new Date());
+        let lessonCoinsYmd =
+          typeof p.lessonCoinsYmd === 'string' ? p.lessonCoinsYmd : '';
+        let lessonCoinsEarnedToday =
+          typeof p.lessonCoinsEarnedToday === 'number' && p.lessonCoinsEarnedToday >= 0
+            ? p.lessonCoinsEarnedToday
+            : 0;
+        if (lessonCoinsYmd !== today) {
+          lessonCoinsYmd = today;
+          lessonCoinsEarnedToday = 0;
+        }
         return {
           ...current,
           ...p,
@@ -456,11 +467,8 @@ export const useGameStore = create<PlayerStore>()(
             typeof p.checkInCyclePosition === 'number' && p.checkInCyclePosition >= 0
               ? p.checkInCyclePosition
               : 0,
-          lessonCoinsYmd: typeof p.lessonCoinsYmd === 'string' ? p.lessonCoinsYmd : '',
-          lessonCoinsEarnedToday:
-            typeof p.lessonCoinsEarnedToday === 'number' && p.lessonCoinsEarnedToday >= 0
-              ? p.lessonCoinsEarnedToday
-              : 0,
+          lessonCoinsYmd,
+          lessonCoinsEarnedToday,
           referralCode: typeof p.referralCode === 'string' ? p.referralCode : '',
           pendingReferralCode:
             typeof p.pendingReferralCode === 'string' && p.pendingReferralCode.trim()
@@ -494,6 +502,17 @@ export const useGameStore = create<PlayerStore>()(
     },
   ),
 );
+
+/**
+ * Gündəlik öyrənmə Artik sayğacını cari təqvim gününə uyğunlaşdırır (tətbiq açıq qalanda gecə yarısı,
+ * başqa tabdan qayıdanda və s.).
+ */
+export function syncLessonDailyCoinsToToday(): void {
+  const today = formatLocalDate(new Date());
+  const s = useGameStore.getState();
+  if (s.lessonCoinsYmd === today) return;
+  useGameStore.setState({ lessonCoinsYmd: today, lessonCoinsEarnedToday: 0 });
+}
 
 /** Migrate legacy localStorage keys into this store. */
 export function migrateLegacyPlayerProfileIntoGameStore(): void {

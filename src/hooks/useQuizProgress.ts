@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   AppProgressState,
   Article,
@@ -293,10 +293,28 @@ function load(): AppProgressState {
 
 export function useQuizProgress() {
   const [state, setState] = useState<AppProgressState>(load);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(state));
   }, [state]);
+
+  useEffect(() => {
+    const flush = () => {
+      try {
+        localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(stateRef.current));
+      } catch {
+        /* ignore */
+      }
+    };
+    window.addEventListener('pagehide', flush);
+    window.addEventListener('beforeunload', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      window.removeEventListener('beforeunload', flush);
+    };
+  }, []);
 
   const selectedLevel = state.selectedLevel;
   const stats = state.byLevel[selectedLevel];
