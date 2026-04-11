@@ -5,6 +5,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { del, get, set } from 'idb-keyval';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import App from './App';
 import { AppErrorBoundary } from './AppErrorBoundary';
 import { VocabularyProvider } from './context/VocabularyContext';
@@ -70,6 +71,7 @@ function Root() {
           <>
             <App />
             <Analytics mode={import.meta.env.DEV ? 'development' : 'production'} />
+            <SpeedInsights />
             <InstallBanner />
           </>
         </GlossLanguageProvider>
