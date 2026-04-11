@@ -35,4 +35,14 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_MEASUREMENT_ID?: string;
   /** Buy Me a Coffee / dəstək linki (mağaza düymələri). */
   readonly VITE_BUY_ME_A_COFFEE_URL?: string;
+  /** Gold VIP ödəniş (2 AZN) — tam URL. */
+  readonly VITE_GOLD_VIP_CHECKOUT_URL?: string;
+  /** VIP modal: m10 / kart nömrəsi (kopyalama). */
+  readonly VITE_PAYMENT_PHONE_M10?: string;
+  /** VIP «Instagram-a yaz» — Direct və ya profil (üstünlük `VITE_SUPPORT_INSTAGRAM_URL`-dən). */
+  readonly VITE_INSTAGRAM_CHECKOUT_URL?: string;
+  /** Instagram profil linki (məs. https://www.instagram.com/nick/) */
+  readonly VITE_SUPPORT_INSTAGRAM_URL?: string;
+  /** @nick — link yoxdursa profil URL qurulur. */
+  readonly VITE_SUPPORT_INSTAGRAM_HANDLE?: string;
 }

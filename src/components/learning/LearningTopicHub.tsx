@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { startTransition, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { GOETHE_LEVELS, type GoetheLevel, type NounEntry, type WordSrsEntry } from '../../types';
 import { countDueWordsForLevel, filterLearningQuizPool } from '../../lib/wordLists';
@@ -20,6 +20,7 @@ import {
   isLevelGateUnlocked,
   type LevelGateCheckArgs,
 } from '../../lib/levelGate';
+import { VipSubscriptionModal } from '../VipSubscriptionModal';
 import { LevelUnlockModal } from '../LevelUnlockModal';
 import { LevelMasteryProgressBar } from '../LevelMasteryProgressBar';
 import {
@@ -142,6 +143,7 @@ export function LearningTopicHub({
   const unlockLearningBlocksForLevel = useGameStore((s) => s.unlockLearningBlocksForLevel);
   const coins = useGameStore((s) => s.coins);
   const [levelLockTarget, setLevelLockTarget] = useState<GoetheLevel | null>(null);
+  const [vipModalOpen, setVipModalOpen] = useState(false);
   const [adToast, setAdToast] = useState<string | null>(null);
   const [unlockToast, setUnlockToast] = useState<string | null>(null);
   const [missionToast, setMissionToast] = useState<string | null>(null);
@@ -181,6 +183,10 @@ export function LearningTopicHub({
 
   const handleLevelPick = useCallback(
     (lvl: GoetheLevel) => {
+      if (!isArtikelVipFromLocalStorage() && lvl !== 'A1') {
+        startTransition(() => setVipModalOpen(true));
+        return;
+      }
       if (!isLevelGateUnlocked(lvl, levelGateArgs)) {
         setLevelLockTarget(lvl);
         return;
@@ -352,28 +358,52 @@ export function LearningTopicHub({
           </span>
         </div>
 
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {GOETHE_LEVELS.map((lvl) => {
-            const active = lvl === selectedLevel;
-            const locked = isGoetheLevelGated(lvl) && !isLevelGateUnlocked(lvl, levelGateArgs);
-            return (
-              <button
-                key={lvl}
-                type="button"
-                onClick={() => handleLevelPick(lvl)}
-                className={[
-                  'learning-hub-level-btn shrink-0 rounded-xl px-4 py-2.5 text-xs font-bold tabular-nums transition-all duration-200',
-                  active
-                    ? 'learning-hub-level-btn--active relative border-2 border-purple-600 bg-purple-600 text-white shadow-[0_0_22px_rgba(139,92,246,0.35)] dark:border-cyan-400/55 dark:bg-gradient-to-br dark:from-violet-600/50 dark:via-violet-500/35 dark:to-cyan-500/30 dark:shadow-[0_0_22px_rgba(139,92,246,0.45),0_0_14px_rgba(34,211,238,0.28)] dark:ring-1 dark:ring-violet-400/50'
-                    : 'border-2 border-purple-600 bg-white text-purple-600 backdrop-blur-[10px] dark:border-[var(--artikl-border)] dark:bg-[var(--artikl-surface)] dark:text-artikl-muted2 hover:dark:border-[var(--artikl-border2)] hover:dark:bg-[var(--artikl-surface2)] hover:dark:text-artikl-text',
-                  locked ? 'opacity-55' : '',
-                ].join(' ')}
-              >
-                {locked ? <span className="mr-0.5" aria-hidden>🔒</span> : null}
-                {lvl}
-              </button>
-            );
-          })}
+        <div className="mt-4 flex items-stretch gap-2">
+          <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {GOETHE_LEVELS.map((lvl) => {
+              const active = lvl === selectedLevel;
+              const monetizationLocked = !isArtikelVipFromLocalStorage() && lvl !== 'A1';
+              const progressLocked =
+                isGoetheLevelGated(lvl) && !isLevelGateUnlocked(lvl, levelGateArgs);
+              const locked = monetizationLocked || progressLocked;
+              return (
+                <button
+                  key={lvl}
+                  type="button"
+                  onClick={() => handleLevelPick(lvl)}
+                  className={[
+                    'learning-hub-level-btn shrink-0 rounded-xl px-4 py-2.5 text-xs font-bold tabular-nums transition-all duration-200',
+                    active
+                      ? 'learning-hub-level-btn--active relative border-2 border-purple-600 bg-purple-600 text-white shadow-[0_0_22px_rgba(139,92,246,0.35)] dark:border-cyan-400/55 dark:bg-gradient-to-br dark:from-violet-600/50 dark:via-violet-500/35 dark:to-cyan-500/30 dark:shadow-[0_0_22px_rgba(139,92,246,0.45),0_0_14px_rgba(34,211,238,0.28)] dark:ring-1 dark:ring-violet-400/50'
+                      : 'border-2 border-purple-600 bg-white text-purple-600 backdrop-blur-[10px] dark:border-[var(--artikl-border)] dark:bg-[var(--artikl-surface)] dark:text-artikl-muted2 hover:dark:border-[var(--artikl-border2)] hover:dark:bg-[var(--artikl-surface2)] hover:dark:text-artikl-text',
+                    locked ? 'opacity-55' : '',
+                  ].join(' ')}
+                >
+                  {locked ? <span className="mr-0.5" aria-hidden>🔒</span> : null}
+                  {lvl}
+                </button>
+              );
+            })}
+          </div>
+          {isArtikelVipFromLocalStorage() ? (
+            <div
+              className="flex shrink-0 flex-col items-center justify-center rounded-xl border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-[10px] font-extrabold uppercase leading-tight tracking-wide text-amber-200"
+              title="Gold VIP"
+            >
+              <span aria-hidden>👑</span>
+              <span className="mt-0.5">VIP</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => startTransition(() => setVipModalOpen(true))}
+              className="flex shrink-0 flex-col items-center justify-center rounded-xl border-2 border-amber-400/60 bg-gradient-to-b from-amber-500/25 to-amber-700/20 px-2.5 py-1 text-[10px] font-extrabold uppercase leading-tight tracking-wide text-amber-100 shadow-[0_0_18px_rgba(245,158,11,0.25)] transition-transform active:scale-95"
+              title="Gold VIP"
+            >
+              <span aria-hidden>👑</span>
+              <span className="mt-0.5">VIP</span>
+            </button>
+          )}
         </div>
 
         <div className="learning-hub-coin-row mt-3 rounded-2xl border border-[var(--artikl-border)] bg-[var(--artikl-surface)] px-3 py-2.5">
@@ -738,6 +768,8 @@ export function LearningTopicHub({
             </div>
           </div>
         ) : null}
+
+        <VipSubscriptionModal open={vipModalOpen} onClose={() => setVipModalOpen(false)} />
 
         <LevelUnlockModal
           open={levelLockTarget !== null}

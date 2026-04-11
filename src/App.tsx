@@ -452,6 +452,14 @@ export default function App() {
     }
   }, [selectedLevel, levelGateArgsForClamp, setSelectedLevel]);
 
+  /** Gold VIP olmayan oyunçular: öyrənmə və kviz yalnız A1. */
+  useEffect(() => {
+    if (isArtikelVipFromLocalStorage()) return;
+    if (selectedLevel !== 'A1') {
+      setSelectedLevel('A1');
+    }
+  }, [selectedLevel, setSelectedLevel]);
+
   return (
     <div lang="az" className="relative min-h-[100dvh] overflow-x-hidden bg-[var(--artikl-bg)]">
       <ThemeToggle />

@@ -11,10 +11,15 @@ import { coinUnlockCostForLevel } from '../lib/levelGate';
 
 /** Mağaza / dəstək VIP: `localStorage` ilə — sərfiyyatsız giriş və alışlar. */
 export const VIP_LOCALSTORAGE_KEY = 'artikel-is-vip';
+/** Monetizasiya üçün alternativ açar (`isVip` === `true` → eyni effekt). */
+export const VIP_ALT_LOCALSTORAGE_KEY = 'isVip';
 
 export function isArtikelVipFromLocalStorage(): boolean {
   try {
-    return typeof localStorage !== 'undefined' && localStorage.getItem(VIP_LOCALSTORAGE_KEY) === 'true';
+    if (typeof localStorage === 'undefined') return false;
+    const primary = localStorage.getItem(VIP_LOCALSTORAGE_KEY) === 'true';
+    const alt = localStorage.getItem(VIP_ALT_LOCALSTORAGE_KEY) === 'true';
+    return primary || alt;
   } catch {
     return false;
   }

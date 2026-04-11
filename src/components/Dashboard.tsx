@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { onValue, ref as dbRef } from 'firebase/database';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { startTransition, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useVocabulary } from '../context/VocabularyContext';
 import { filterLearningQuizPool } from '../lib/wordLists';
@@ -24,6 +24,7 @@ import type { OdluSeriyaState } from '../lib/odluStreak';
 import { CoinBalanceMeter } from './CoinBalanceMeter';
 import { LevelMasteryProgressBar } from './LevelMasteryProgressBar';
 import { LeaderboardModal } from './LeaderboardModal';
+import { VipSubscriptionModal } from './VipSubscriptionModal';
 import { LevelUnlockModal } from './LevelUnlockModal';
 import { isArtikelVipFromLocalStorage, LESSON_DAILY_COIN_CAP, useGameStore } from '../store/useGameStore';
 import {
@@ -211,6 +212,7 @@ export function Dashboard({
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [levelLockTarget, setLevelLockTarget] = useState<GoetheLevel | null>(null);
+  const [vipModalOpen, setVipModalOpen] = useState(false);
   const [adToast, setAdToast] = useState<string | null>(null);
   const { data: leaderboardLiveState } = useLeaderboardLiveQuery();
   const leaderTop3: LeaderboardEntry[] = useMemo(
@@ -309,6 +311,10 @@ export function Dashboard({
 
   const handleLevelPick = useCallback(
     (lvl: GoetheLevel) => {
+      if (!isArtikelVipFromLocalStorage() && lvl !== 'A1') {
+        startTransition(() => setVipModalOpen(true));
+        return;
+      }
       if (!isLevelGateUnlocked(lvl, levelGateArgs)) {
         setLevelLockTarget(lvl);
         return;
@@ -445,45 +451,69 @@ export function Dashboard({
           </div>
         ) : null}
 
-        {/* ── Level selector ── */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          {GOETHE_LEVELS.map((lvl) => {
-            const on = lvl === selectedLevel;
-            const n = wordCountByLevel[lvl];
-            const locked = isGoetheLevelGated(lvl) && !isLevelGateUnlocked(lvl, levelGateArgs);
-            const upperTierLockedVisual =
-              locked && (lvl === 'B1' || lvl === 'B2' || lvl === 'C1');
-            return (
+        {/* ── Level selector + VIP ── */}
+        <div className="mt-4 flex flex-wrap items-stretch gap-2">
+          <div className="flex min-w-0 flex-1 flex-wrap gap-2">
+            {GOETHE_LEVELS.map((lvl) => {
+              const on = lvl === selectedLevel;
+              const n = wordCountByLevel[lvl];
+              const monetizationLocked = !isArtikelVipFromLocalStorage() && lvl !== 'A1';
+              const progressLocked =
+                isGoetheLevelGated(lvl) && !isLevelGateUnlocked(lvl, levelGateArgs);
+              const locked = monetizationLocked || progressLocked;
+              const upperTierLockedVisual =
+                locked && (lvl === 'B1' || lvl === 'B2' || lvl === 'C1') && !monetizationLocked;
+              return (
+                <button
+                  key={lvl}
+                  type="button"
+                  onClick={() => handleLevelPick(lvl)}
+                  className={[
+                    'lex-no-tap-highlight min-h-[44px] rounded-full px-[14px] py-2.5 text-[13px] font-semibold tabular-nums transition-all active:scale-[0.98]',
+                    on
+                      ? 'border-2 border-purple-600 bg-purple-600 text-white shadow-[0_0_20px_rgba(124,108,248,0.3)] dark:border-transparent dark:bg-[var(--artikl-accent)]'
+                      : 'border-2 border-purple-600 bg-white text-purple-600 backdrop-blur-[10px] dark:border-[0.5px] dark:border-[var(--artikl-border)] dark:bg-[var(--artikl-surface)] dark:text-[var(--text-muted)] hover:dark:border-[var(--artikl-border2)] hover:dark:bg-[var(--artikl-surface2)]',
+                    locked ? 'opacity-55' : '',
+                  ].join(' ')}
+                >
+                  {locked ? (
+                    upperTierLockedVisual ? (
+                      <span className="mr-1 inline-flex shrink-0 text-zinc-500" aria-hidden title="Kilidli">
+                        <GrayLockIcon className="h-3 w-3" />
+                      </span>
+                    ) : (
+                      <span className="mr-0.5 text-[11px] opacity-70 grayscale" aria-hidden>
+                        🔒
+                      </span>
+                    )
+                  ) : null}
+                  {lvl}
+                  <span className="ml-0.5 text-[10px] font-semibold text-[#9CA3AF] dark:opacity-60">
+                    ({n})
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {isArtikelVipFromLocalStorage() ? (
+            <div
+              className="flex min-h-[44px] shrink-0 flex-col items-center justify-center rounded-full border border-amber-400/40 bg-amber-500/15 px-3 text-[10px] font-extrabold uppercase leading-tight tracking-wide text-amber-200"
+              title="Gold VIP"
+            >
+              <span aria-hidden>👑</span>
+              <span>VIP</span>
+            </div>
+          ) : (
             <button
-              key={lvl}
               type="button"
-              onClick={() => handleLevelPick(lvl)}
-              className={[
-                  'lex-no-tap-highlight min-h-[44px] rounded-full px-[14px] py-2.5 text-[13px] font-semibold tabular-nums transition-all active:scale-[0.98]',
-                  on
-                    ? 'border-2 border-purple-600 bg-purple-600 text-white shadow-[0_0_20px_rgba(124,108,248,0.3)] dark:border-transparent dark:bg-[var(--artikl-accent)]'
-                    : 'border-2 border-purple-600 bg-white text-purple-600 backdrop-blur-[10px] dark:border-[0.5px] dark:border-[var(--artikl-border)] dark:bg-[var(--artikl-surface)] dark:text-[var(--text-muted)] hover:dark:border-[var(--artikl-border2)] hover:dark:bg-[var(--artikl-surface2)]',
-                  locked ? 'opacity-55' : '',
-                ].join(' ')}
-              >
-                {locked ? (
-                  upperTierLockedVisual ? (
-                    <span className="mr-1 inline-flex shrink-0 text-zinc-500" aria-hidden title="Kilidli">
-                      <GrayLockIcon className="h-3 w-3" />
-                    </span>
-                  ) : (
-                    <span className="mr-0.5 text-[11px] opacity-70 grayscale" aria-hidden>
-                      🔒
-                    </span>
-                  )
-                ) : null}
-                {lvl}
-                <span className="ml-0.5 text-[10px] font-semibold text-[#9CA3AF] dark:opacity-60">
-                  ({n})
-                </span>
-              </button>
-            );
-          })}
+              onClick={() => startTransition(() => setVipModalOpen(true))}
+              className="flex min-h-[44px] shrink-0 flex-col items-center justify-center rounded-full border-2 border-amber-400/60 bg-gradient-to-b from-amber-500/25 to-amber-700/20 px-3 text-[10px] font-extrabold uppercase leading-tight tracking-wide text-amber-100 shadow-[0_0_18px_rgba(245,158,11,0.25)] active:scale-95"
+              title="Gold VIP"
+            >
+              <span aria-hidden>👑</span>
+              <span>VIP</span>
+            </button>
+          )}
         </div>
 
         {/* ── Daily progress ring ── */}
@@ -861,6 +891,8 @@ export function Dashboard({
           </div>
         </div>
       ) : null}
+
+      <VipSubscriptionModal open={vipModalOpen} onClose={() => setVipModalOpen(false)} />
 
       <LevelUnlockModal
         open={levelLockTarget !== null}
