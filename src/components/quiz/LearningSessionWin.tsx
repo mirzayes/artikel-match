@@ -1,5 +1,6 @@
+import { track } from '@vercel/analytics';
 import { motion } from 'framer-motion';
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Article } from '../../types';
 
@@ -25,6 +26,30 @@ export type SessionCoinRewardSummary = {
   /** Günlük öyrənmə limiti doldu */
   lessonDailyCapReached?: boolean;
 };
+
+const SHARE_APP_URL = 'https://artikel-match.vercel.app';
+
+function buildSessionShareText(score: number): string {
+  return `Mən Artikel Match-də ${score} sözün artiklini düzgün tapdım! 🇩🇪 Sən də yoxla: ${SHARE_APP_URL}`;
+}
+
+function copyTextWithFallback(text: string): boolean {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '0';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
 
 type LearningSessionWinProps = {
   goal: number;
@@ -141,6 +166,53 @@ export function LearningSessionWin({
 }: LearningSessionWinProps) {
   const { t } = useTranslation();
   const showCoins = coinReward && coinReward.total > 0;
+  const finalScore = coinReward?.correctAnswers ?? 0;
+
+  const [copyToastVisible, setCopyToastVisible] = useState(false);
+  const copyToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showCopiedToast = useCallback(() => {
+    setCopyToastVisible(true);
+    if (copyToastTimerRef.current) clearTimeout(copyToastTimerRef.current);
+    copyToastTimerRef.current = setTimeout(() => {
+      setCopyToastVisible(false);
+      copyToastTimerRef.current = null;
+    }, 2600);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (copyToastTimerRef.current) clearTimeout(copyToastTimerRef.current);
+    };
+  }, []);
+
+  const handleShareResult = useCallback(async () => {
+    track('Share Clicked', { finalScore });
+    const text = buildSessionShareText(finalScore);
+
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (e) {
+        if (e instanceof DOMException && e.name === 'AbortError') return;
+      }
+    }
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        showCopiedToast();
+        return;
+      }
+    } catch {
+      /* fall through */
+    }
+
+    if (copyTextWithFallback(text)) {
+      showCopiedToast();
+    }
+  }, [finalScore, showCopiedToast]);
 
   return (
     <motion.div
@@ -250,6 +322,14 @@ export function LearningSessionWin({
           <WordColumn title="Çətin (təkrar)" tone="hard" words={hardWords} glossRtl={glossRtl} />
         </div>
 
+        <button
+          type="button"
+          onClick={() => void handleShareResult()}
+          className="learning-win-btn mb-1 w-full rounded-2xl border border-emerald-400/45 bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600 py-3.5 text-[0.95rem] font-bold text-white shadow-[0_10px_36px_rgba(16,185,129,0.35)] transition-[transform,box-shadow] hover:shadow-[0_12px_40px_rgba(99,102,241,0.38)] active:scale-[0.98]"
+        >
+          Nəticəni paylaş
+        </button>
+
         <div className="learning-win-actions">
           <button type="button" className="learning-win-btn learning-win-btn-primary" onClick={onRestart}>
             {t('rewards.session_restart')}
@@ -259,6 +339,16 @@ export function LearningSessionWin({
           </button>
         </div>
       </motion.div>
+
+      {copyToastVisible ? (
+        <div
+          className="pointer-events-none fixed bottom-[max(6.5rem,env(safe-area-inset-bottom)+5rem)] left-1/2 z-[220] w-[min(88vw,320px)] -translate-x-1/2 rounded-2xl border border-emerald-400/40 bg-[rgba(6,24,18,0.96)] px-4 py-3 text-center text-sm font-semibold text-emerald-100 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-md"
+          role="status"
+          aria-live="polite"
+        >
+          Kopyalandı!
+        </div>
+      ) : null}
     </motion.div>
   );
 }
