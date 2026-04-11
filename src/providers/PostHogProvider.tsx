@@ -1,21 +1,32 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { PostHogConfig } from 'posthog-js';
 import { PostHogProvider as PostHogReactProvider } from 'posthog-js/react';
 
-const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY ?? '';
-const POSTHOG_HOST = (process.env.NEXT_PUBLIC_POSTHOG_HOST ?? '').trim() || 'https://eu.i.posthog.com';
+/** `define` (build) + `import.meta.env` (.env + envPrefix). */
+function getPosthogKey(): string {
+  const fromMeta = `${import.meta.env.NEXT_PUBLIC_POSTHOG_KEY ?? ''}`.trim();
+  if (fromMeta) return fromMeta;
+  return `${process.env.NEXT_PUBLIC_POSTHOG_KEY ?? ''}`.trim();
+}
 
-const posthogOptions = {
-  api_host: POSTHOG_HOST,
-  capture_pageview: true,
-  /** Surveys + Site Apps üçün (SDK + PostHog UI). */
-  opt_in_site_apps: true,
-  disable_session_recording: false,
-  /** PostHog konsolda recording aktiv olmalıdır; SDK tərəfində recorder qoşulur. */
-  session_recording: true as unknown as PostHogConfig['session_recording'],
-} as const satisfies Partial<PostHogConfig>;
+function getPosthogHost(): string {
+  const fromMeta = `${import.meta.env.NEXT_PUBLIC_POSTHOG_HOST ?? ''}`.trim();
+  if (fromMeta) return fromMeta;
+  const fromProc = `${process.env.NEXT_PUBLIC_POSTHOG_HOST ?? ''}`.trim();
+  return fromProc || 'https://eu.i.posthog.com';
+}
+
+function buildPosthogOptions(host: string): Partial<PostHogConfig> {
+  return {
+    api_host: host,
+    capture_pageview: true,
+    opt_in_site_apps: true,
+    disable_session_recording: false,
+    session_recording: true as unknown as PostHogConfig['session_recording'],
+  };
+}
 
 type Props = { children: ReactNode };
 
@@ -34,22 +45,34 @@ type Props = { children: ReactNode };
  * }
  * ```
  *
- * Bu layihə **Vite** ilə işləyir; provayder `src/main.tsx`-də bükülüb (`layout.tsx` yoxdur).
- * Env: `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` (Vite üçün `vite.config` `define` + `loadEnv`).
+ * Bu layihə **Vite** ilə işləyir; provayder `src/main.tsx`-də bükülüb.
+ * `src/app/layout.tsx` — yalnız izah faylıdır (Next App Router burada yoxdur).
+ * Env: `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` — `.env` + Vercel build `process.env` (`vite.config` `define`).
  */
 export function PostHogProvider({ children }: Props) {
   const [clientReady, setClientReady] = useState(false);
+  const posthogKey = useMemo(() => getPosthogKey(), []);
+  const posthogHost = useMemo(() => getPosthogHost(), []);
+  const posthogOptions = useMemo(() => buildPosthogOptions(posthogHost), [posthogHost]);
 
   useEffect(() => {
     setClientReady(true);
   }, []);
 
-  if (typeof window === 'undefined' || !POSTHOG_KEY || !clientReady) {
+  useEffect(() => {
+    if (!import.meta.env.DEV || typeof window === 'undefined') return;
+    if (posthogKey) return;
+    console.warn(
+      '[PostHog] NEXT_PUBLIC_POSTHOG_KEY boşdur — .env və ya Vercel Environment Variables əlavə edin və dev serveri yenidən işə salın.',
+    );
+  }, [posthogKey]);
+
+  if (typeof window === 'undefined' || !posthogKey || !clientReady) {
     return <>{children}</>;
   }
 
   return (
-    <PostHogReactProvider apiKey={POSTHOG_KEY} options={posthogOptions}>
+    <PostHogReactProvider apiKey={posthogKey} options={posthogOptions}>
       {children}
     </PostHogReactProvider>
   );

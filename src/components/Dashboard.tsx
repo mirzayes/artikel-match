@@ -25,7 +25,7 @@ import { CoinBalanceMeter } from './CoinBalanceMeter';
 import { LevelMasteryProgressBar } from './LevelMasteryProgressBar';
 import { LeaderboardModal } from './LeaderboardModal';
 import { LevelUnlockModal } from './LevelUnlockModal';
-import { LESSON_DAILY_COIN_CAP, useGameStore } from '../store/useGameStore';
+import { isArtikelVipFromLocalStorage, LESSON_DAILY_COIN_CAP, useGameStore } from '../store/useGameStore';
 import {
   isGoetheLevelGated,
   isLevelGateUnlocked,
@@ -353,7 +353,8 @@ export function Dashboard({
   };
 
   const userName = displayName.trim() || 'Oyunçu';
-  const duelEntryLocked = coins < DUEL_MIN_ARTIK_BALANCE;
+  const duelEntryLocked =
+    !isArtikelVipFromLocalStorage() && coins < DUEL_MIN_ARTIK_BALANCE;
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-[var(--artikl-bg)] px-4 pb-[var(--app-bottom-pad,7rem)] pt-[max(12px,env(safe-area-inset-top))] text-[var(--artikl-text)] sm:px-6 sm:pb-[var(--app-bottom-pad-sm,8rem)]">

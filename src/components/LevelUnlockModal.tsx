@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GoetheLevel } from '../types';
 import { useVocabulary } from '../context/VocabularyContext';
-import { useGameStore } from '../store/useGameStore';
+import { isArtikelVipFromLocalStorage, useGameStore } from '../store/useGameStore';
 import {
   A2_UNLOCK_MIN_TOTAL_XP,
   FAST_PASS_PRICE_AZN,
@@ -155,7 +155,7 @@ export function LevelUnlockModal({
             <button
               type="button"
               onClick={handleArtik}
-              disabled={coins < artikCost}
+              disabled={!isArtikelVipFromLocalStorage() && coins < artikCost}
               className="w-full rounded-xl border-2 border-purple-600 bg-purple-600 py-3 text-sm font-bold text-white shadow-lg disabled:cursor-not-allowed disabled:border-purple-200 disabled:bg-purple-200 disabled:text-[#9CA3AF] active:scale-[0.98] dark:border-violet-400/45 dark:bg-gradient-to-r dark:from-violet-600/35 dark:to-fuchsia-600/30 dark:text-violet-50 dark:disabled:opacity-40"
             >
               {t('level_gate.pay_artik', { cost: artikCost, level })}

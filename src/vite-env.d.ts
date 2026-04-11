@@ -20,6 +20,8 @@ interface WindowEventMap {
 }
 
 interface ImportMetaEnv {
+  readonly NEXT_PUBLIC_POSTHOG_KEY?: string;
+  readonly NEXT_PUBLIC_POSTHOG_HOST?: string;
   /** POST: JSON { wordId, article, word, translation } → { explanation } və ya mətn */
   readonly VITE_WORD_EXPLAIN_URL?: string;
   readonly VITE_FIREBASE_API_KEY?: string;
@@ -31,4 +33,6 @@ interface ImportMetaEnv {
   /** Realtime Database, напр. https://PROJECT_ID-default-rtdb.europe-west1.firebasedatabase.app */
   readonly VITE_FIREBASE_DATABASE_URL?: string;
   readonly VITE_FIREBASE_MEASUREMENT_ID?: string;
+  /** Buy Me a Coffee / dəstək linki (mağaza düymələri). */
+  readonly VITE_BUY_ME_A_COFFEE_URL?: string;
 }

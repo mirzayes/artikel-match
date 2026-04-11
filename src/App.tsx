@@ -44,7 +44,11 @@ import { syncLeaderboardXp } from './lib/leaderboardRtdb';
 import { useQuizProgress } from './hooks/useQuizProgress';
 import { useGameStoreRehydrated } from './hooks/useGameStoreRehydrated';
 import { useSupabaseScoresRealtime } from './hooks/useSupabaseScoresRealtime';
-import { syncLessonDailyCoinsToToday, useGameStore } from './store/useGameStore';
+import {
+  isArtikelVipFromLocalStorage,
+  syncLessonDailyCoinsToToday,
+  useGameStore,
+} from './store/useGameStore';
 import { useVocabulary } from './context/VocabularyContext';
 import type { Article, GoetheLevel } from './types';
 import { highestUnlockedGoetheLevel, isLevelGateUnlocked, type LevelGateCheckArgs } from './lib/levelGate';
@@ -354,7 +358,10 @@ export default function App() {
   }, [rtdbUserId, setDisplayName]);
 
   const handleStartDuel = useCallback(() => {
-    if (useGameStore.getState().coins < DUEL_MIN_ARTIK_BALANCE) {
+    if (
+      !isArtikelVipFromLocalStorage() &&
+      useGameStore.getState().coins < DUEL_MIN_ARTIK_BALANCE
+    ) {
       setCoinShopOpen(true);
       return;
     }
@@ -362,7 +369,11 @@ export default function App() {
   }, []);
 
   const handleTabChange = useCallback((next: Tab) => {
-    if (next === 'duel' && useGameStore.getState().coins < DUEL_MIN_ARTIK_BALANCE) {
+    if (
+      next === 'duel' &&
+      !isArtikelVipFromLocalStorage() &&
+      useGameStore.getState().coins < DUEL_MIN_ARTIK_BALANCE
+    ) {
       setCoinShopOpen(true);
       return;
     }

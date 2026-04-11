@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatLocalDate } from '../lib/dateKeys';
-import { LESSON_DAILY_COIN_CAP, useGameStore } from '../store/useGameStore';
+import { isArtikelVipFromLocalStorage, LESSON_DAILY_COIN_CAP, useGameStore } from '../store/useGameStore';
 import { CoinShopSheet } from './CoinShopSheet';
 
 type CoinBalanceMeterProps = {
@@ -44,7 +44,11 @@ export function CoinBalanceMeter({ className = '', compact = false, showCoinShop
             compact ? 'px-1.5 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs',
           ].join(' ')}
         >
-          <span className="tabular-nums">{t('common.balance_display', { amount: coins })}</span>
+          <span className="tabular-nums">
+            {t('common.balance_display', {
+              amount: isArtikelVipFromLocalStorage() ? '∞' : coins,
+            })}
+          </span>
           {showCoinShop ? (
             <button
               type="button"

@@ -9,6 +9,17 @@ import { LEARN_BLOCKS_UNLOCK_ALL_COST } from '../lib/learnBlocks';
 import { LEARNING_MISSION_ARTIK_REWARD } from '../lib/learnMissions';
 import { coinUnlockCostForLevel } from '../lib/levelGate';
 
+/** Mağaza / dəstək VIP: `localStorage` ilə — sərfiyyatsız giriş və alışlar. */
+export const VIP_LOCALSTORAGE_KEY = 'artikel-is-vip';
+
+export function isArtikelVipFromLocalStorage(): boolean {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(VIP_LOCALSTORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
 const defaultAvatar = PLAYER_AVATARS[0]?.id ?? 'pretzel';
 
 function sanitizeLearningAllBlocksUnlocked(
@@ -316,6 +327,7 @@ export const useGameStore = create<PlayerStore>()(
         return { coins, dayIndex: nextPos, baseCoins };
       },
       spendCoins: (amount) => {
+        if (isArtikelVipFromLocalStorage()) return true;
         const cur = get().coins;
         if (cur < amount) return false;
         set({ coins: cur - amount });
@@ -417,6 +429,12 @@ export const useGameStore = create<PlayerStore>()(
       unlockLearningBlocksForLevel: (level) => {
         const s = get();
         if (s.learningAllBlocksUnlocked[level]) return true;
+        if (isArtikelVipFromLocalStorage()) {
+          set({
+            learningAllBlocksUnlocked: { ...s.learningAllBlocksUnlocked, [level]: true },
+          });
+          return true;
+        }
         if (s.coins < LEARN_BLOCKS_UNLOCK_ALL_COST) return false;
         set({
           coins: s.coins - LEARN_BLOCKS_UNLOCK_ALL_COST,
@@ -440,6 +458,12 @@ export const useGameStore = create<PlayerStore>()(
         if (cost == null) return false;
         const s = get();
         if (s.levelGateCoinUnlocks[level]) return true;
+        if (isArtikelVipFromLocalStorage()) {
+          set({
+            levelGateCoinUnlocks: { ...s.levelGateCoinUnlocks, [level]: true },
+          });
+          return true;
+        }
         if (s.coins < cost) return false;
         set({
           coins: s.coins - cost,

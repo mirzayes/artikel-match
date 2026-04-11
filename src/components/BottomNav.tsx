@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { DUEL_MIN_ARTIK_BALANCE } from '../lib/duelEntry';
+import { isArtikelVipFromLocalStorage } from '../store/useGameStore';
 
 export type Tab = 'home' | 'quiz' | 'exam' | 'duel' | 'leaders' | 'lexicon';
 
@@ -104,7 +105,9 @@ export function BottomNav({
 }: BottomNavProps) {
   const { t } = useTranslation();
   const duelBlocked =
-    typeof artikBalance === 'number' && artikBalance < DUEL_MIN_ARTIK_BALANCE;
+    !isArtikelVipFromLocalStorage() &&
+    typeof artikBalance === 'number' &&
+    artikBalance < DUEL_MIN_ARTIK_BALANCE;
   const items: { id: Tab; labelKey: string }[] = [
     { id: 'home', labelKey: 'nav.home' },
     { id: 'quiz', labelKey: 'nav.quiz' },

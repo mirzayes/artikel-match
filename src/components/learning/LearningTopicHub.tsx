@@ -22,7 +22,11 @@ import {
 } from '../../lib/levelGate';
 import { LevelUnlockModal } from '../LevelUnlockModal';
 import { LevelMasteryProgressBar } from '../LevelMasteryProgressBar';
-import { LESSON_DAILY_COIN_CAP, useGameStore } from '../../store/useGameStore';
+import {
+  isArtikelVipFromLocalStorage,
+  LESSON_DAILY_COIN_CAP,
+  useGameStore,
+} from '../../store/useGameStore';
 import { pickLuckyMissionIndexForDay } from '../../lib/luckyMissionOfDay';
 import { getOrCreateDuelUserId } from '../DuelGame';
 
@@ -230,7 +234,8 @@ export function LearningTopicHub({
     [levelNouns, knownWordIds, srsByWordId],
   );
 
-  const paidUnlockForLevel = learningAllBlocksUnlocked[selectedLevel] === true;
+  const paidUnlockForLevel =
+    learningAllBlocksUnlocked[selectedLevel] === true || isArtikelVipFromLocalStorage();
 
   const duelDeviceKey = useMemo(() => getOrCreateDuelUserId(), []);
 
@@ -291,7 +296,10 @@ export function LearningTopicHub({
 
   const paidUnlockGap = LEARN_BLOCKS_UNLOCK_ALL_COST - coins;
   const nearPaidUnlock =
-    showPaidUnlockOffer && paidUnlockGap > 0 && paidUnlockGap <= 60;
+    !isArtikelVipFromLocalStorage() &&
+    showPaidUnlockOffer &&
+    paidUnlockGap > 0 &&
+    paidUnlockGap <= 60;
 
   useEffect(() => {
     let totalCoins = 0;

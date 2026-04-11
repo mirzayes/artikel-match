@@ -23,10 +23,17 @@ export default defineConfig(({ mode }) => {
     process.env.VERCEL_OBSERVABILITY_CLIENT_CONFIG ??
     '';
 
-  const nextPublicPosthogKey = env.NEXT_PUBLIC_POSTHOG_KEY ?? '';
-  const nextPublicPosthogHost = env.NEXT_PUBLIC_POSTHOG_HOST ?? '';
+  /** `.env` + CI/Vercel: `loadEnv` faylı oxuyur; paneldə yalnız `process.env` ola bilər. */
+  const nextPublicPosthogKey = String(
+    env.NEXT_PUBLIC_POSTHOG_KEY || process.env.NEXT_PUBLIC_POSTHOG_KEY || '',
+  ).trim();
+  const nextPublicPosthogHost = String(
+    env.NEXT_PUBLIC_POSTHOG_HOST || process.env.NEXT_PUBLIC_POSTHOG_HOST || '',
+  ).trim();
 
   return {
+    /** `import.meta.env.NEXT_PUBLIC_*` — lokal `.env` üçün (Vercel üçün əsasən `define` aşağıda). */
+    envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
     plugins: [
       react(),
       VitePWA({
