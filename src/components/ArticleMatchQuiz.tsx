@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import { track } from '@vercel/analytics';
 import { useTranslation } from 'react-i18next';
 import i18n from 'i18next';
 import type { Article, GoetheLevel, LevelProgressStats, WordSrsEntry } from '../types';
@@ -438,6 +439,25 @@ export function ArticleMatchQuiz({
     };
   }, []);
 
+  const lastGameStartedSigRef = useRef('');
+  useEffect(() => {
+    if (loadErr || sessionComplete) return;
+    if (wordQueue.length === 0 || sessionTargetWordIds.length === 0) return;
+    const sig = `${sessionNonce}|${level}|${restrictKey}|${missionInfiniteMode}|${sessionTargetWordIds.join('\0')}`;
+    if (lastGameStartedSigRef.current === sig) return;
+    lastGameStartedSigRef.current = sig;
+    track('Game Started');
+  }, [
+    loadErr,
+    sessionComplete,
+    wordQueue.length,
+    sessionTargetWordIds,
+    sessionNonce,
+    level,
+    restrictKey,
+    missionInfiniteMode,
+  ]);
+
   const currentWord = wordQueue[0] ?? null;
 
   const currentDisplayGloss = useMemo(
@@ -549,6 +569,11 @@ export function ArticleMatchQuiz({
       turboActive: goldenMul > 1,
       streakBonusActive: streakMul > 1,
       lessonDailyCapReached: wantTotal > 0 && g < wantTotal,
+    });
+    track('Level Completed', {
+      score: sessionCorrectCountRef.current,
+      errors,
+      infinite: missionInfiniteModeRef.current,
     });
     setSessionComplete(true);
   }, [knownWordIds, masteryByWordId, nounsByLevel.A1, odluStreakDays]);

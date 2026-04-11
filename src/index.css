@@ -56,6 +56,13 @@ html[data-theme='light'] {
 @tailwind components;
 @tailwind utilities;
 
+/* Coarse pointers (phones): comfortable tap targets (~44 CSS px). Opt out with data-touch-compact="true". */
+@media (pointer: coarse) {
+  #root :is(button, [role='button']):not([data-touch-compact='true']) {
+    min-height: 44px;
+  }
+}
+
 @layer components {
   .lex-no-tap-highlight {
     -webkit-tap-highlight-color: transparent;

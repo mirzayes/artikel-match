@@ -428,7 +428,7 @@ export default function App() {
   }, [selectedLevel, levelGateArgsForClamp, setSelectedLevel]);
 
   return (
-    <div className="relative min-h-[100dvh] overflow-x-hidden bg-[var(--artikl-bg)]">
+    <div lang="az" className="relative min-h-[100dvh] overflow-x-hidden bg-[var(--artikl-bg)]">
       <ThemeToggle />
       {!showRegistrationGate ? <MilestoneOverlay /> : null}
       {!showRegistrationGate ? (
