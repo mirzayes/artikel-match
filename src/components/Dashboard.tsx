@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { onValue, ref as dbRef } from 'firebase/database';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useVocabulary } from '../context/VocabularyContext';
@@ -33,9 +34,11 @@ import {
 import { acceptFriendRequest, declineFriendRequest } from '../lib/friendsRtdb';
 import { isFirebaseLive, rtdb } from '../lib/firebase';
 import { avatarIdToEmoji } from '../lib/playerProfileRtdb';
-import { subscribeLeaderboard, type LeaderboardEntry } from '../lib/leaderboardRtdb';
+import type { LeaderboardEntry } from '../lib/leaderboardRtdb';
+import { useLeaderboardLiveQuery } from '../lib/leaderboardLiveQuery';
 import { DUEL_MIN_ARTIK_BALANCE } from '../lib/duelEntry';
 import { subscribeMatchmakingWaitingCount } from '../lib/matchmakingQueueRtdb';
+import { prefetchLexiconCatalog } from '../lib/lexiconPrefetch';
 
 /** B1–C1 kilidli: kiçik boz SVG qıfıl. */
 function GrayLockIcon({ className }: { className?: string }) {
@@ -198,6 +201,7 @@ export function Dashboard({
   dashboardUserId,
 }: DashboardProps) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const { wordCountByLevel, usingExternalLexicon, nounsByLevel } = useVocabulary();
   const coins = useGameStore((s) => s.coins);
   const achievementIds = useGameStore((s) => s.achievementIds);
@@ -208,7 +212,11 @@ export function Dashboard({
   const [helpOpen, setHelpOpen] = useState(false);
   const [levelLockTarget, setLevelLockTarget] = useState<GoetheLevel | null>(null);
   const [adToast, setAdToast] = useState<string | null>(null);
-  const [leaderTop3, setLeaderTop3] = useState<LeaderboardEntry[]>([]);
+  const { data: leaderboardLiveState } = useLeaderboardLiveQuery();
+  const leaderTop3: LeaderboardEntry[] = useMemo(
+    () => (leaderboardLiveState?.entries ?? []).slice(0, 3),
+    [leaderboardLiveState?.entries],
+  );
   const [matchmakingWaiting, setMatchmakingWaiting] = useState(0);
   const [simRivalPulse, setSimRivalPulse] = useState(false);
   const [incomingFriendRequests, setIncomingFriendRequests] = useState<
@@ -216,7 +224,9 @@ export function Dashboard({
   >([]);
   const [friendRequestBusyId, setFriendRequestBusyId] = useState<string | null>(null);
 
-  useEffect(() => subscribeLeaderboard(3, setLeaderTop3), []);
+  useEffect(() => {
+    prefetchLexiconCatalog(queryClient, nounsByLevel);
+  }, [queryClient, nounsByLevel]);
 
   useEffect(() => {
     const uid = dashboardUserId?.trim();
@@ -346,7 +356,7 @@ export function Dashboard({
   const duelEntryLocked = coins < DUEL_MIN_ARTIK_BALANCE;
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-[var(--artikl-bg)] px-4 pb-28 pt-[max(12px,env(safe-area-inset-top))] text-[var(--artikl-text)] sm:px-6 sm:pb-32">
+    <div className="flex min-h-[100dvh] flex-col bg-[var(--artikl-bg)] px-4 pb-[var(--app-bottom-pad,7rem)] pt-[max(12px,env(safe-area-inset-top))] text-[var(--artikl-text)] sm:px-6 sm:pb-[var(--app-bottom-pad-sm,8rem)]">
       <div className="mx-auto w-full max-w-[420px]">
 
         {/* ── Top bar: name · streak · help ── */}
@@ -443,12 +453,12 @@ export function Dashboard({
             const upperTierLockedVisual =
               locked && (lvl === 'B1' || lvl === 'B2' || lvl === 'C1');
             return (
-              <button
-                key={lvl}
-                type="button"
-                onClick={() => handleLevelPick(lvl)}
-                className={[
-                  'rounded-full px-[14px] py-2 text-[13px] font-semibold tabular-nums transition-all',
+            <button
+              key={lvl}
+              type="button"
+              onClick={() => handleLevelPick(lvl)}
+              className={[
+                  'lex-no-tap-highlight min-h-[44px] rounded-full px-[14px] py-2.5 text-[13px] font-semibold tabular-nums transition-all active:scale-[0.98]',
                   on
                     ? 'border-2 border-purple-600 bg-purple-600 text-white shadow-[0_0_20px_rgba(124,108,248,0.3)] dark:border-transparent dark:bg-[var(--artikl-accent)]'
                     : 'border-2 border-purple-600 bg-white text-purple-600 backdrop-blur-[10px] dark:border-[0.5px] dark:border-[var(--artikl-border)] dark:bg-[var(--artikl-surface)] dark:text-[var(--text-muted)] hover:dark:border-[var(--artikl-border2)] hover:dark:bg-[var(--artikl-surface2)]',
@@ -596,7 +606,7 @@ export function Dashboard({
           whileTap={lessonCapFull ? undefined : { scale: 0.97 }}
           transition={{ type: 'spring', stiffness: 420, damping: 22 }}
           className={[
-            'mt-5 w-full rounded-[14px] border border-transparent px-4 py-4 text-[15px] font-bold shadow-[0_8px_32px_rgba(124,108,248,0.28)] transition-[box-shadow,opacity]',
+            'lex-no-tap-highlight mt-5 min-h-[52px] w-full rounded-[14px] border border-transparent px-4 py-4 text-base font-bold shadow-[0_8px_32px_rgba(124,108,248,0.28)] transition-[box-shadow,opacity]',
             lessonCapFull
               ? 'cursor-not-allowed border-2 border-purple-200 bg-purple-50 text-[#9CA3AF] dark:cursor-not-allowed dark:border-transparent dark:bg-[var(--artikl-surface2)] dark:text-artikl-text/45'
               : 'border-2 border-purple-600 bg-purple-600 text-white hover:shadow-[0_10px_40px_rgba(124,108,248,0.38)] dark:border-transparent dark:bg-[var(--artikl-accent)]',

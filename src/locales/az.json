@@ -60,6 +60,7 @@
     "shown": "Göstərilir: {{count}}",
     "german": "Almanca",
     "no_results": "Bu filtrə uyğun söz yoxdur.",
+    "load_error": "Lüğət indeksi yüklənmədi. Səhifəni yeniləyin.",
     "empty": "Lüğət boşdur.",
     "hard_bookmark_title": "Çətin — saxla",
     "hard_bookmark_aria": "Çətin sözlərə əlavə et",
@@ -304,6 +305,15 @@
     "name_placeholder": "Məs: BerlinMaster",
     "ok": "Oldu",
     "avatar_pretzel": "Pretzel",
+    "avatar_rocket": "Roket",
+    "avatar_lion": "Şir",
+    "avatar_star": "Ulduz",
+    "avatar_wolf": "Canavar",
+    "avatar_apple": "Alma",
+    "avatar_zap": "İldırım",
+    "avatar_books": "Kitablar",
+    "avatar_target": "Hədəf",
+    "avatar_brain": "Beyin",
     "avatar_beer": "Pivə",
     "avatar_castle": "Qəsr",
     "avatar_racecar": "Yarış",
@@ -400,7 +410,16 @@
     "topic_wrong": "Səhv edilənlər",
     "wrong_only_unavailable": "Bu səviyyədə hələ səhv tarixçəsi yoxdur — «Hamısı» seçin.",
     "gloss_loading": "Tərcümə faylı yüklənir…",
-    "preset_infinite": "Sonsuz"
+    "preset_infinite": "Sonsuz",
+    "search_placeholder_az": "Söz və ya tərcümə axtarın…",
+    "search_placeholder_de": "Wort oder Übersetzung suchen…",
+    "search_close": "Axtarışı bağla",
+    "hint_lang_toggle_title": "Axtarış üçün placeholder dili (AZ / DE)",
+    "quick_chips_title": "Populyar · Nümunələr",
+    "empty_search_title_az": "Heç bir uyğunluq tapılmadı.",
+    "empty_search_body_az": "Başqa söz və ya artikl daxil edin — məsələn der, die, das.",
+    "empty_search_title_de": "Kein Treffer.",
+    "empty_search_body_de": "Anderes Wort oder einen anderen Artikel versuchen — z. B. der, die, das."
   },
   "quiz": {
     "mode_chip": "Artikl",
@@ -430,7 +449,11 @@
     "article_shape_das_suffix": "-chen, -um, -ment kimi sonluqlar adətən neytral cinslə — das — işarə edir.",
     "wrong_affix_hint_die": "{{suffix}} sonluğuna bax — belə sözlər adətən qadın cinsindədir (die)!",
     "wrong_affix_hint_das": "{{suffix}} sonluğuna bax — belə sözlər adətən neytral cinsdədir (das)!",
-    "wrong_affix_hint_ge": "Ge- ön şəkilçisinə diqqət et — çox vaxt neytral cins (das) olur!"
+    "wrong_affix_hint_ge": "Ge- ön şəkilçisinə diqqət et — çox vaxt neytral cins (das) olur!",
+    "share_result": "Paylaş",
+    "share_toast_de": "Text wurde kopiert! Füge ihn in deine Instagram Story ein.",
+    "share_toast_az": "Mətn kopyalandı! Onu Instagram hekayəndə paylaş.",
+    "share_done": "Paylaşıldı"
   },
   "app": {
     "reset_confirm": "Bütün tərəqqi sıfırlansın? Bu əməli geri qaytarmaq olmaz."

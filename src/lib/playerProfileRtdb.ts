@@ -4,6 +4,15 @@ import { isFirebaseLive, rtdb } from './firebase';
 /** Готовые «смешные» аватарки — id хранится в `users/{uid}/profile/avatar` */
 export const PLAYER_AVATARS = [
   { id: 'pretzel', emoji: '🥨', label: 'Pretzel' },
+  { id: 'rocket', emoji: '🚀', label: 'Rocket' },
+  { id: 'lion', emoji: '🦁', label: 'Lion' },
+  { id: 'star', emoji: '🌟', label: 'Star' },
+  { id: 'wolf', emoji: '🐺', label: 'Wolf' },
+  { id: 'apple', emoji: '🍎', label: 'Apple' },
+  { id: 'zap', emoji: '⚡', label: 'Zap' },
+  { id: 'books', emoji: '📚', label: 'Books' },
+  { id: 'target', emoji: '🎯', label: 'Target' },
+  { id: 'brain', emoji: '🧠', label: 'Brain' },
   { id: 'beer', emoji: '🍺', label: 'Beer' },
   { id: 'castle', emoji: '🏰', label: 'Castle' },
   { id: 'racecar', emoji: '🏎️', label: 'Race car' },

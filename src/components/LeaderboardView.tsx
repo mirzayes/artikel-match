@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { subscribeLeaderboard, type LeaderboardEntry } from '../lib/leaderboardRtdb';
+import { useLeaderboardLiveQuery } from '../lib/leaderboardLiveQuery';
 import { isFirebaseLive } from '../lib/firebase';
 import { buildLeaderboard, LEADERBOARD_NPCS } from '../lib/leaderboard';
 import { avatarIdToEmoji } from '../lib/playerProfileRtdb';
@@ -118,8 +118,9 @@ export function LeaderboardView({
   const { t } = useTranslation();
   const coins = useGameStore((s) => s.coins);
   const getOrCreateReferralCode = useGameStore((s) => s.getOrCreateReferralCode);
-  const [firebaseEntries, setFirebaseEntries] = useState<LeaderboardEntry[]>([]);
-  const [loading, setLoading] = useState(isFirebaseLive);
+  const { data: leaderboardLiveState } = useLeaderboardLiveQuery();
+  const firebaseEntries = leaderboardLiveState?.entries ?? [];
+  const loading = isFirebaseLive && !leaderboardLiveState?.seeded;
   const [selectedLeague, setSelectedLeague] = useState<League['id']>(() => getLeague(totalXpAllLevels).id);
   const userRowRef = useRef<HTMLTableRowElement>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -149,21 +150,10 @@ export function LeaderboardView({
     }
   }, [inviteShareText]);
 
-  useEffect(() => {
-    if (!isFirebaseLive) {
-      setLoading(false);
-      return;
-    }
-    const unsub = subscribeLeaderboard(10, (entries) => {
-      setFirebaseEntries(entries);
-      setLoading(false);
-    });
-    return unsub;
-  }, []);
-
   const userLeague = getLeague(totalXpAllLevels);
 
-  const firebaseGlobalEmpty = isFirebaseLive && !loading && firebaseEntries.length === 0;
+  const firebaseGlobalEmpty =
+    isFirebaseLive && leaderboardLiveState?.seeded === true && firebaseEntries.length === 0;
 
   const allRows: LeaderRow[] = useMemo(() => {
     const userName = displayName.trim() || 'Sən';
@@ -206,7 +196,15 @@ export function LeaderboardView({
       xp: r.xp,
       isUser: r.isUser,
     }));
-  }, [firebaseEntries, firebaseGlobalEmpty, totalXpAllLevels, displayName, userId, avatar, loading]);
+  }, [
+    firebaseEntries,
+    firebaseGlobalEmpty,
+    totalXpAllLevels,
+    displayName,
+    userId,
+    avatar,
+    leaderboardLiveState?.seeded,
+  ]);
 
   const leagueRows = useMemo(() => {
     return allRows.filter((r) => {
@@ -242,7 +240,7 @@ export function LeaderboardView({
   const showSilverPushBar = userLeague.id === 'silver';
 
   return (
-    <div className="leaderboard-view-root flex min-h-[100dvh] flex-col bg-[var(--artikl-bg)] px-4 pb-28 pt-[max(12px,env(safe-area-inset-top))] text-[var(--artikl-text)] sm:px-6 sm:pb-32">
+    <div className="leaderboard-view-root flex min-h-[100dvh] flex-col bg-[var(--artikl-bg)] px-4 pb-[var(--app-bottom-pad,7rem)] pt-[max(12px,env(safe-area-inset-top))] text-[var(--artikl-text)] sm:px-6 sm:pb-[var(--app-bottom-pad-sm,8rem)]">
       <div className="mx-auto w-full max-w-[420px]">
 
         {/* Header */}

@@ -15,6 +15,7 @@ import { avatarIdToEmoji } from '../lib/playerProfileRtdb';
 import { useGameStore } from '../store/useGameStore';
 import { getAffixWrongTeachHighlight } from '../lib/predictArticleFromAffixRules';
 import { readStoredDuelLevel } from '../lib/duelLevelStorage';
+import { trackArticleClicked } from '../lib/trackArticleAnalytics';
 import {
   DuelGame,
   getOrCreateDuelUserId,
@@ -423,6 +424,12 @@ export function DuelMatch({ level, levelStats, displayName, onRecord, onExitHome
     (a: Article) => {
       if (!current || winner || phase !== 'idle') return;
       const ok = a === current.article;
+      trackArticleClicked({
+        word: current.word,
+        selected: a,
+        isCorrect: ok,
+        context: 'duel',
+      });
       setPicked(a);
       setPhase('answered');
       onRecord(level, current.article, ok, current.id);

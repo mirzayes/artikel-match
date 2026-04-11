@@ -15,6 +15,7 @@ import { buildFiniteQuestionOrder, buildInfiniteCycleOrder, examQuestionCount } 
 import { avatarIdToEmoji } from '../../lib/playerProfileRtdb';
 import { vibrateCorrectAnswer, vibrateWrongAnswer } from '../../lib/answerFeedbackMedia';
 import { useGameStore } from '../../store/useGameStore';
+import { trackArticleClicked } from '../../lib/trackArticleAnalytics';
 
 function parseArticleInput(raw: string): Article | null {
   const t = raw.trim().toLowerCase();
@@ -131,6 +132,12 @@ export function ExamArticleQuiz({ config, rows, levelStats, onRecord, onFinish }
       setPicked(a);
       setPhase('answered');
       const ok = a === current.article;
+      trackArticleClicked({
+        word: current.word,
+        selected: a,
+        isCorrect: ok,
+        context: 'exam',
+      });
       onRecord(level, current.article, ok, current.id);
       triggerXpPop();
       setSessionAnswered((n) => n + 1);

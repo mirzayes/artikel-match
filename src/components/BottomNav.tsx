@@ -116,7 +116,7 @@ export function BottomNav({
 
   if (variant === 'dark') {
     return (
-      <nav className="fixed bottom-0 left-0 right-0 z-[100] bg-gradient-to-t from-[var(--artikl-bg)] from-40% to-transparent pb-[max(0px,env(safe-area-inset-bottom))]">
+      <nav className="fixed bottom-0 left-0 right-0 z-[100] bg-gradient-to-t from-[var(--artikl-bg)] from-40% to-transparent pb-[max(0px,env(safe-area-inset-bottom))] transition-transform duration-300 ease-in-out will-change-transform">
         <div className="artikl-nav-bar artikl-nav-bar--six">
           {items.map((item) => {
             const on = active === item.id;
@@ -150,7 +150,7 @@ export function BottomNav({
     'border border-stone-200/80 bg-white/85 shadow-lift backdrop-blur-2xl';
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 transition-transform duration-300 ease-in-out will-change-transform">
       <div className="mx-auto flex max-w-lg justify-center">
         <div className={`flex w-full max-w-md items-stretch gap-1 rounded-[24px] p-1.5 ${shell}`}>
           {items.map((item) => {

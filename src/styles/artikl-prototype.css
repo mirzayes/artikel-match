@@ -1,7 +1,7 @@
 /* Artikel Match — design tokens */
 :root {
-  --artikl-heading-ch: 240 238 255;
-  --artikl-text-ch: 240 238 255;
+  --artikl-heading-ch: 226 232 240;
+  --artikl-text-ch: 226 232 240;
   --artikl-text: rgb(var(--artikl-text-ch));
   --artikl-caption: rgba(240, 238, 255, 0.42);
   --artikl-orb-violet: 124 108 248;
@@ -15,8 +15,8 @@
   --border-ds: rgba(255, 255, 255, 0.08);
   --border-bright: rgba(255, 255, 255, 0.15);
   --text: var(--artikl-text);
-  --text-muted: rgba(240, 238, 255, 0.45);
-  --text-subtle: rgba(240, 238, 255, 0.25);
+  --text-muted: rgba(226, 232, 240, 0.72);
+  --text-subtle: rgba(226, 232, 240, 0.38);
   --accent: #7c6cf8;
   --accent-soft: rgba(124, 108, 248, 0.15);
   --accent-glow: rgba(124, 108, 248, 0.3);
@@ -35,7 +35,7 @@
   --artikl-surface2: rgba(255, 255, 255, 0.06);
   --artikl-border: rgba(255, 255, 255, 0.08);
   --artikl-border2: rgba(255, 255, 255, 0.12);
-  --artikl-muted: rgba(240, 238, 255, 0.32);
+  --artikl-muted: rgba(226, 232, 240, 0.58);
   --artikl-muted2: var(--text-muted);
 
   --artikl-der: var(--der);
@@ -1282,6 +1282,8 @@ html[data-theme='light'] .artikl-prog-fill {
   margin-left: auto;
   margin-right: auto;
   width: 100%;
+  transition: transform 0.3s ease-in-out;
+  will-change: transform;
 }
 
 .artikl-nav-bar--five {

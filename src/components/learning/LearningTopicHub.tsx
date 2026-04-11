@@ -333,7 +333,7 @@ export function LearningTopicHub({
   }, [onStartRepeat, repeatDueCount]);
 
   return (
-    <div className="learning-topic-hub flex min-h-[100dvh] flex-col bg-[var(--artikl-learn-hub-bg)] px-4 pb-32 pt-[max(12px,env(safe-area-inset-top))] sm:px-6 sm:pb-36">
+    <div className="learning-topic-hub flex min-h-[100dvh] flex-col bg-[var(--artikl-learn-hub-bg)] px-4 pb-[var(--app-bottom-pad,7rem)] pt-[max(12px,env(safe-area-inset-top))] sm:px-6 sm:pb-[var(--app-bottom-pad-sm,8rem)]">
       <div className="mx-auto w-full max-w-[420px]">
         <div className="flex items-center justify-center gap-2">
           <h1 className="learning-hub-page-title font-display text-center text-sm font-bold uppercase tracking-[0.2em] text-[#1A1A2E] dark:text-artikl-heading/90">
@@ -530,7 +530,9 @@ export function LearningTopicHub({
                     />
                   ) : null}
 
-                  <div className={`relative flex min-h-0 flex-1 flex-col ${!gateOpen ? 'z-[2]' : ''}`}>
+                  <div
+                    className={`relative flex min-h-0 flex-1 flex-col rounded-xl bg-white/75 px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] backdrop-blur-[3px] dark:bg-[#050508]/55 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${!gateOpen ? 'z-[2]' : ''}`}
+                  >
                     <div className="flex items-start justify-between gap-1">
                       <p className="learning-mission-card__title min-w-0 text-[13px] font-bold leading-snug text-artikl-heading">
                         {!gateOpen ? (

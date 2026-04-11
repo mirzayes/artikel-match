@@ -6,15 +6,18 @@
   --app-glass-bg: rgba(255, 255, 255, 0.04);
   --app-card-label: rgba(232, 232, 245, 0.6);
   --app-gamify-title: rgba(232, 232, 245, 0.55);
+  /** Əsas məzmun: altdan sabit nav + iOS safe area */
+  --app-bottom-pad: max(7rem, calc(5.5rem + env(safe-area-inset-bottom)));
+  --app-bottom-pad-sm: max(8rem, calc(6rem + env(safe-area-inset-bottom)));
 
   --lex-page-bg: #08080f;
   --lex-card-bg: #111120;
   --lex-border: #1c1c30;
   --lex-border-strong: #252540;
-  --lex-text: #e8e8f5;
-  --lex-heading: #e8e8f5;
-  --lex-muted: #5a5a80;
-  --lex-faint: #3a3a58;
+  --lex-text: #e2e8f0;
+  --lex-heading: #e2e8f0;
+  --lex-muted: #94a3b8;
+  --lex-faint: #64748b;
   --lex-accent-soft: #9b8fff;
   --lex-chip-bg: #141425;
   --lex-chip-border: #252540;
@@ -52,6 +55,51 @@ html[data-theme='light'] {
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+  .lex-no-tap-highlight {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .lex-skel {
+    animation: lex-skel-pulse 1.1s ease-in-out infinite;
+    background: linear-gradient(
+      90deg,
+      var(--lex-border) 0%,
+      var(--lex-hover-bg) 50%,
+      var(--lex-border) 100%
+    );
+    background-size: 200% 100%;
+  }
+
+  @keyframes lex-skel-pulse {
+    0% {
+      background-position: 100% 0;
+    }
+    100% {
+      background-position: -100% 0;
+    }
+  }
+
+  .lex-word-surface-gpu {
+    will-change: transform;
+    transform: translateZ(0);
+  }
+
+  .lex-word-card-surface {
+    content-visibility: auto;
+    contain-intrinsic-size: 200px 220px;
+  }
+
+  .lex-list-row-press:active {
+    background-color: rgba(124, 108, 248, 0.1) !important;
+    transform: scale(0.997);
+  }
+
+  html[data-theme='light'] .lex-list-row-press:active {
+    background-color: rgba(124, 108, 248, 0.08) !important;
+  }
+}
 
 @layer base {
   html {
@@ -387,4 +435,23 @@ html[data-theme='light'] .learning-win-card .text-emerald-200\/85,
 html[data-theme='light'] .learning-win-card .text-emerald-200\/95,
 html[data-theme='light'] .learning-win-card .text-emerald-300 {
   color: #047857 !important;
+}
+
+/* Feedback: success flash + error shake */
+.flash-success {
+  background-color: #28a745 !important;
+  transition: background-color 0.1s ease-in-out;
+}
+
+.shake {
+  animation: artikl-shake 0.3s ease;
+}
+
+footer {
+  margin-top: 40px;
+  padding: 20px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #6c757d;
+  border-top: 1px solid #eee;
 }

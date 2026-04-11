@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { tryNotifyGoldenHourStart } from './lib/coinBonus';
 import { syncDailyLoginStreak } from './lib/dailyLoginStreak';
 import { playMilestoneFanfare, vibrateCoinReward } from './lib/answerFeedbackMedia';
@@ -11,18 +11,15 @@ import { AmbientOrbs } from './components/layout/AmbientOrbs';
 import { Dashboard } from './components/Dashboard';
 import { ArticleMatchQuiz } from './components/ArticleMatchQuiz';
 import { LearningTopicHub } from './components/learning/LearningTopicHub';
-import { ExamFlow } from './components/exam/ExamFlow';
-import { DuelMatch } from './components/DuelMatch';
 import { getOrCreateDuelUserId } from './components/DuelGame';
 import { FriendsNotificationLayer } from './components/FriendsNotificationLayer';
 import { VocabularyChecker } from './components/VocabularyChecker';
-import { LeaderboardView } from './components/LeaderboardView';
 import { CoinShopSheet } from './components/CoinShopSheet';
 import { MilestoneOverlay } from './components/MilestoneOverlay';
 import { PioneerBonusOverlay } from './components/PioneerBonusOverlay';
 import { WelcomeStarterOverlay } from './components/WelcomeStarterOverlay';
 import { ThemeToggle } from './components/ThemeToggle';
-import { PlayerRegistrationScreen } from './components/PlayerRegistrationScreen';
+import Onboarding from './components/Onboarding';
 import { signOut } from 'firebase/auth';
 import { syncDailyStreak } from './lib/dailyStreak';
 import {
@@ -46,11 +43,36 @@ import {
 import { syncLeaderboardXp } from './lib/leaderboardRtdb';
 import { useQuizProgress } from './hooks/useQuizProgress';
 import { useGameStoreRehydrated } from './hooks/useGameStoreRehydrated';
+import { useSupabaseScoresRealtime } from './hooks/useSupabaseScoresRealtime';
 import { useGameStore } from './store/useGameStore';
 import { useVocabulary } from './context/VocabularyContext';
 import type { Article, GoetheLevel } from './types';
 import { highestUnlockedGoetheLevel, isLevelGateUnlocked, type LevelGateCheckArgs } from './lib/levelGate';
 import { DUEL_MIN_ARTIK_BALANCE } from './lib/duelEntry';
+import { LeaderboardLiveSync } from './lib/leaderboardLiveQuery';
+
+const ExamFlowLazy = lazy(() =>
+  import('./components/exam/ExamFlow').then((m) => ({ default: m.ExamFlow })),
+);
+const DuelMatchLazy = lazy(() =>
+  import('./components/DuelMatch').then((m) => ({ default: m.DuelMatch })),
+);
+const LeaderboardViewLazy = lazy(() =>
+  import('./components/LeaderboardView').then((m) => ({ default: m.LeaderboardView })),
+);
+
+function DeferredTabFallback() {
+  return (
+    <div
+      className="flex min-h-[50dvh] items-center justify-center px-4"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div className="h-9 w-9 animate-spin rounded-full border-2 border-[var(--artikl-border2)] border-t-[var(--artikl-accent)] opacity-90" />
+    </div>
+  );
+}
 
 type LearnQuizConfig = {
   restrictIds: string[] | null;
@@ -97,6 +119,8 @@ export default function App() {
 
   const rtdbUserId = useMemo(() => getOrCreateDuelUserId(), []);
   const gameStoreHydrated = useGameStoreRehydrated();
+  /** Supabase Realtime: `public.scores` INSERT → konsol + istəyə görə `onInsert` (UI). */
+  useSupabaseScoresRealtime();
   const isRegistered = useGameStore((s) => s.isRegistered);
   const profilePlayerName = useGameStore((s) => s.playerName);
   const profileAvatar = useGameStore((s) => s.avatar);
@@ -500,7 +524,7 @@ export default function App() {
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             className="relative z-[1] min-h-[100dvh]"
           >
-            <PlayerRegistrationScreen onComplete={handleRegistrationComplete} />
+            <Onboarding onComplete={handleRegistrationComplete} />
           </motion.div>
         ) : tab === 'home' ? (
           <motion.div
@@ -508,7 +532,7 @@ export default function App() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className="relative z-[1]"
           >
             <Dashboard
@@ -542,7 +566,7 @@ export default function App() {
             initial={{ opacity: 0, x: 14 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -12 }}
-            transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           >
             <AnimatePresence mode="wait">
               {learnSubView === 'topics' ? (
@@ -628,18 +652,20 @@ export default function App() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className="relative z-[1]"
           >
-            <ExamFlow
-              defaultLevel={selectedLevel}
-              nounsByLevel={nounsByLevel}
-              knownWordIds={knownWordIds}
-              wrongCountByWordId={wrongCountByWordId}
-              byLevel={byLevel}
-              recordAnswer={recordAnswer}
-              onGoHome={() => setTab('home')}
-            />
+            <Suspense fallback={<DeferredTabFallback />}>
+              <ExamFlowLazy
+                defaultLevel={selectedLevel}
+                nounsByLevel={nounsByLevel}
+                knownWordIds={knownWordIds}
+                wrongCountByWordId={wrongCountByWordId}
+                byLevel={byLevel}
+                recordAnswer={recordAnswer}
+                onGoHome={() => setTab('home')}
+              />
+            </Suspense>
           </motion.div>
         ) : tab === 'duel' ? (
           <motion.div
@@ -647,17 +673,19 @@ export default function App() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className="relative z-[1]"
           >
-            <DuelMatch
-              key={selectedLevel}
-              level={selectedLevel}
-              levelStats={stats}
-              displayName={displayName}
-              onRecord={handleDuelRecord}
-              onExitHome={() => setTab('home')}
-            />
+            <Suspense fallback={<DeferredTabFallback />}>
+              <DuelMatchLazy
+                key={selectedLevel}
+                level={selectedLevel}
+                levelStats={stats}
+                displayName={displayName}
+                onRecord={handleDuelRecord}
+                onExitHome={() => setTab('home')}
+              />
+            </Suspense>
           </motion.div>
         ) : tab === 'leaders' ? (
           <motion.div
@@ -665,15 +693,17 @@ export default function App() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className="relative z-[1]"
           >
-            <LeaderboardView
-              totalXpAllLevels={totalXpAllLevels}
-              displayName={displayName}
-              userId={rtdbUserId}
-              avatar={profileAvatar}
-            />
+            <Suspense fallback={<DeferredTabFallback />}>
+              <LeaderboardViewLazy
+                totalXpAllLevels={totalXpAllLevels}
+                displayName={displayName}
+                userId={rtdbUserId}
+                avatar={profileAvatar}
+              />
+            </Suspense>
           </motion.div>
         ) : (
           <motion.div
@@ -681,7 +711,7 @@ export default function App() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className="relative z-[1]"
           >
             <VocabularyChecker />
@@ -690,6 +720,8 @@ export default function App() {
       </AnimatePresence>
 
       {isFirebaseLive && deviceSessionReady ? <FriendsNotificationLayer userId={rtdbUserId} /> : null}
+
+      {isRegistered ? <LeaderboardLiveSync /> : null}
 
       {isRegistered ? (
         <BottomNav

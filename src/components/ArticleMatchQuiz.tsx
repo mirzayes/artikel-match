@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { useTranslation } from 'react-i18next';
+import i18n from 'i18next';
 import type { Article, GoetheLevel, LevelProgressStats, WordSrsEntry } from '../types';
 import {
   LEARNING_SESSION_GOAL,
@@ -24,6 +25,8 @@ import {
   getSrsLearningSessionPool,
 } from '../lib/wordLists';
 import { queueUserProgressRemote } from '../lib/supabaseUserProgress';
+import { trackArticleClicked } from '../lib/trackArticleAnalytics';
+import { shareArticleResult } from '../lib/shareArticleResult';
 import {
   playCoinBonusChime,
   playCorrectAnswerBeep,
@@ -57,6 +60,18 @@ const STREAK_TO_CLEAR_HARD = 3;
 const SESSION_STAR_MAX = 5;
 /** Sessiya sonu əlavə mükafət (Happy Hours ilə vurulur). */
 const SESSION_COMPLETION_PERFECT_BONUS = 15;
+/** Ardıcıl düzgün cavablar — rekord `localStorage`-da (vanilla nümunə ilə eyni açar). */
+const BEST_SCORE_STORAGE_KEY = 'bestScore';
+
+function readBestRunFromStorage(): number {
+  try {
+    const raw = localStorage.getItem(BEST_SCORE_STORAGE_KEY);
+    const n = raw != null && raw !== '' ? Number(raw) : 0;
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+  } catch {
+    return 0;
+  }
+}
 
 function clearTimerRef(ref: MutableRefObject<ReturnType<typeof setTimeout> | null>) {
   if (ref.current) {
@@ -196,6 +211,10 @@ export function ArticleMatchQuiz({
 
   const [comboMsg, setComboMsg] = useState<string | null>(null);
   const [comboShow, setComboShow] = useState(false);
+  /** Ardıcıl düzgün cavablar (səhvdə sıfırlanır). */
+  const [runScore, setRunScore] = useState(0);
+  const [bestRun, setBestRun] = useState(readBestRunFromStorage);
+  const gameShellRef = useRef<HTMLDivElement>(null);
   const [xpPop, setXpPop] = useState(false);
   const [starBurstSeq, setStarBurstSeq] = useState(0);
   const [hardBtnPulse, setHardBtnPulse] = useState(false);
@@ -207,6 +226,7 @@ export function ArticleMatchQuiz({
   const prevLevelRef = useRef(level);
   const nextLockRef = useRef(false);
   const [nextBusy, setNextBusy] = useState(false);
+  const [shareToast, setShareToast] = useState<string | null>(null);
 
   const comboTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const xpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -271,6 +291,7 @@ export function ArticleMatchQuiz({
     sessionReviewCorrectRef.current = 0;
     setSessionTargetWordIds([]);
     setSessionMasteryByWordId({});
+    setRunScore(0);
   }, []);
 
   useEffect(() => {
@@ -633,11 +654,40 @@ export function ArticleMatchQuiz({
       setPhase('answered');
 
       const ok = a === currentWord.article;
+      trackArticleClicked({
+        word: currentWord.word,
+        selected: a,
+        isCorrect: ok,
+        context: 'learn',
+      });
       if (ok) {
         playCorrectAnswerBeep();
         triggerStarAnimation();
+        document.body.classList.add('flash-success');
+        window.setTimeout(() => document.body.classList.remove('flash-success'), 150);
+        setRunScore((prev) => {
+          const next = prev + 1;
+          setBestRun((best) => {
+            if (next > best) {
+              try {
+                localStorage.setItem(BEST_SCORE_STORAGE_KEY, String(next));
+              } catch {
+                /* ignore */
+              }
+              return next;
+            }
+            return best;
+          });
+          return next;
+        });
       } else {
         vibrateWrongAnswer();
+        setRunScore(0);
+        const shell = gameShellRef.current;
+        if (shell) {
+          shell.classList.add('shake');
+          window.setTimeout(() => shell.classList.remove('shake'), 300);
+        }
       }
 
       const prevStreak = sessionMasteryByWordId[currentWord.id] ?? 0;
@@ -657,6 +707,29 @@ export function ArticleMatchQuiz({
     },
     [currentWord, phase, sessionMasteryByWordId, triggerStarAnimation, nounsByLevel, glossLang, remoteGlossById],
   );
+
+  useEffect(() => {
+    return () => {
+      document.body.classList.remove('flash-success');
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!shareToast) return;
+    const id = window.setTimeout(() => setShareToast(null), 4200);
+    return () => clearTimeout(id);
+  }, [shareToast]);
+
+  const handleShareCorrect = useCallback(async () => {
+    if (!currentWord) return;
+    const shareLang: 'de' | 'az' = i18n.language?.toLowerCase().startsWith('de') ? 'de' : 'az';
+    const outcome = await shareArticleResult(currentWord.article, currentWord.word, shareLang);
+    if (outcome === 'copied') {
+      setShareToast(t(shareLang === 'de' ? 'quiz.share_toast_de' : 'quiz.share_toast_az'));
+    } else if (outcome === 'shared') {
+      setShareToast(t('quiz.share_done'));
+    }
+  }, [currentWord, t]);
 
   const btnMode = useCallback(
     (a: Article): ArticleBtnMode => {
@@ -765,7 +838,7 @@ export function ArticleMatchQuiz({
       className="flex min-h-[100dvh] justify-center pb-36 pt-[max(0px,env(safe-area-inset-top))]"
       style={{ background: 'var(--artikl-bg)' }}
     >
-      <div className="artikl-scene">
+      <div id="game-container" ref={gameShellRef} className="artikl-scene">
         <div className="flex w-full max-w-[min(100%,420px)] items-start justify-between gap-2 px-1 pb-1">
           {onAbandonSession ? (
             <button
@@ -788,6 +861,16 @@ export function ArticleMatchQuiz({
           stats={levelStats}
           fillClassName="artikl-prog-fill--smooth"
         />
+        <div className="flex w-full max-w-[min(100%,420px)] justify-center gap-4 px-2 py-1 text-[11px] text-artikl-text/55">
+          <span>
+            Ardıcıl:{' '}
+            <strong className="font-semibold text-artikl-text/90">{runScore}</strong>
+          </span>
+          <span id="best-score">
+            Rekord:{' '}
+            <strong className="font-semibold text-artikl-text/90">{bestRun}</strong>
+          </span>
+        </div>
         <div key={currentWord.id} className="w-full artikl-word-shell">
           <WordCard
             variant="learn"
@@ -829,6 +912,27 @@ export function ArticleMatchQuiz({
               </>
             )}
           </FeedbackBar>
+        ) : null}
+
+        {phase === 'answered' && isCorrectPick ? (
+          <div className="mt-2 flex w-full max-w-[min(100%,420px)] justify-center px-1">
+            <button
+              type="button"
+              onClick={() => void handleShareCorrect()}
+              className="rounded-xl border border-white/15 bg-white/[0.06] px-4 py-2.5 text-xs font-semibold text-artikl-text/85 backdrop-blur-[10px] transition-colors hover:border-emerald-400/35 hover:bg-emerald-500/10 hover:text-artikl-text"
+            >
+              {t('quiz.share_result')}
+            </button>
+          </div>
+        ) : null}
+
+        {shareToast ? (
+          <p
+            className="mt-2 max-w-[min(100%,420px)] px-2 text-center text-[11px] font-medium text-emerald-300/90"
+            role="status"
+          >
+            {shareToast}
+          </p>
         ) : null}
 
         {phase === 'answered' ? (
