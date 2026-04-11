@@ -168,51 +168,45 @@ export function LearningSessionWin({
   const showCoins = coinReward && coinReward.total > 0;
   const finalScore = coinReward?.correctAnswers ?? 0;
 
-  const [copyToastVisible, setCopyToastVisible] = useState(false);
-  const copyToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [shareToastVisible, setShareToastVisible] = useState(false);
+  const shareToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const showCopiedToast = useCallback(() => {
-    setCopyToastVisible(true);
-    if (copyToastTimerRef.current) clearTimeout(copyToastTimerRef.current);
-    copyToastTimerRef.current = setTimeout(() => {
-      setCopyToastVisible(false);
-      copyToastTimerRef.current = null;
-    }, 2600);
+  const showShareToast = useCallback(() => {
+    setShareToastVisible(true);
+    if (shareToastTimerRef.current) clearTimeout(shareToastTimerRef.current);
+    shareToastTimerRef.current = setTimeout(() => {
+      setShareToastVisible(false);
+      shareToastTimerRef.current = null;
+    }, 3600);
   }, []);
 
   useEffect(() => {
     return () => {
-      if (copyToastTimerRef.current) clearTimeout(copyToastTimerRef.current);
+      if (shareToastTimerRef.current) clearTimeout(shareToastTimerRef.current);
     };
   }, []);
 
   const handleShareResult = useCallback(async () => {
-    track('Share Clicked', { finalScore });
+    track('Share Clicked');
     const text = buildSessionShareText(finalScore);
 
-    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-      try {
-        await navigator.share({ text });
-        return;
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return;
-      }
-    }
-
+    let copied = false;
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(text);
-        showCopiedToast();
-        return;
+        copied = true;
       }
     } catch {
-      /* fall through */
+      copied = false;
+    }
+    if (!copied) {
+      copied = copyTextWithFallback(text);
     }
 
-    if (copyTextWithFallback(text)) {
-      showCopiedToast();
+    if (copied) {
+      showShareToast();
     }
-  }, [finalScore, showCopiedToast]);
+  }, [finalScore, showShareToast]);
 
   return (
     <motion.div
@@ -340,14 +334,18 @@ export function LearningSessionWin({
         </div>
       </motion.div>
 
-      {copyToastVisible ? (
-        <div
-          className="pointer-events-none fixed bottom-[max(6.5rem,env(safe-area-inset-bottom)+5rem)] left-1/2 z-[220] w-[min(88vw,320px)] -translate-x-1/2 rounded-2xl border border-emerald-400/40 bg-[rgba(6,24,18,0.96)] px-4 py-3 text-center text-sm font-semibold text-emerald-100 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-md"
+      {shareToastVisible ? (
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 8 }}
+          transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+          className="pointer-events-none fixed bottom-[max(6.5rem,env(safe-area-inset-bottom)+5rem)] left-1/2 z-[220] w-[min(92vw,380px)] -translate-x-1/2 rounded-2xl border border-white/12 bg-[#0f0f14]/96 px-5 py-4 text-center text-[14px] font-medium leading-snug text-white shadow-[0_16px_48px_rgba(0,0,0,0.55)] backdrop-blur-md"
           role="status"
           aria-live="polite"
         >
-          Kopyalandı!
-        </div>
+          Nəticə kopyalandı! İstənilən proqramda paylaşa bilərsiniz.
+        </motion.div>
       ) : null}
     </motion.div>
   );
