@@ -1,74 +1,55 @@
-import { useEffect, type ReactNode } from 'react';
-import posthog from 'posthog-js';
+'use client';
+
+import { useEffect, useState, type ReactNode } from 'react';
+import type { PostHogConfig } from 'posthog-js';
 import { PostHogProvider as PostHogReactProvider } from 'posthog-js/react';
 
 const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY ?? '';
 const POSTHOG_HOST = (process.env.NEXT_PUBLIC_POSTHOG_HOST ?? '').trim() || 'https://eu.i.posthog.com';
 
-function capturePageView() {
-  posthog.capture('$pageview', {
-    $current_url: window.location.href,
-  });
-}
-
-/**
- * History / SPA: capture manual $pageview on navigation (pushState, replaceState, popstate, hashchange).
- */
-function PostHogRouteCapture() {
-  useEffect(() => {
-    const origPush = history.pushState.bind(history);
-    const origReplace = history.replaceState.bind(history);
-
-    history.pushState = (...args: Parameters<History['pushState']>) => {
-      const ret = origPush(...args);
-      queueMicrotask(capturePageView);
-      return ret;
-    };
-    history.replaceState = (...args: Parameters<History['replaceState']>) => {
-      const ret = origReplace(...args);
-      queueMicrotask(capturePageView);
-      return ret;
-    };
-
-    window.addEventListener('popstate', capturePageView);
-    window.addEventListener('hashchange', capturePageView);
-
-    return () => {
-      window.removeEventListener('popstate', capturePageView);
-      window.removeEventListener('hashchange', capturePageView);
-      history.pushState = origPush;
-      history.replaceState = origReplace;
-    };
-  }, []);
-
-  return null;
-}
+const posthogOptions = {
+  api_host: POSTHOG_HOST,
+  capture_pageview: true,
+  /** Surveys + Site Apps üçün (SDK + PostHog UI). */
+  opt_in_site_apps: true,
+  disable_session_recording: false,
+  /** PostHog konsolda recording aktiv olmalıdır; SDK tərəfində recorder qoşulur. */
+  session_recording: true as unknown as PostHogConfig['session_recording'],
+} as const satisfies Partial<PostHogConfig>;
 
 type Props = { children: ReactNode };
 
 /**
- * PostHog (EU by default). Env: `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` (injected at build via Vite).
- * This app is Vite + React (no Next.js `layout.tsx`); wrap the root in `main.tsx`.
+ * PostHog (`posthog-js` + `posthog-js/react`).
+ *
+ * **Next.js App Router** — `app/layout.tsx` içində:
+ * ```tsx
+ * import { PostHogProvider } from '@/providers/PostHogProvider';
+ * export default function RootLayout({ children }: { children: React.ReactNode }) {
+ *   return (
+ *     <html lang="en">
+ *       <body><PostHogProvider>{children}</PostHogProvider></body>
+ *     </html>
+ *   );
+ * }
+ * ```
+ *
+ * Bu layihə **Vite** ilə işləyir; provayder `src/main.tsx`-də bükülüb (`layout.tsx` yoxdur).
+ * Env: `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` (Vite üçün `vite.config` `define` + `loadEnv`).
  */
 export function PostHogProvider({ children }: Props) {
-  if (!POSTHOG_KEY) {
+  const [clientReady, setClientReady] = useState(false);
+
+  useEffect(() => {
+    setClientReady(true);
+  }, []);
+
+  if (typeof window === 'undefined' || !POSTHOG_KEY || !clientReady) {
     return <>{children}</>;
   }
 
   return (
-    <PostHogReactProvider
-      apiKey={POSTHOG_KEY}
-      options={{
-        api_host: POSTHOG_HOST,
-        disable_session_recording: false,
-        session_recording: {},
-        capture_pageview: false,
-        loaded: (client) => {
-          client.capture('$pageview', { $current_url: window.location.href });
-        },
-      }}
-    >
-      <PostHogRouteCapture />
+    <PostHogReactProvider apiKey={POSTHOG_KEY} options={posthogOptions}>
       {children}
     </PostHogReactProvider>
   );
