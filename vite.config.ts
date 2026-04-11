@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -15,12 +15,16 @@ const workboxBundleMode =
     ? 'production'
     : 'development';
 
-export default defineConfig(() => {
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
   /** `@vercel/analytics` reads `REACT_APP_VERCEL_OBSERVABILITY_CLIENT_CONFIG`; Vercel injects the Vite-prefixed var at build. */
   const vercelObservabilityClientConfig =
     process.env.VITE_VERCEL_OBSERVABILITY_CLIENT_CONFIG ??
     process.env.VERCEL_OBSERVABILITY_CLIENT_CONFIG ??
     '';
+
+  const nextPublicPosthogKey = env.NEXT_PUBLIC_POSTHOG_KEY ?? '';
+  const nextPublicPosthogHost = env.NEXT_PUBLIC_POSTHOG_HOST ?? '';
 
   return {
     plugins: [
@@ -124,6 +128,8 @@ export default defineConfig(() => {
     define: {
       'process.env.REACT_APP_VERCEL_OBSERVABILITY_CLIENT_CONFIG':
         JSON.stringify(vercelObservabilityClientConfig),
+      'process.env.NEXT_PUBLIC_POSTHOG_KEY': JSON.stringify(nextPublicPosthogKey),
+      'process.env.NEXT_PUBLIC_POSTHOG_HOST': JSON.stringify(nextPublicPosthogHost),
     },
     build: {
       minify: 'esbuild',

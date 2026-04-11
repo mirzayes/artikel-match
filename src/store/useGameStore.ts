@@ -50,6 +50,12 @@ function sanitizeLearningMissionArtikClaimed(raw: unknown): Record<string, boole
  * Core fields: `playerName`, `avatar` (id → use `avatarIdToEmoji` in UI), `score`, `isRegistered`.
  * `setPlayer(name, avatarId)` normalizes input, sets `isRegistered: true`, and persists.
  */
+/**
+ * localStorage `artikel-player-store-v1` (Zustand persist):
+ * Artik balansı `coins`, gündəlik öyrənmə limiti `lessonCoinsYmd` + `lessonCoinsEarnedToday`,
+ * missiya mükafatı idarəsi `learningMissionArtikClaimed`, blok açılışı `learningAllBlocksUnlocked`,
+ * Artiklə səviyyə açışı `levelGateCoinUnlocks`.
+ */
 const STORAGE_KEY = 'artikel-player-store-v1';
 const LEGACY_GAME_KEY = 'artikel-game-v1';
 const LEGACY_IMPORTED_KEY = 'artikel-legacy-game-imported';
@@ -444,6 +450,34 @@ export const useGameStore = create<PlayerStore>()(
     }),
     {
       name: STORAGE_KEY,
+      partialize: (s) => ({
+        playerName: s.playerName,
+        avatar: s.avatar,
+        score: s.score,
+        wins: s.wins,
+        totalDuels: s.totalDuels,
+        coins: s.coins,
+        isRegistered: s.isRegistered,
+        checkInLastYmd: s.checkInLastYmd,
+        checkInCyclePosition: s.checkInCyclePosition,
+        achievementIds: s.achievementIds,
+        lessonCoinsYmd: s.lessonCoinsYmd,
+        lessonCoinsEarnedToday: s.lessonCoinsEarnedToday,
+        referralCode: s.referralCode,
+        pendingReferralCode: s.pendingReferralCode,
+        referralInviteProcessed: s.referralInviteProcessed,
+        learningSessionsCompletedCount: s.learningSessionsCompletedCount,
+        a1MasterRewardClaimed: s.a1MasterRewardClaimed,
+        goldChestVisibleUntil: s.goldChestVisibleUntil,
+        welcomeStarterCoinsClaimed: s.welcomeStarterCoinsClaimed,
+        pioneerAlphaBonusClaimed: s.pioneerAlphaBonusClaimed,
+        learningAllBlocksUnlocked: s.learningAllBlocksUnlocked,
+        learningMissionArtikClaimed: s.learningMissionArtikClaimed,
+        iapLevelUnlocks: s.iapLevelUnlocks,
+        levelGateCoinUnlocks: s.levelGateCoinUnlocks,
+        rewardAdBonusLastYmd: s.rewardAdBonusLastYmd,
+        duelStreakTempBadgeUntilMs: s.duelStreakTempBadgeUntilMs,
+      }),
       merge: (persisted, current) => {
         const p = persisted as Partial<PlayerStore> | undefined;
         if (!p || typeof p !== 'object') return current;

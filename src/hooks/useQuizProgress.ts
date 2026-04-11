@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type {
   AppProgressState,
   Article,
@@ -22,9 +22,18 @@ import { formatLocalDate, localDateKey } from '../lib/dateKeys';
 import { computeOdluSeriya } from '../lib/odluStreak';
 import { nextReviewAfterCorrect, nextReviewAfterWrong } from '../lib/srs';
 
-const STORAGE_KEY_V2 = 'german-articles-progress-v2';
+/** Öyrənilmiş sözlər (knownWordIds), XP, SRS — hər dəyişiklikdə dərhal yazılır. */
+export const QUIZ_PROGRESS_STORAGE_KEY = 'german-articles-progress-v2';
 const STORAGE_KEY_V1 = 'german-articles-progress-v1';
 const QUIZ_LIVES_STORAGE_KEY = 'german-articles-quiz-lives-v1';
+
+export function saveQuizProgressToLocalStorage(state: AppProgressState): void {
+  try {
+    localStorage.setItem(QUIZ_PROGRESS_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
 
 function isGoetheLevel(x: string): x is GoetheLevel {
   return (GOETHE_LEVELS as readonly string[]).includes(x);
@@ -179,62 +188,71 @@ function trimDateKeyedMaps(
   }
 }
 
+/** V2 JSON: hətta `byLevel` zədəlidirsə, knownWordIds / mastery saxlanılır (sıfırdan başlamağın qarşısı). */
+function hydrateAppProgressFromV2Parsed(p: Partial<AppProgressState>): AppProgressState {
+  const selectedLevel =
+    typeof p.selectedLevel === 'string' && isGoetheLevel(p.selectedLevel) ? p.selectedLevel : 'A1';
+
+  const rawMastery = p.masteryByWordId;
+  const masteryByWordId: Record<string, number> = {};
+  if (rawMastery && typeof rawMastery === 'object' && !Array.isArray(rawMastery)) {
+    for (const [k, v] of Object.entries(rawMastery)) {
+      if (typeof v === 'number' && Number.isFinite(v)) masteryByWordId[k] = clampMastery(v);
+    }
+  }
+
+  const byLevel = emptyByLevel();
+  for (const lvl of GOETHE_LEVELS) {
+    byLevel[lvl] = normalizeLevelStats(p.byLevel?.[lvl]);
+  }
+
+  let srsByWordId = normalizeSrs((p as AppProgressState).srsByWordId);
+  if (Object.keys(srsByWordId).length === 0 && Object.keys(masteryByWordId).length > 0) {
+    const epoch = new Date(0).toISOString();
+    const nowIso = new Date().toISOString();
+    for (const [id, m] of Object.entries(masteryByWordId)) {
+      srsByWordId[id] = { streak: clampMastery(m), lastAttempt: nowIso, nextReview: epoch };
+    }
+  }
+
+  const rawGoal = (p as AppProgressState & { odluDailyGoal?: unknown }).odluDailyGoal;
+  const odluDailyGoal: OdluDailyGoalOption =
+    typeof rawGoal === 'number' && (ODLU_DAILY_GOAL_OPTIONS as readonly number[]).includes(rawGoal)
+      ? (rawGoal as OdluDailyGoalOption)
+      : ODLU_DAILY_GOAL;
+
+  return {
+    selectedLevel,
+    byLevel,
+    masteryByWordId,
+    srsByWordId,
+    wrongCountByWordId: normalizeWrongCounts(p.wrongCountByWordId),
+    hardWordIds: normalizeHardWordIds(p.hardWordIds),
+    knownWordIds: normalizeHardWordIds(p.knownWordIds),
+    dailyCorrectWordIdsByDate: normalizeDailyCorrectByDate(
+      (p as AppProgressState).dailyCorrectWordIdsByDate,
+    ),
+    activityAnswerCountByDate: normalizeActivityByDate(
+      (p as AppProgressState).activityAnswerCountByDate,
+    ),
+    dailyCorrectCountByDate: normalizeActivityByDate(
+      (p as AppProgressState & { dailyCorrectCountByDate?: unknown }).dailyCorrectCountByDate,
+    ),
+    learningCorrectByDate: normalizeActivityByDate(
+      (p as AppProgressState & { learningCorrectByDate?: unknown }).learningCorrectByDate,
+    ),
+    displayName: normalizeDisplayName((p as AppProgressState & { displayName?: unknown }).displayName),
+    odluDailyGoal,
+  };
+}
+
 function load(): AppProgressState {
   try {
-    const rawV2 = localStorage.getItem(STORAGE_KEY_V2);
+    const rawV2 = localStorage.getItem(QUIZ_PROGRESS_STORAGE_KEY);
     if (rawV2) {
-      const p = JSON.parse(rawV2) as Partial<AppProgressState>;
-      if (p?.byLevel && typeof p.selectedLevel === 'string' && isGoetheLevel(p.selectedLevel)) {
-        const rawMastery = p.masteryByWordId;
-        const masteryByWordId: Record<string, number> = {};
-        if (rawMastery && typeof rawMastery === 'object' && !Array.isArray(rawMastery)) {
-          for (const [k, v] of Object.entries(rawMastery)) {
-            if (typeof v === 'number' && Number.isFinite(v)) masteryByWordId[k] = clampMastery(v);
-          }
-        }
-        const byLevel = emptyByLevel();
-        for (const lvl of GOETHE_LEVELS) {
-          byLevel[lvl] = normalizeLevelStats(p.byLevel?.[lvl]);
-        }
-        let srsByWordId = normalizeSrs((p as AppProgressState).srsByWordId);
-        if (Object.keys(srsByWordId).length === 0 && Object.keys(masteryByWordId).length > 0) {
-          const epoch = new Date(0).toISOString();
-          const nowIso = new Date().toISOString();
-          for (const [id, m] of Object.entries(masteryByWordId)) {
-            srsByWordId[id] = { streak: clampMastery(m), lastAttempt: nowIso, nextReview: epoch };
-          }
-        }
-        const rawGoal = (p as AppProgressState & { odluDailyGoal?: unknown }).odluDailyGoal;
-        const odluDailyGoal: OdluDailyGoalOption =
-          typeof rawGoal === 'number' && (ODLU_DAILY_GOAL_OPTIONS as readonly number[]).includes(rawGoal)
-            ? (rawGoal as OdluDailyGoalOption)
-            : ODLU_DAILY_GOAL;
-
-        return {
-          selectedLevel: p.selectedLevel,
-          byLevel,
-          masteryByWordId,
-          srsByWordId,
-          wrongCountByWordId: normalizeWrongCounts(p.wrongCountByWordId),
-          hardWordIds: normalizeHardWordIds(p.hardWordIds),
-          knownWordIds: normalizeHardWordIds(p.knownWordIds),
-          dailyCorrectWordIdsByDate: normalizeDailyCorrectByDate(
-            (p as AppProgressState).dailyCorrectWordIdsByDate,
-          ),
-          activityAnswerCountByDate: normalizeActivityByDate(
-            (p as AppProgressState).activityAnswerCountByDate,
-          ),
-          dailyCorrectCountByDate: normalizeActivityByDate(
-            (p as AppProgressState & { dailyCorrectCountByDate?: unknown }).dailyCorrectCountByDate,
-          ),
-          learningCorrectByDate: normalizeActivityByDate(
-            (p as AppProgressState & { learningCorrectByDate?: unknown }).learningCorrectByDate,
-          ),
-          displayName: normalizeDisplayName(
-            (p as AppProgressState & { displayName?: unknown }).displayName,
-          ),
-          odluDailyGoal,
-        };
+      const p = JSON.parse(rawV2) as unknown;
+      if (p && typeof p === 'object' && !Array.isArray(p)) {
+        return hydrateAppProgressFromV2Parsed(p as Partial<AppProgressState>);
       }
     }
 
@@ -296,17 +314,13 @@ export function useQuizProgress() {
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(state));
+  useLayoutEffect(() => {
+    saveQuizProgressToLocalStorage(state);
   }, [state]);
 
   useEffect(() => {
     const flush = () => {
-      try {
-        localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(stateRef.current));
-      } catch {
-        /* ignore */
-      }
+      saveQuizProgressToLocalStorage(stateRef.current);
     };
     window.addEventListener('pagehide', flush);
     window.addEventListener('beforeunload', flush);

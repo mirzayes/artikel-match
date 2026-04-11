@@ -1,6 +1,14 @@
 /// <reference types="vite/client" />
 /// <reference types="vite-plugin-pwa/client" />
 
+declare namespace NodeJS {
+  interface ProcessEnv {
+    /** Build-time: `vite.config` `define` from `.env` (`loadEnv`). */
+    readonly NEXT_PUBLIC_POSTHOG_KEY?: string;
+    readonly NEXT_PUBLIC_POSTHOG_HOST?: string;
+  }
+}
+
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
   readonly userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;

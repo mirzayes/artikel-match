@@ -15,6 +15,7 @@ import './index.css';
 import { initAppUpdatesBroadcast } from './lib/appUpdatesChannel';
 import { registerSW } from 'virtual:pwa-register';
 import { InstallBanner } from './components/InstallBanner';
+import { PostHogProvider } from './providers/PostHogProvider';
 
 initAppUpdatesBroadcast();
 
@@ -56,27 +57,29 @@ function Root() {
   );
 
   return (
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{
-        persister,
-        maxAge: LEXICON_PERSIST_MAX_AGE_MS,
-        dehydrateOptions: {
-          shouldDehydrateQuery: (query) => query.queryKey[0] === 'lexicon',
-        },
-      }}
-    >
-      <VocabularyProvider>
-        <GlossLanguageProvider>
-          <>
-            <App />
-            <Analytics mode={import.meta.env.DEV ? 'development' : 'production'} />
-            <SpeedInsights />
-            <InstallBanner />
-          </>
-        </GlossLanguageProvider>
-      </VocabularyProvider>
-    </PersistQueryClientProvider>
+    <PostHogProvider>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{
+          persister,
+          maxAge: LEXICON_PERSIST_MAX_AGE_MS,
+          dehydrateOptions: {
+            shouldDehydrateQuery: (query) => query.queryKey[0] === 'lexicon',
+          },
+        }}
+      >
+        <VocabularyProvider>
+          <GlossLanguageProvider>
+            <>
+              <App />
+              <Analytics mode={import.meta.env.DEV ? 'development' : 'production'} />
+              <SpeedInsights />
+              <InstallBanner />
+            </>
+          </GlossLanguageProvider>
+        </VocabularyProvider>
+      </PersistQueryClientProvider>
+    </PostHogProvider>
   );
 }
 
