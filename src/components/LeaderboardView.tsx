@@ -396,15 +396,14 @@ export function LeaderboardView({
                 {t('leaderboard.loading')}
               </p>
             </div>
-          ) : firebaseGlobalEmpty ? (
-            <div className="py-12 text-center">
-              <span className="text-3xl">🏅</span>
-              <p className="mt-2 text-sm text-artikl-caption">{t('leaderboard.empty_global')}</p>
-            </div>
           ) : leagueRanked.length === 0 ? (
             <div className="py-12 text-center">
               <span className="text-3xl">🏅</span>
-              <p className="mt-2 text-sm text-artikl-caption">Bu liqada hələ oyunçu yoxdur</p>
+              <p className="mt-2 text-sm text-artikl-caption">
+                {allRows.length > 0
+                  ? 'Bu liqada hələ oyunçu yoxdur'
+                  : t('leaderboard.empty_global')}
+              </p>
             </div>
           ) : (
             <table className="w-full border-collapse text-left text-sm">
