@@ -49,6 +49,14 @@ import {
   getOdluStreakArtikMultiplier,
 } from '../lib/coinBonus';
 import { markMissionSessionCleared } from '../lib/learnMissions';
+import {
+  cityIndexForGlobalMission,
+  getGlobalMissionIndex,
+  getMissionCityData,
+  recordVisitedCityIndex,
+  type MissionGermanCity,
+} from '../lib/missionGermanCities';
+import { MissionCityReveal } from './MissionCityReveal';
 import { tryClaimA1MasterReward } from '../lib/milestones';
 import { avatarIdToEmoji } from '../lib/playerProfileRtdb';
 import { useGameStore } from '../store/useGameStore';
@@ -238,6 +246,11 @@ export function ArticleMatchQuiz({
 
   const [sessionEasyWords, setSessionEasyWords] = useState<SessionWordSummary[]>([]);
   const [sessionHardWords, setSessionHardWords] = useState<SessionWordSummary[]>([]);
+
+  const [missionCityRevealSnapshot, setMissionCityRevealSnapshot] = useState<{
+    city: MissionGermanCity;
+    visitedUniqueCount: number;
+  } | null>(null);
 
   const [comboLocal, setComboLocal] = useState(0);
   const comboLocalRef = useRef(0);
@@ -651,12 +664,23 @@ export function ArticleMatchQuiz({
       errors,
       infinite: missionInfiniteModeRef.current,
     });
+
+    if (missionSlotIndex != null) {
+      const globalIdx = getGlobalMissionIndex(level, missionSlotIndex, nounsByLevel);
+      const cityIdx = cityIndexForGlobalMission(globalIdx);
+      const city = getMissionCityData(globalIdx);
+      const visitedUniqueCount = recordVisitedCityIndex(cityIdx);
+      setMissionCityRevealSnapshot({ city, visitedUniqueCount });
+    } else {
+      setMissionCityRevealSnapshot(null);
+    }
+
     setSessionComplete(true);
 
     if (!reviewOnly && missionSlotIndex != null) {
       markMissionSessionCleared(level, missionSlotIndex);
     }
-  }, [knownWordIds, masteryByWordId, nounsByLevel.A1, odluStreakDays, reviewOnly, missionSlotIndex, level]);
+  }, [knownWordIds, masteryByWordId, nounsByLevel, odluStreakDays, reviewOnly, missionSlotIndex, level]);
 
   /** Cavabdan sonra: neutral — növbə; hard — çətin + arxaya */
   const advanceFromAnswered = useCallback(
@@ -825,6 +849,12 @@ export function ArticleMatchQuiz({
     return () => clearTimeout(id);
   }, [shareToast]);
 
+  useEffect(() => {
+    if (!missionCityRevealSnapshot) return;
+    const id = window.setTimeout(() => setMissionCityRevealSnapshot(null), 3000);
+    return () => clearTimeout(id);
+  }, [missionCityRevealSnapshot]);
+
   const handleShareCorrect = useCallback(async () => {
     if (!currentWord) return;
     const shareLang: 'de' | 'az' = i18n.language?.toLowerCase().startsWith('de') ? 'de' : 'az';
@@ -882,6 +912,14 @@ export function ArticleMatchQuiz({
   }
 
   if (sessionComplete) {
+    if (missionCityRevealSnapshot) {
+      return (
+        <MissionCityReveal
+          city={missionCityRevealSnapshot.city}
+          visitedUniqueCount={missionCityRevealSnapshot.visitedUniqueCount}
+        />
+      );
+    }
     return (
       <ResultView
         goal={sessionTargetWordIds.length || LEARNING_SESSION_GOAL}
@@ -903,6 +941,7 @@ export function ArticleMatchQuiz({
         missionMotivationBanner={missionMotivationBanner}
         onHome={() => onExitAfterSession?.()}
         onRestart={() => {
+          setMissionCityRevealSnapshot(null);
           setSessionCoinReward(null);
           setSessionComplete(false);
           setLoadErr(null);

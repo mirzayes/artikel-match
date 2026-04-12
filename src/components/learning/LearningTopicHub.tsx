@@ -31,6 +31,7 @@ import {
 } from '../../store/useGameStore';
 import { pickLuckyMissionIndexForDay } from '../../lib/luckyMissionOfDay';
 import { getOrCreateDuelUserId } from '../DuelGame';
+import { GermanyMap } from '../GermanyMap';
 
 const MISSION_MAP_PAGE = 5;
 
@@ -523,6 +524,8 @@ export function LearningTopicHub({
             {t('learning_topics.repeat_cta')}
           </motion.button>
         </motion.div>
+
+        <GermanyMap />
 
         <p className="learning-hub-section-header mt-6 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-[#4B5563] dark:text-artikl-text/50">
           {t('learning_topics.mission_map_title')}
