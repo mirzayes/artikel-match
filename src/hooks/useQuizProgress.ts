@@ -22,6 +22,7 @@ import { clearAllMissionSessionClearedMarkers } from '../lib/learnMissions';
 import { formatLocalDate, localDateKey } from '../lib/dateKeys';
 import { computeOdluSeriya } from '../lib/odluStreak';
 import { nextReviewAfterCorrect, nextReviewAfterWrong } from '../lib/srs';
+import { runWithVipFlagsPreserved, useGameStore } from '../store/useGameStore';
 
 /** Öyrənilmiş sözlər (knownWordIds), XP, SRS — hər dəyişiklikdə dərhal yazılır. */
 export const QUIZ_PROGRESS_STORAGE_KEY = 'german-articles-progress-v2';
@@ -339,9 +340,19 @@ export function useQuizProgress() {
   );
 
   const todayKey = formatLocalDate(new Date());
+  const streakFreezeProtectedYmd = useGameStore((s) => s.streakFreezeProtectedYmd);
+  const isStreakFrozen = useGameStore((s) => s.isStreakFrozen);
+  const streakFreezeCoversToday =
+    isStreakFrozen && streakFreezeProtectedYmd !== '' && streakFreezeProtectedYmd === todayKey;
   const odluSeriya = useMemo(
-    () => computeOdluSeriya(state.dailyCorrectCountByDate, todayKey, state.odluDailyGoal),
-    [state.dailyCorrectCountByDate, todayKey, state.odluDailyGoal],
+    () =>
+      computeOdluSeriya(
+        state.dailyCorrectCountByDate,
+        todayKey,
+        state.odluDailyGoal,
+        streakFreezeCoversToday,
+      ),
+    [state.dailyCorrectCountByDate, todayKey, state.odluDailyGoal, streakFreezeCoversToday],
   );
 
   const setSelectedLevel = useCallback((level: GoetheLevel) => {
@@ -488,26 +499,29 @@ export function useQuizProgress() {
     [],
   );
 
+  /** VIP `localStorage` açarları saxlanılır (ödənişli abunə itməsin). */
   const resetProgress = useCallback(() => {
-    try {
-      localStorage.removeItem(QUIZ_LIVES_STORAGE_KEY);
-      clearAllMissionSessionClearedMarkers();
-    } catch {
-      /* ignore */
-    }
-    setState((s) => ({
-      ...s,
-      byLevel: emptyByLevel(),
-      masteryByWordId: {},
-      srsByWordId: {},
-      wrongCountByWordId: {},
-      hardWordIds: [],
-      knownWordIds: [],
-      dailyCorrectWordIdsByDate: {},
-      activityAnswerCountByDate: {},
-      dailyCorrectCountByDate: {},
-      learningCorrectByDate: {},
-    }));
+    runWithVipFlagsPreserved(() => {
+      try {
+        localStorage.removeItem(QUIZ_LIVES_STORAGE_KEY);
+        clearAllMissionSessionClearedMarkers();
+      } catch {
+        /* ignore */
+      }
+      setState((s) => ({
+        ...s,
+        byLevel: emptyByLevel(),
+        masteryByWordId: {},
+        srsByWordId: {},
+        wrongCountByWordId: {},
+        hardWordIds: [],
+        knownWordIds: [],
+        dailyCorrectWordIdsByDate: {},
+        activityAnswerCountByDate: {},
+        dailyCorrectCountByDate: {},
+        learningCorrectByDate: {},
+      }));
+    });
   }, []);
 
   const toggleHardWord = useCallback((wordId: string) => {

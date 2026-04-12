@@ -8,6 +8,11 @@ import {
 
 const VB_W = 400;
 const VB_H = 500;
+const MAP_BG = '#FDF6E3';
+const BORDER = '#D1C9B8';
+/** ~6px ekran radiusu (xəritə hündürlüyü 300px olduqda) — viewBox ölçüsü ilə uyğunlaşdırılıb. */
+const DOT_R = 10;
+const LABEL_OFFSET = DOT_R + 8;
 
 /** İstifadəçi verdiyi və yaxınlıq ilə tamamlanmış koordinatlar (viewBox 400×500). */
 const CITY_NAME_TO_XY: Record<string, readonly [number, number]> = {
@@ -130,12 +135,8 @@ function pinXYForCityIndex(cityIndex: number): readonly [number, number] {
   return hashToPosition(name, cityIndex);
 }
 
-/** 16 Almaniya əyaləti — sadələşdirilmiş konturlar (400×500). */
 const BUNDESLAND_PATHS: readonly { id: string; d: string }[] = [
-  {
-    id: 'sh',
-    d: 'M 120 8 L 290 28 L 275 125 L 95 105 Z',
-  },
+  { id: 'sh', d: 'M 120 8 L 290 28 L 275 125 L 95 105 Z' },
   { id: 'mv', d: 'M 275 25 L 365 45 L 355 140 L 255 120 Z' },
   { id: 'ni', d: 'M 95 95 L 255 115 L 245 210 L 75 195 Z' },
   { id: 'hb', d: 'M 168 118 L 198 118 L 198 138 L 168 138 Z' },
@@ -164,7 +165,6 @@ function visitedKey(ids: number[]): string {
 export function GermanyMap() {
   const [visited, setVisited] = useState<number[]>(() => readVisitedSorted());
   const [pulseIds, setPulseIds] = useState<Set<number>>(() => new Set());
-  const [tipIndex, setTipIndex] = useState<number | null>(null);
   const prevKeyRef = useRef<string | null>(null);
   const pulseClearTimerRef = useRef<number | null>(null);
 
@@ -222,129 +222,119 @@ export function GermanyMap() {
     }, 2600);
   }, [visited]);
 
-  const visitedSet = useMemo(() => new Set(visited), [visited]);
   const total = MISSION_CITY_POOL_SIZE;
   const count = visited.length;
 
-  const pins = useMemo(() => {
-    const out: { i: number; x: number; y: number; name: string; on: boolean; pulse: boolean }[] = [];
-    for (let i = 0; i < total; i++) {
+  const visitedPins = useMemo(() => {
+    return visited.map((i) => {
       const [x, y] = pinXYForCityIndex(i);
       const { name } = getMissionCityData(i);
-      out.push({
+      const labelRight = x < VB_W * 0.55;
+      return {
         i,
         x,
         y,
         name,
-        on: visitedSet.has(i),
         pulse: pulseIds.has(i),
-      });
-    }
-    return out;
-  }, [total, visitedSet, pulseIds]);
+        labelRight,
+      };
+    });
+  }, [visited, pulseIds]);
 
   return (
     <div className="germany-map-wrap mt-4 w-full">
       <style>{`
         @keyframes germany-map-pin-pulse {
-          0% { transform: scale(0.3); opacity: 0; }
-          35% { transform: scale(1.25); opacity: 1; }
-          55% { transform: scale(1); opacity: 1; }
+          0% { transform: scale(0.2); opacity: 0; }
+          40% { transform: scale(1.15); opacity: 0.9; }
           100% { transform: scale(1); opacity: 1; }
         }
-        @keyframes germany-map-pin-glow {
-          0%, 100% { filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.95)); }
-          50% { filter: drop-shadow(0 0 14px rgba(192, 132, 252, 1)) drop-shadow(0 0 22px rgba(124, 58, 237, 0.65)); }
-        }
         .germany-map-pin--pulse {
-          animation: germany-map-pin-pulse 0.85s ease-out both, germany-map-pin-glow 1.2s ease-in-out 0.2s 2;
+          animation: germany-map-pin-pulse 0.75s ease-out both;
         }
       `}</style>
-      <h3 className="mb-2 text-center text-[15px] font-bold tracking-tight text-artikl-heading">
+      <h3 className="mb-3 text-center text-[15px] font-bold tracking-tight text-[#3d3845] dark:text-artikl-heading">
         🗺️ Almaniya Səyahəti
       </h3>
       <div
-        className="relative mx-auto w-full max-w-[min(100%,320px)] overflow-visible rounded-2xl border border-violet-500/25 bg-gradient-to-b from-[#14101f] to-[#0c0a12] shadow-[0_12px_40px_rgba(124,58,237,0.12)]"
-        style={{ height: 300 }}
+        className="relative mx-auto w-full max-w-[min(100%,300px)] rounded-2xl border px-8 py-10 shadow-sm"
+        style={{
+          height: 300,
+          backgroundColor: MAP_BG,
+          borderColor: BORDER,
+        }}
       >
         <svg
-          className="h-full w-full touch-manipulation"
+          className="absolute inset-0 h-full w-full touch-manipulation"
           viewBox={`0 0 ${VB_W} ${VB_H}`}
           preserveAspectRatio="xMidYMid meet"
           role="img"
-          aria-label="Almaniya xəritəsi və səyahət iğnələri"
+          aria-label="Almaniya xəritəsi — ziyarət olunan şəhərlər"
         >
-          <g className="germany-map-lander" opacity={0.95}>
+          <rect width={VB_W} height={VB_H} fill={MAP_BG} />
+          <g opacity={count === 0 ? 0.45 : 1}>
             {BUNDESLAND_PATHS.map((b) => (
               <path
                 key={b.id}
                 d={b.d}
-                fill="rgba(124, 58, 237, 0.07)"
-                stroke="rgba(167, 139, 250, 0.35)"
-                strokeWidth={1.1}
+                fill="transparent"
+                stroke={BORDER}
+                strokeWidth={1.15}
                 vectorEffect="non-scaling-stroke"
               />
             ))}
           </g>
-          <g className="germany-map-pins">
-            {pins.map((p) => (
-              <g
-                key={p.i}
-                transform={`translate(${p.x}, ${p.y})`}
-                className="cursor-pointer"
-                style={{
-                  outline: 'none',
-                  filter: p.on
-                    ? 'drop-shadow(0 0 5px rgba(167, 139, 250, 0.9)) drop-shadow(0 0 10px rgba(124, 58, 237, 0.55))'
-                    : 'grayscale(1)',
-                  opacity: p.on ? 1 : 0.48,
-                }}
-                onPointerEnter={() => setTipIndex(p.i)}
-                onPointerLeave={() => setTipIndex((cur) => (cur === p.i ? null : cur))}
-                onPointerDown={() => setTipIndex(p.i)}
-                role="button"
-                tabIndex={0}
-                aria-label={p.name}
-              >
-                <title>{p.name}</title>
-                {p.pulse && p.on ? (
-                  <circle
-                    r={18}
-                    fill="rgba(167, 139, 250, 0.25)"
-                    className="germany-map-pin--pulse pointer-events-none"
-                  />
-                ) : null}
-                <text y={5} textAnchor="middle" className="select-none text-[15px] leading-none">
-                  📍
-                </text>
-                {tipIndex === p.i ? (
-                  <g transform="translate(0,-22)">
-                    <rect
-                      x={-Math.min(140, p.name.length * 7 + 16) / 2}
-                      y={-14}
-                      width={Math.min(140, p.name.length * 7 + 16)}
-                      height={20}
-                      rx={6}
-                      fill="rgba(12,10,20,0.92)"
-                      stroke="rgba(167,139,250,0.5)"
-                      strokeWidth={0.75}
+          {count > 0 ? (
+            <g className="germany-map-pins">
+              {visitedPins.map((p) => (
+                <g key={p.i} transform={`translate(${p.x}, ${p.y})`} style={{ outline: 'none' }}>
+                  {p.pulse ? (
+                    <circle
+                      r={22}
+                      fill="rgba(124, 58, 237, 0.14)"
+                      className="germany-map-pin--pulse pointer-events-none"
                     />
-                    <text
-                      y={2}
-                      textAnchor="middle"
-                      className="fill-violet-100 text-[9px] font-bold"
-                      style={{ fontSize: 9 }}
-                    >
-                      {p.name.length > 18 ? `${p.name.slice(0, 17)}…` : p.name}
-                    </text>
-                  </g>
-                ) : null}
-              </g>
-            ))}
-          </g>
+                  ) : null}
+                  <circle
+                    r={DOT_R}
+                    cx={0}
+                    cy={0}
+                    fill="#6d28d9"
+                    style={{
+                      filter: 'drop-shadow(0 0 3px rgba(109, 40, 217, 0.55)) drop-shadow(0 0 8px rgba(124, 58, 237, 0.3))',
+                    }}
+                  />
+                  <text
+                    x={p.labelRight ? LABEL_OFFSET : -LABEL_OFFSET}
+                    y={3}
+                    textAnchor={p.labelRight ? 'start' : 'end'}
+                    className="select-none font-semibold"
+                    fill="#4c1d95"
+                    style={{
+                      fontSize: 11,
+                      letterSpacing: '0.01em',
+                      paintOrder: 'stroke fill',
+                      stroke: MAP_BG,
+                      strokeWidth: 3,
+                      strokeLinejoin: 'round',
+                    }}
+                  >
+                    {p.name.length > 22 ? `${p.name.slice(0, 21)}…` : p.name}
+                  </text>
+                </g>
+              ))}
+            </g>
+          ) : null}
         </svg>
+        {count === 0 ? (
+          <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center px-8">
+            <p className="max-w-[14rem] text-[13px] font-medium leading-relaxed text-[#7a7268]">
+              Hələ şəhər ziyarət edilməyib
+            </p>
+          </div>
+        ) : null}
       </div>
-      <p className="mt-2 text-center text-[12px] font-semibold tabular-nums text-artikl-caption">
+      <p className="mt-3 text-center text-[12px] font-medium tabular-nums text-[#6b6560] dark:text-artikl-caption">
         {count} / {total} şəhər ziyarət edildi
       </p>
     </div>

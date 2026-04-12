@@ -24,9 +24,14 @@ import type { OdluSeriyaState } from '../lib/odluStreak';
 import { CoinBalanceMeter } from './CoinBalanceMeter';
 import { LevelMasteryProgressBar } from './LevelMasteryProgressBar';
 import { LeaderboardModal } from './LeaderboardModal';
-import { VipSubscriptionModal } from './VipSubscriptionModal';
 import { LevelUnlockModal } from './LevelUnlockModal';
-import { isArtikelVipFromLocalStorage, LESSON_DAILY_COIN_CAP, useGameStore } from '../store/useGameStore';
+import {
+  isArtikelVipFromLocalStorage,
+  LESSON_DAILY_COIN_CAP,
+  STREAK_FREEZE_COIN_COST,
+  STREAK_FREEZE_VIP_FREE_PER_MONTH,
+  useGameStore,
+} from '../store/useGameStore';
 import {
   isGoetheLevelGated,
   isLevelGateUnlocked,
@@ -173,6 +178,8 @@ interface DashboardProps {
   onToggleKnown: (wordId: string) => void;
   onReset: () => void;
   onProfileEnterGame?: () => void;
+  /** VIP / ödəniş modalı (gündəlik öyrənmə limiti və s.) */
+  onOpenVipPayment: () => void;
   odluDailyGoal: OdluDailyGoalOption;
   onOdluDailyGoalChange: (goal: OdluDailyGoalOption) => void;
   /** RTDB lider cədvəlində öz sətirini vurğulamaq üçün */
@@ -197,6 +204,7 @@ export function Dashboard({
   onStartDuel,
   onToggleKnown,
   onReset,
+  onOpenVipPayment,
   odluDailyGoal,
   onOdluDailyGoalChange,
   dashboardUserId,
@@ -205,20 +213,30 @@ export function Dashboard({
   const queryClient = useQueryClient();
   const { wordCountByLevel, usingExternalLexicon, nounsByLevel } = useVocabulary();
   const coins = useGameStore((s) => s.coins);
+  const streakFreeze = useGameStore((s) => ({
+    is: s.isStreakFrozen,
+    ymd: s.streakFreezeProtectedYmd,
+    vipYm: s.streakFreezeVipYm,
+    vipUses: s.streakFreezeVipUsesInMonth,
+  }));
   const achievementIds = useGameStore((s) => s.achievementIds);
   const iapLevelUnlocks = useGameStore((s) => s.iapLevelUnlocks);
   const levelGateCoinUnlocks = useGameStore((s) => s.levelGateCoinUnlocks);
-  const claimRewardAdBonus = useGameStore((s) => s.claimRewardAdBonus);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [streakFreezeFeedback, setStreakFreezeFeedback] = useState<string | null>(null);
   const [levelLockTarget, setLevelLockTarget] = useState<GoetheLevel | null>(null);
-  const [vipModalOpen, setVipModalOpen] = useState(false);
-  const [adToast, setAdToast] = useState<string | null>(null);
   const { data: leaderboardLiveState } = useLeaderboardLiveQuery();
   const leaderTop3: LeaderboardEntry[] = useMemo(
     () => (leaderboardLiveState?.entries ?? []).slice(0, 3),
     [leaderboardLiveState?.entries],
   );
+  const leaderboardSeeded = leaderboardLiveState?.seeded ?? false;
+  const leaderboardRowCount = leaderboardLiveState?.entries?.length ?? 0;
+  const leadersStripLoading = isFirebaseLive && !leaderboardSeeded;
+  const leadersStripEmpty = leaderboardRowCount === 0;
+  const leadersStripCompact = leadersStripLoading || leadersStripEmpty;
   const [matchmakingWaiting, setMatchmakingWaiting] = useState(0);
   const [simRivalPulse, setSimRivalPulse] = useState(false);
   const [incomingFriendRequests, setIncomingFriendRequests] = useState<
@@ -307,12 +325,13 @@ export function Dashboard({
     const today = formatLocalDate(new Date());
     return lessonCoinsYmdStore === today ? lessonCoinsEarnedStore : 0;
   }, [lessonCoinsYmdStore, lessonCoinsEarnedStore]);
-  const lessonCapFull = lessonEarnedToday >= LESSON_DAILY_COIN_CAP;
+  const isVipUser = isArtikelVipFromLocalStorage();
+  const lessonCapFull = !isVipUser && lessonEarnedToday >= LESSON_DAILY_COIN_CAP;
 
   const handleLevelPick = useCallback(
     (lvl: GoetheLevel) => {
       if (!isArtikelVipFromLocalStorage() && lvl !== 'A1') {
-        startTransition(() => setVipModalOpen(true));
+        startTransition(() => onOpenVipPayment());
         return;
       }
       if (!isLevelGateUnlocked(lvl, levelGateArgs)) {
@@ -321,25 +340,13 @@ export function Dashboard({
       }
       onLevelChange(lvl);
     },
-    [levelGateArgs, onLevelChange],
+    [levelGateArgs, onLevelChange, onOpenVipPayment],
   );
 
   const handlePrimaryLearn = useCallback(() => {
     if (lessonCapFull) return;
     onStartQuiz();
   }, [lessonCapFull, onStartQuiz]);
-
-  const handleWatchAd = useCallback(() => {
-    const n = claimRewardAdBonus();
-    if (n == null) setAdToast(t('dashboard.lesson_limit_ad_used'));
-    else setAdToast(t('common.plus_amount_artik', { amount: n }));
-  }, [claimRewardAdBonus, t]);
-
-  useEffect(() => {
-    if (!adToast) return;
-    const id = window.setTimeout(() => setAdToast(null), 2600);
-    return () => clearTimeout(id);
-  }, [adToast]);
 
   const nounsInLevel = nounsByLevel[selectedLevel];
   const levelTotal = nounsInLevel.length;
@@ -354,6 +361,10 @@ export function Dashboard({
   );
 
   const masterTheseHandler = () => {
+    if (lessonCapFull) {
+      onOpenVipPayment();
+      return;
+    }
     const ids = nounsInLevel.filter((n) => hardWordIds.includes(n.id)).map((n) => n.id);
     onStartLearnHardWords(ids);
   };
@@ -361,6 +372,38 @@ export function Dashboard({
   const userName = displayName.trim() || 'Oyunçu';
   const duelEntryLocked =
     !isArtikelVipFromLocalStorage() && coins < DUEL_MIN_ARTIK_BALANCE;
+
+  const todayLocalYmd = formatLocalDate(new Date());
+  const freezeScheduled =
+    streakFreeze.is && streakFreeze.ymd !== '' && streakFreeze.ymd >= todayLocalYmd;
+  const vipYmNow = todayLocalYmd.slice(0, 7);
+  const vipUsesThisMonth =
+    streakFreeze.vipYm === vipYmNow ? streakFreeze.vipUses : 0;
+  const vipFreeLeft = isVipUser
+    ? Math.max(0, STREAK_FREEZE_VIP_FREE_PER_MONTH - vipUsesThisMonth)
+    : 0;
+  const showStreakFreezeIcon = freezeScheduled;
+  const freezeStatusLine = useMemo(() => {
+    if (!streakFreeze.is || !streakFreeze.ymd) return t('settings.streak_freeze_status_inactive');
+    if (streakFreeze.ymd === todayLocalYmd) return t('settings.streak_freeze_status_active_today');
+    if (streakFreeze.ymd > todayLocalYmd)
+      return t('settings.streak_freeze_status_scheduled', { date: streakFreeze.ymd });
+    return t('settings.streak_freeze_status_inactive');
+  }, [streakFreeze.is, streakFreeze.ymd, todayLocalYmd, t]);
+
+  const handleStreakFreezePurchase = useCallback(() => {
+    const r = useGameStore.getState().purchaseStreakFreezeForTomorrow();
+    if (r === 'ok') setStreakFreezeFeedback(t('settings.streak_freeze_result_ok'));
+    else if (r === 'already_scheduled')
+      setStreakFreezeFeedback(t('settings.streak_freeze_result_already'));
+    else setStreakFreezeFeedback(t('settings.streak_freeze_result_insufficient'));
+  }, [t]);
+
+  useEffect(() => {
+    if (!streakFreezeFeedback) return;
+    const id = window.setTimeout(() => setStreakFreezeFeedback(null), 4500);
+    return () => window.clearTimeout(id);
+  }, [streakFreezeFeedback]);
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-[var(--artikl-bg)] px-4 pb-[var(--app-bottom-pad,7rem)] pt-[max(12px,env(safe-area-inset-top))] text-[var(--artikl-text)] sm:px-6 sm:pb-[var(--app-bottom-pad-sm,8rem)]">
@@ -383,7 +426,16 @@ export function Dashboard({
               ].join(' ')}
               title="Odlu seriya"
             >
-              <span style={{ filter: odluSeriya.metToday ? 'none' : 'grayscale(1) opacity(0.4)' }}>🔥</span>
+              <span className="inline-flex items-center gap-0.5">
+                <span style={{ filter: odluSeriya.metToday ? 'none' : 'grayscale(1) opacity(0.4)' }}>
+                  🔥
+                </span>
+                {showStreakFreezeIcon ? (
+                  <span className="text-[11px] leading-none" title="Seriya dondurucu" aria-hidden>
+                    ❄️
+                  </span>
+                ) : null}
+              </span>
               {odluSeriya.streak}
               {odluSeriya.streak > 3 ? (
                 <span className="ml-0.5 text-[9px] font-extrabold uppercase tracking-wide text-emerald-300/95">
@@ -506,7 +558,7 @@ export function Dashboard({
           ) : (
             <button
               type="button"
-              onClick={() => startTransition(() => setVipModalOpen(true))}
+              onClick={() => startTransition(() => onOpenVipPayment())}
               className="flex min-h-[44px] shrink-0 flex-col items-center justify-center rounded-full border-2 border-amber-400/60 bg-gradient-to-b from-amber-500/25 to-amber-700/20 px-3 text-[10px] font-extrabold uppercase leading-tight tracking-wide text-amber-100 shadow-[0_0_18px_rgba(245,158,11,0.25)] active:scale-95"
               title="Gold VIP"
             >
@@ -598,79 +650,77 @@ export function Dashboard({
           <div className="flex items-center justify-between gap-2 text-[11px] font-semibold text-[#4B5563] dark:text-artikl-text/70">
             <span>{t('dashboard.lesson_coin_meter_label')}</span>
             <span className="dashboard-lesson-coin-count tabular-nums text-[#7C3AED] dark:text-amber-200/90">
-              🪙 {lessonEarnedToday} / {LESSON_DAILY_COIN_CAP}
+              🪙{' '}
+              {isVipUser ? (
+                <span className="text-emerald-300/95">∞</span>
+              ) : (
+                <>
+                  {lessonEarnedToday} / {LESSON_DAILY_COIN_CAP}
+                </>
+              )}
             </span>
           </div>
           <div
             className="dashboard-lesson-coin-track mt-2 h-2.5 w-full overflow-hidden rounded-full bg-[var(--artikl-prog-track-bg)]"
             role="progressbar"
-            aria-valuenow={lessonEarnedToday}
+            aria-valuenow={isVipUser ? 1 : lessonEarnedToday}
             aria-valuemin={0}
-            aria-valuemax={LESSON_DAILY_COIN_CAP}
+            aria-valuemax={isVipUser ? 1 : LESSON_DAILY_COIN_CAP}
             aria-label={t('dashboard.lesson_coin_meter_label')}
           >
             <motion.div
               className={[
                 'dashboard-lesson-coin-fill h-full rounded-full',
-                lessonCapFull
-                  ? 'bg-gradient-to-r from-rose-500 to-orange-500'
-                  : 'bg-gradient-to-r from-violet-500 via-purple-400 to-cyan-400',
+                isVipUser
+                  ? 'bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600'
+                  : lessonCapFull
+                    ? 'bg-gradient-to-r from-rose-500 to-orange-500'
+                    : 'bg-gradient-to-r from-violet-500 via-purple-400 to-cyan-400',
               ].join(' ')}
               initial={{ width: 0 }}
               animate={{
-                width: `${LESSON_DAILY_COIN_CAP > 0 ? Math.min(100, (lessonEarnedToday / LESSON_DAILY_COIN_CAP) * 100) : 0}%`,
+                width: `${
+                  isVipUser
+                    ? 100
+                    : LESSON_DAILY_COIN_CAP > 0
+                      ? Math.min(100, (lessonEarnedToday / LESSON_DAILY_COIN_CAP) * 100)
+                      : 0
+                }%`,
               }}
               transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             />
           </div>
-          {lessonEarnedToday === 0 ? (
+          {!isVipUser && lessonEarnedToday === 0 ? (
             <p className="mt-1.5 text-[10px] text-[#9CA3AF] dark:text-artikl-text/30">{t('dashboard.lesson_start_hint')}</p>
           ) : null}
         </div>
 
-        {/* ── Primary action button ── */}
-        <motion.button
-          type="button"
-          onClick={handlePrimaryLearn}
-          disabled={lessonCapFull}
-          whileHover={lessonCapFull ? undefined : { scale: 1.012 }}
-          whileTap={lessonCapFull ? undefined : { scale: 0.97 }}
-          transition={{ type: 'spring', stiffness: 420, damping: 22 }}
-          className={[
-            'lex-no-tap-highlight mt-5 min-h-[52px] w-full rounded-[14px] border border-transparent px-4 py-4 text-base font-bold shadow-[0_8px_32px_rgba(124,108,248,0.28)] transition-[box-shadow,opacity]',
-            lessonCapFull
-              ? 'cursor-not-allowed border-2 border-purple-200 bg-purple-50 text-[#9CA3AF] dark:cursor-not-allowed dark:border-transparent dark:bg-[var(--artikl-surface2)] dark:text-artikl-text/45'
-              : 'border-2 border-purple-600 bg-purple-600 text-white hover:shadow-[0_10px_40px_rgba(124,108,248,0.38)] dark:border-transparent dark:bg-[var(--artikl-accent)]',
-          ].join(' ')}
-        >
-          {lessonCapFull ? t('dashboard.lesson_coin_limit_btn') : t('dashboard.primary_learn', { level: selectedLevel })}
-        </motion.button>
+        {/* ── Primary learn: limitdə mətn + VIP; əks halda düymə ── */}
         {lessonCapFull ? (
-          <div className="dashboard-lesson-cap-banner mt-3 space-y-2 rounded-xl border border-amber-400/20 bg-amber-500/8 px-3 py-3 text-center">
-            <p className="dashboard-lesson-cap-banner-text text-[12px] leading-snug text-[#374151] dark:text-[rgba(255,248,220,0.92)]">
-              {t('dashboard.lesson_coin_limit_body')}
+          <div className="lex-no-tap-highlight mt-5 rounded-[14px] border-2 border-amber-400/35 bg-gradient-to-br from-amber-500/10 via-[var(--artikl-surface)] to-violet-950/20 px-4 py-5 text-center shadow-[0_8px_32px_rgba(245,158,11,0.12)]">
+            <p className="text-[13px] font-semibold leading-snug text-artikl-heading">
+              {t('dashboard.lesson_daily_hard_stop')}
             </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              <button
-                type="button"
-                onClick={onStartDuel}
-                className={[
-                  'rounded-lg border-2 border-purple-600 bg-white px-3 py-2 text-[11px] font-bold text-purple-600 dark:border-violet-400/40 dark:bg-violet-500/15 dark:text-violet-100',
-                  duelEntryLocked ? 'opacity-50' : '',
-                ].join(' ')}
-              >
-                {t('dashboard.lesson_limit_duel_cta')}
-              </button>
-              <button
-                type="button"
-                onClick={handleWatchAd}
-                className="rounded-lg border-2 border-purple-600 bg-white px-3 py-2 text-[11px] font-semibold text-purple-600 dark:border-[var(--artikl-border2)] dark:bg-[var(--artikl-surface2)] dark:text-artikl-text/80"
-              >
-                {t('dashboard.lesson_limit_ad_cta')}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => onOpenVipPayment()}
+              className="mt-4 w-full rounded-xl border-2 border-amber-400/60 bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 py-3.5 text-[15px] font-black uppercase tracking-wide text-stone-900 shadow-[0_10px_36px_rgba(245,158,11,0.35)] transition hover:brightness-105 active:scale-[0.99]"
+            >
+              {t('dashboard.lesson_limit_vip_cta')}
+            </button>
           </div>
-        ) : null}
+        ) : (
+          <motion.button
+            type="button"
+            onClick={handlePrimaryLearn}
+            whileHover={{ scale: 1.012 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 22 }}
+            className="lex-no-tap-highlight mt-5 min-h-[52px] w-full rounded-[14px] border-2 border-purple-600 bg-purple-600 px-4 py-4 text-base font-bold text-white shadow-[0_8px_32px_rgba(124,108,248,0.28)] transition-[box-shadow,opacity] hover:shadow-[0_10px_40px_rgba(124,108,248,0.38)] dark:border-transparent dark:bg-[var(--artikl-accent)]"
+          >
+            {t('dashboard.primary_learn', { level: selectedLevel })}
+          </motion.button>
+        )}
 
         {/* ── Secondary actions ── */}
         <div className="mt-2.5 grid grid-cols-2 gap-2.5">
@@ -722,9 +772,17 @@ export function Dashboard({
         <button
           type="button"
           onClick={() => setLeaderboardOpen(true)}
-          className="mt-4 w-full rounded-2xl border-[0.5px] border-[rgba(167,139,250,0.32)] bg-[rgba(124,108,248,0.1)] text-left backdrop-blur-[12px] transition-[transform,border-color] hover:border-[rgba(167,139,250,0.45)] active:scale-[0.99]"
+          className={[
+            'w-full rounded-2xl border-[0.5px] border-[rgba(167,139,250,0.32)] bg-[rgba(124,108,248,0.1)] text-left backdrop-blur-[12px] transition-[transform,border-color] hover:border-[rgba(167,139,250,0.45)] active:scale-[0.99]',
+            leadersStripCompact ? 'mt-3' : 'mt-4',
+          ].join(' ')}
         >
-          <div className="flex items-center justify-between border-b border-[var(--artikl-border)] px-4 py-2.5">
+          <div
+            className={[
+              'flex items-center justify-between border-b border-[var(--artikl-border)] px-4',
+              leadersStripCompact ? 'py-2' : 'py-2.5',
+            ].join(' ')}
+          >
             <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#1A1A2E] dark:text-violet-200/95">
               {t('dashboard.leaders_strip_title')}
             </span>
@@ -732,55 +790,81 @@ export function Dashboard({
               🏆
             </span>
           </div>
-          <div className="space-y-0.5 px-3 py-3">
-            {[0, 1, 2].map((i) => {
-              const e = leaderTop3[i];
-              const rank = i + 1;
-              const isYou = Boolean(e && dashboardUserId && e.uid === dashboardUserId);
-              if (!e) {
+          {leadersStripCompact ? (
+            <div className="px-4 py-2">
+              {leadersStripLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="h-7 w-7 shrink-0 animate-pulse rounded-full bg-[var(--artikl-surface2)]" />
+                  <div className="h-2.5 flex-1 animate-pulse rounded-full bg-[var(--artikl-surface)]" />
+                </div>
+              ) : (
+                <p className="text-center text-[11px] leading-snug text-[#9CA3AF] dark:text-artikl-text/40">
+                  {t('dashboard.leaders_strip_empty')}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-0.5 px-3 py-3">
+              {[0, 1, 2].map((i) => {
+                const e = leaderTop3[i];
+                const rank = i + 1;
+                const isYou = Boolean(e && dashboardUserId && e.uid === dashboardUserId);
+                if (!e) {
+                  return (
+                    <div
+                      key={`empty-${i}`}
+                      className="flex items-center gap-2 rounded-lg py-1.5 pl-1 text-[12px] text-[#9CA3AF] dark:text-artikl-text/28"
+                    >
+                      <span className="w-6 text-center text-[11px] font-bold tabular-nums text-[#9CA3AF] dark:text-artikl-text/20">
+                        {rank}
+                      </span>
+                      <div className="h-8 w-8 animate-pulse rounded-full bg-[var(--artikl-surface2)]" />
+                      <div className="h-3 flex-1 animate-pulse rounded-full bg-[var(--artikl-surface)]" />
+                      <span className="text-[10px] text-[#9CA3AF] dark:text-artikl-text/20">— XP</span>
+                    </div>
+                  );
+                }
                 return (
                   <div
-                    key={`empty-${i}`}
-                    className="flex items-center gap-2 rounded-lg py-1.5 pl-1 text-[12px] text-[#9CA3AF] dark:text-artikl-text/28"
+                    key={e.uid}
+                    className={[
+                      'flex items-center gap-2 rounded-lg py-1.5 pl-1 pr-2',
+                      isYou ? 'bg-amber-500/10 ring-1 ring-amber-400/25' : '',
+                    ].join(' ')}
                   >
-                    <span className="w-6 text-center text-[11px] font-bold tabular-nums text-[#9CA3AF] dark:text-artikl-text/20">
+                    <span className="w-6 text-center text-[11px] font-bold tabular-nums text-[#4B5563] dark:text-artikl-text/45">
                       {rank}
                     </span>
-                    <div className="h-8 w-8 animate-pulse rounded-full bg-[var(--artikl-surface2)]" />
-                    <div className="h-3 flex-1 animate-pulse rounded-full bg-[var(--artikl-surface)]" />
-                    <span className="text-[10px] text-[#9CA3AF] dark:text-artikl-text/20">— XP</span>
+                    <span
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--artikl-border)] bg-[var(--artikl-surface2)] text-lg leading-none"
+                      aria-hidden
+                    >
+                      {avatarIdToEmoji(e.avatar)}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#1A1A2E] dark:text-artikl-text/90">
+                      {e.displayName.trim() || t('duel.player_default')}
+                    </span>
+                    <span className="shrink-0 text-right text-[11px] font-bold tabular-nums text-[#7C3AED] dark:text-violet-200/85">
+                      {(() => {
+                        const w = e.learnedWords ?? 0;
+                        const parts: string[] = [];
+                        if (e.totalXp > 0) parts.push(`${e.totalXp.toLocaleString()} XP`);
+                        if (w > 0) parts.push(t('dashboard.leaders_strip_words', { count: w }));
+                        return parts.length > 0 ? parts.join(' · ') : '0 XP';
+                      })()}
+                    </span>
                   </div>
                 );
-              }
-              return (
-                <div
-                  key={e.uid}
-                  className={[
-                    'flex items-center gap-2 rounded-lg py-1.5 pl-1 pr-2',
-                    isYou ? 'bg-amber-500/10 ring-1 ring-amber-400/25' : '',
-                  ].join(' ')}
-                >
-                  <span className="w-6 text-center text-[11px] font-bold tabular-nums text-[#4B5563] dark:text-artikl-text/45">
-                    {rank}
-                  </span>
-                  <span
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--artikl-border)] bg-[var(--artikl-surface2)] text-lg leading-none"
-                    aria-hidden
-                  >
-                    {avatarIdToEmoji(e.avatar)}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#1A1A2E] dark:text-artikl-text/90">
-                    {e.displayName.trim() || t('duel.player_default')}
-                  </span>
-                  <span className="shrink-0 text-[11px] font-bold tabular-nums text-[#7C3AED] dark:text-violet-200/85">
-                    {e.totalXp.toLocaleString()} XP
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-          <p className="border-t border-[var(--artikl-border)] px-4 py-2 text-center text-[10px] font-medium text-[#9CA3AF] dark:text-artikl-text/35">
-            {t('dashboard.leaders_strip_tap')}
+              })}
+            </div>
+          )}
+          <p
+            className={[
+              'border-t border-[var(--artikl-border)] px-4 text-center text-[10px] font-medium text-[#9CA3AF] dark:text-artikl-text/35',
+              leadersStripCompact ? 'py-1.5' : 'py-2',
+            ].join(' ')}
+          >
+            {leadersStripLoading ? t('dashboard.leaders_strip_loading') : t('dashboard.leaders_strip_tap')}
           </p>
         </button>
 
@@ -809,7 +893,7 @@ export function Dashboard({
             <span>{t('settings.title')}</span>
             <span className="text-[10px] text-artikl-caption">{t('dashboard.details_chevron')}</span>
           </summary>
-          <div className="space-y-4 border-t border-[var(--artikl-border)] px-3 pb-4 pt-3">
+          <div className="flex flex-col border-t border-[var(--artikl-border)] px-3 pb-3 pt-3">
             {/* Daily goal selector */}
             <div>
               <p className="text-[11px] font-semibold text-artikl-text">
@@ -840,22 +924,92 @@ export function Dashboard({
               </div>
             </div>
 
-            <div className="h-px bg-[var(--artikl-surface2)]" />
+            <div className="mt-4 border-t border-[var(--artikl-border)] pt-4">
+              <p className="text-[11px] font-semibold text-artikl-text">
+                {t('settings.streak_freeze_title')}
+              </p>
+              <p className="mt-1.5 text-[10px] leading-relaxed text-artikl-caption">{freezeStatusLine}</p>
+              {isVipUser ? (
+                <p className="mt-1 text-[10px] leading-relaxed text-amber-200/90">
+                  {t('settings.streak_freeze_vip_hint', { remaining: vipFreeLeft })}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                disabled={freezeScheduled}
+                onClick={handleStreakFreezePurchase}
+                className={[
+                  'mt-2 rounded-lg border px-2.5 py-1.5 text-left text-[11px] font-semibold transition-colors active:scale-[0.99]',
+                  freezeScheduled
+                    ? 'cursor-not-allowed border-[var(--artikl-border)] text-artikl-muted2 opacity-50'
+                    : 'border-violet-400/35 bg-violet-500/[0.12] text-violet-100 hover:border-violet-300/50 hover:bg-violet-500/[0.2]',
+                ].join(' ')}
+              >
+                {isVipUser && vipFreeLeft > 0
+                  ? t('settings.streak_freeze_cta_vip_free')
+                  : t('settings.streak_freeze_cta_buy', { cost: STREAK_FREEZE_COIN_COST })}
+              </button>
+              {streakFreezeFeedback ? (
+                <p className="mt-2 text-[10px] font-medium text-artikl-caption">{streakFreezeFeedback}</p>
+              ) : null}
+            </div>
 
-            <p className="text-[10px] leading-relaxed text-artikl-caption">
-              {t('settings.reset_hint')}
-            </p>
-            <button
-              type="button"
-              onClick={onReset}
-              className="w-full rounded-xl border border-[var(--artikl-border2)] bg-transparent py-2.5 text-[11px] font-medium text-artikl-muted2 transition-colors hover:border-rose-400/40 hover:bg-rose-950/20 hover:text-rose-200/80 active:scale-[0.99]"
-            >
-              {t('settings.reset_button')}
-            </button>
+            <div className="mt-5 flex flex-col items-stretch gap-2 border-t border-[var(--artikl-border)] pt-4">
+              <p className="text-[10px] leading-relaxed text-artikl-caption">{t('settings.reset_hint')}</p>
+              <button
+                type="button"
+                onClick={() => setResetConfirmOpen(true)}
+                className="self-start rounded-lg border border-red-500/25 bg-transparent px-2 py-1 text-left text-[11px] font-medium text-red-500 transition-colors hover:border-red-500/45 hover:bg-red-500/10 hover:text-red-400 active:scale-[0.99] dark:text-red-500 dark:hover:text-red-400"
+              >
+                {t('settings.reset_button')}
+              </button>
+            </div>
           </div>
         </details>
 
       </div>
+
+      {/* ── Tərəqqi sıfırlama təsdiqi ── */}
+      {resetConfirmOpen ? (
+        <div
+          className="fixed inset-0 z-[95] flex items-end justify-center bg-black/55 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-12 backdrop-blur-sm sm:items-center sm:pb-8"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="dashboard-reset-confirm-title"
+          onClick={() => setResetConfirmOpen(false)}
+        >
+          <div
+            className="app-sheet-panel w-full max-w-[400px] rounded-2xl border border-[var(--artikl-border2)] bg-[#14141f]/95 p-4 shadow-2xl backdrop-blur-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="dashboard-reset-confirm-title" className="sr-only">
+              {t('settings.reset_button')}
+            </h2>
+            <p className="text-[13px] leading-relaxed text-artikl-text/90">
+              {t('settings.reset_confirm_message')}
+            </p>
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setResetConfirmOpen(false)}
+                className="rounded-xl border border-[var(--artikl-border)] bg-[var(--artikl-surface)] px-4 py-2.5 text-[13px] font-semibold text-artikl-text transition-colors hover:bg-[var(--artikl-surface2)] active:scale-[0.99]"
+              >
+                {t('settings.reset_confirm_no')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setResetConfirmOpen(false);
+                  onReset();
+                }}
+                className="rounded-xl border border-red-500/50 bg-red-600/90 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_4px_20px_rgba(239,68,68,0.25)] transition-colors hover:bg-red-600 active:scale-[0.99]"
+              >
+                {t('settings.reset_confirm_yes')}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* ── Help modal ── */}
       {helpOpen ? (
@@ -892,8 +1046,6 @@ export function Dashboard({
         </div>
       ) : null}
 
-      <VipSubscriptionModal open={vipModalOpen} onClose={() => setVipModalOpen(false)} />
-
       <LevelUnlockModal
         open={levelLockTarget !== null}
         level={levelLockTarget}
@@ -903,14 +1055,6 @@ export function Dashboard({
         masteryByWordId={masteryByWordId}
       />
 
-      {adToast ? (
-        <div
-          className="fixed bottom-[max(6rem,env(safe-area-inset-bottom)+5rem)] left-1/2 z-[92] w-[min(90vw,320px)] -translate-x-1/2 rounded-xl border border-[var(--artikl-border2)] bg-[var(--artikl-surface)] px-3 py-2 text-center text-[12px] text-artikl-text shadow-lg"
-          role="status"
-        >
-          {adToast}
-        </div>
-      ) : null}
     </div>
   );
 }

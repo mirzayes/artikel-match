@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { tryUnlockDuelMasterAchievement } from '../lib/achievements';
 import { coinsWithTurboMultiplier } from '../lib/coinBonus';
-import { formatLocalDate, previousLocalDateKey } from '../lib/dateKeys';
+import { formatLocalDate, nextLocalDateKey, previousLocalDateKey } from '../lib/dateKeys';
 import { PLAYER_AVATARS } from '../lib/playerProfileRtdb';
 import { GOETHE_LEVELS, type GoetheLevel } from '../types';
 import { LEARN_BLOCKS_UNLOCK_ALL_COST } from '../lib/learnBlocks';
@@ -22,6 +22,31 @@ export function isArtikelVipFromLocalStorage(): boolean {
     return primary || alt;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Öyrənmə tərəqqisini sıfırlayan kod üçün: callback bitəndən sonra VIP bayraqları
+ * əvvəlki kimi saxlanılır (gələcəkdə genişlənmiş sıfırlama olsa belə).
+ */
+export function runWithVipFlagsPreserved(run: () => void): void {
+  let primary = false;
+  let alt = false;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      primary = localStorage.getItem(VIP_LOCALSTORAGE_KEY) === 'true';
+      alt = localStorage.getItem(VIP_ALT_LOCALSTORAGE_KEY) === 'true';
+    }
+  } catch {
+    /* ignore */
+  }
+  run();
+  try {
+    if (typeof localStorage === 'undefined') return;
+    if (primary) localStorage.setItem(VIP_LOCALSTORAGE_KEY, 'true');
+    if (alt) localStorage.setItem(VIP_ALT_LOCALSTORAGE_KEY, 'true');
+  } catch {
+    /* ignore */
   }
 }
 
@@ -93,6 +118,11 @@ export const PIONEER_ALPHA_BONUS_COINS = 1000;
 /** Gündəlik öyrənmə (kviz) sikkə limiti — duel və s. daxil deyil. */
 export const LESSON_DAILY_COIN_CAP = 300;
 
+/** Seriya dondurucu: növbəti yerli gün üçün (500 Artik və ya VIP hədiyyə). */
+export const STREAK_FREEZE_COIN_COST = 500;
+/** VIP: təqvim ayı ərzində ödənişsiz dondurucu sayı. */
+export const STREAK_FREEZE_VIP_FREE_PER_MONTH = 3;
+
 /** Giriş seriyası: gün 1…7, sonra yenidən 1. */
 export const CHECKIN_DAY_COINS = [10, 20, 30, 40, 50, 60, 100] as const;
 
@@ -158,20 +188,24 @@ export type PlayerStore = {
   learningAllBlocksUnlocked: Partial<Record<GoetheLevel, boolean>>;
   /** Missiya tamamlama mükafatı (50 Artik) artıq verilib — açar: `A1:0`, `B1:12` */
   learningMissionArtikClaimed: Record<string, boolean>;
-  /** Goethe səviyyəsi IAP (demo: 2 AZN təsdiqi). */
+  /** Goethe səviyyəsi IAP (UI göstəriciləri). */
   iapLevelUnlocks: Partial<Record<GoetheLevel, boolean>>;
   /** B1/B2/C1 bir dəfə Artik ödəməklə açılıb. */
   levelGateCoinUnlocks: Partial<Record<GoetheLevel, boolean>>;
-  /** Günlük reklam mükafatı (öyrənmə limitindən kənar sikkə). */
-  rewardAdBonusLastYmd: string;
   /**
    * Xüsusi dueldə 5 qələbə seriyası: profildə müvəqqəti «Duel Ustası» nişanı (Unix ms bitmə).
    * 0 — aktiv deyil.
    */
   duelStreakTempBadgeUntilMs: number;
+  /** Odlu seriyası üçün dondurucu sifarişi / aktivliyi (`streakFreezeProtectedYmd` boşdursa false). */
+  isStreakFrozen: boolean;
+  /** YYYY-MM-DD — bu gün üçün seriya hesabında «norma tutulub» kimi sayılır (bir gün). */
+  streakFreezeProtectedYmd: string;
+  /** VIP hədiyyə sayğacı: hansı təqvim ayı (YYYY-MM). */
+  streakFreezeVipYm: string;
+  /** Həmin ayda ödənişsiz dondurucu istifadəsi (0…STREAK_FREEZE_VIP_FREE_PER_MONTH). */
+  streakFreezeVipUsesInMonth: number;
   grantIapLevelUnlock: (level: GoetheLevel) => void;
-  /** Gündə bir dəfə +50 🪙; null — bu gün artıq alınıb. */
-  claimRewardAdBonus: () => number | null;
   setPlayer: (name: string, avatarId: string) => void;
   setAvatar: (id: string) => void;
   recordDuelFinish: (won: boolean, myScore: number) => void;
@@ -218,6 +252,13 @@ export type PlayerStore = {
   unlockLevelWithArtik: (level: GoetheLevel) => boolean;
   /** Seriya mükafatı: bitmə vaxtını uzadır (ən gec vaxt saxlanılır). */
   extendDuelStreakTempBadgeUntil: (untilMs: number) => void;
+  /**
+   * Sabah üçün seriya dondurucu: adi oyunçu 500 Artik; VIP — ayda 3 pulsuz, sonra 500 Artik.
+   * `already_scheduled` — aktiv sifariş var (cari və ya gələcək gün).
+   */
+  purchaseStreakFreezeForTomorrow: () => 'ok' | 'already_scheduled' | 'insufficient_coins';
+  /** Bitmiş dondurucu sifarişini təmizləyir (məs. yeni gün açılanda). */
+  sweepExpiredStreakFreeze: () => void;
 };
 
 export const useGameStore = create<PlayerStore>()(
@@ -247,8 +288,11 @@ export const useGameStore = create<PlayerStore>()(
       learningMissionArtikClaimed: {},
       iapLevelUnlocks: {},
       levelGateCoinUnlocks: {},
-      rewardAdBonusLastYmd: '',
       duelStreakTempBadgeUntilMs: 0,
+      isStreakFrozen: false,
+      streakFreezeProtectedYmd: '',
+      streakFreezeVipYm: '',
+      streakFreezeVipUsesInMonth: 0,
       extendDuelStreakTempBadgeUntil: (untilMs) =>
         set((s) => {
           const u = Math.max(0, Math.floor(untilMs));
@@ -261,14 +305,6 @@ export const useGameStore = create<PlayerStore>()(
         set((s) => ({
           iapLevelUnlocks: { ...s.iapLevelUnlocks, [level]: true },
         })),
-      claimRewardAdBonus: () => {
-        const today = formatLocalDate(new Date());
-        const s = get();
-        if (s.rewardAdBonusLastYmd === today) return null;
-        const bonus = 50;
-        set({ rewardAdBonusLastYmd: today, coins: s.coins + bonus });
-        return bonus;
-      },
       setPlayer: (name, avatarId) => {
         const trimmed = name.trim().slice(0, 32);
         const allowed =
@@ -336,8 +372,12 @@ export const useGameStore = create<PlayerStore>()(
       },
       earnCoins: (amount) => set((s) => ({ coins: s.coins + Math.max(0, Math.floor(amount)) })),
       earnCoinsFromLesson: (amount) => {
-        const today = formatLocalDate(new Date());
         const raw = Math.max(0, Math.floor(amount));
+        if (isArtikelVipFromLocalStorage()) {
+          if (raw > 0) set((s) => ({ coins: s.coins + raw }));
+          return { granted: raw, capped: false, capRemaining: LESSON_DAILY_COIN_CAP };
+        }
+        const today = formatLocalDate(new Date());
         let cur = get();
         if (cur.lessonCoinsYmd !== today) {
           set({ lessonCoinsYmd: today, lessonCoinsEarnedToday: 0 });
@@ -472,6 +512,57 @@ export const useGameStore = create<PlayerStore>()(
         });
         return true;
       },
+      sweepExpiredStreakFreeze: () => {
+        const today = formatLocalDate(new Date());
+        const cur = get();
+        if (
+          cur.isStreakFrozen &&
+          cur.streakFreezeProtectedYmd &&
+          today > cur.streakFreezeProtectedYmd
+        ) {
+          set({ isStreakFrozen: false, streakFreezeProtectedYmd: '' });
+        }
+      },
+      purchaseStreakFreezeForTomorrow: () => {
+        get().sweepExpiredStreakFreeze();
+        const today = formatLocalDate(new Date());
+        const s = get();
+        if (
+          s.isStreakFrozen &&
+          s.streakFreezeProtectedYmd &&
+          s.streakFreezeProtectedYmd >= today
+        ) {
+          return 'already_scheduled';
+        }
+        const tomorrowYmd = nextLocalDateKey(today);
+        const ym = today.slice(0, 7);
+        let vipUses = s.streakFreezeVipUsesInMonth;
+        let vipYm = s.streakFreezeVipYm;
+        if (vipYm !== ym) {
+          vipYm = ym;
+          vipUses = 0;
+        }
+        const vip = isArtikelVipFromLocalStorage();
+        const freeVipSlot = vip && vipUses < STREAK_FREEZE_VIP_FREE_PER_MONTH;
+        if (freeVipSlot) {
+          set({
+            isStreakFrozen: true,
+            streakFreezeProtectedYmd: tomorrowYmd,
+            streakFreezeVipYm: ym,
+            streakFreezeVipUsesInMonth: vipUses + 1,
+          });
+          return 'ok';
+        }
+        if (s.coins < STREAK_FREEZE_COIN_COST) return 'insufficient_coins';
+        set({
+          isStreakFrozen: true,
+          streakFreezeProtectedYmd: tomorrowYmd,
+          streakFreezeVipYm: vipYm,
+          streakFreezeVipUsesInMonth: vipUses,
+          coins: s.coins - STREAK_FREEZE_COIN_COST,
+        });
+        return 'ok';
+      },
     }),
     {
       name: STORAGE_KEY,
@@ -500,12 +591,17 @@ export const useGameStore = create<PlayerStore>()(
         learningMissionArtikClaimed: s.learningMissionArtikClaimed,
         iapLevelUnlocks: s.iapLevelUnlocks,
         levelGateCoinUnlocks: s.levelGateCoinUnlocks,
-        rewardAdBonusLastYmd: s.rewardAdBonusLastYmd,
         duelStreakTempBadgeUntilMs: s.duelStreakTempBadgeUntilMs,
+        isStreakFrozen: s.isStreakFrozen,
+        streakFreezeProtectedYmd: s.streakFreezeProtectedYmd,
+        streakFreezeVipYm: s.streakFreezeVipYm,
+        streakFreezeVipUsesInMonth: s.streakFreezeVipUsesInMonth,
       }),
       merge: (persisted, current) => {
         const p = persisted as Partial<PlayerStore> | undefined;
         if (!p || typeof p !== 'object') return current;
+        const pSpread = { ...p } as Record<string, unknown>;
+        delete pSpread.rewardAdBonusLastYmd;
         const today = formatLocalDate(new Date());
         let lessonCoinsYmd =
           typeof p.lessonCoinsYmd === 'string' ? p.lessonCoinsYmd : '';
@@ -519,7 +615,7 @@ export const useGameStore = create<PlayerStore>()(
         }
         return {
           ...current,
-          ...p,
+          ...pSpread,
           achievementIds: Array.isArray(p.achievementIds) ? p.achievementIds : [],
           checkInLastYmd: typeof p.checkInLastYmd === 'string' ? p.checkInLastYmd : '',
           checkInCyclePosition:
@@ -550,17 +646,40 @@ export const useGameStore = create<PlayerStore>()(
           iapLevelUnlocks:
             p.iapLevelUnlocks && typeof p.iapLevelUnlocks === 'object' ? p.iapLevelUnlocks : {},
           levelGateCoinUnlocks: sanitizeLevelGateCoinUnlocks(p.levelGateCoinUnlocks),
-          rewardAdBonusLastYmd:
-            typeof p.rewardAdBonusLastYmd === 'string' ? p.rewardAdBonusLastYmd : '',
           duelStreakTempBadgeUntilMs:
             typeof p.duelStreakTempBadgeUntilMs === 'number' && p.duelStreakTempBadgeUntilMs > 0
               ? p.duelStreakTempBadgeUntilMs
               : 0,
+          isStreakFrozen: Boolean(p.isStreakFrozen),
+          streakFreezeProtectedYmd:
+            typeof p.streakFreezeProtectedYmd === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.streakFreezeProtectedYmd)
+              ? p.streakFreezeProtectedYmd
+              : '',
+          streakFreezeVipYm:
+            typeof p.streakFreezeVipYm === 'string' && /^\d{4}-\d{2}$/.test(p.streakFreezeVipYm)
+              ? p.streakFreezeVipYm
+              : '',
+          streakFreezeVipUsesInMonth:
+            typeof p.streakFreezeVipUsesInMonth === 'number' &&
+            p.streakFreezeVipUsesInMonth >= 0 &&
+            p.streakFreezeVipUsesInMonth <= STREAK_FREEZE_VIP_FREE_PER_MONTH
+              ? Math.floor(p.streakFreezeVipUsesInMonth)
+              : 0,
         };
+      },
+      onRehydrateStorage: () => () => {
+        queueMicrotask(() => {
+          useGameStore.getState().sweepExpiredStreakFreeze();
+        });
       },
     },
   ),
 );
+
+/** Bitmiş seriya dondurucu tarixini təmizləyir (gün dəyişəndə). */
+export function syncStreakFreezeExpiry(): void {
+  useGameStore.getState().sweepExpiredStreakFreeze();
+}
 
 /**
  * Gündəlik öyrənmə Artik sayğacını cari təqvim gününə uyğunlaşdırır (tətbiq açıq qalanda gecə yarısı,
@@ -571,6 +690,15 @@ export function syncLessonDailyCoinsToToday(): void {
   const s = useGameStore.getState();
   if (s.lessonCoinsYmd === today) return;
   useGameStore.setState({ lessonCoinsYmd: today, lessonCoinsEarnedToday: 0 });
+}
+
+/** VIP üçün həmişə false. Gündəlik öyrənmə Artik limiti (LESSON_DAILY_COIN_CAP) dolubsa true. */
+export function isLessonDailyArtikCapReached(): boolean {
+  if (isArtikelVipFromLocalStorage()) return false;
+  const today = formatLocalDate(new Date());
+  const s = useGameStore.getState();
+  const earned = s.lessonCoinsYmd === today ? s.lessonCoinsEarnedToday : 0;
+  return earned >= LESSON_DAILY_COIN_CAP;
 }
 
 /** Migrate legacy localStorage keys into this store. */

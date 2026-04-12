@@ -7,19 +7,23 @@ import {
   limitToLast,
   type DataSnapshot,
 } from 'firebase/database';
-import { isFirebaseLive, rtdb } from './firebase';
+import { isFirebaseLive, isRealtimeDatabaseUrlConfigured, rtdb } from './firebase';
 
 export interface LeaderboardEntry {
   uid: string;
   displayName: string;
   avatar: string;
   totalXp: number;
+  /** «Bilirəm» sözləri sayı — RTDB `profile.learnedWords` / `leaderboard.learnedWords`. */
+  learnedWords: number;
 }
 
 type ProfileSnap = {
   xp?: unknown;
   /** Некоторые бэкенды кладут суммарный XP под другим ключом — подстраховка для маппинга. */
   totalXp?: unknown;
+  learnedWords?: unknown;
+  wordsLearned?: unknown;
   name?: unknown;
   displayName?: unknown;
   avatar?: unknown;
@@ -61,6 +65,13 @@ function pickXpRaw(p: ProfileSnap | null | undefined): unknown {
   return undefined;
 }
 
+function pickLearnedRaw(p: ProfileSnap | null | undefined): unknown {
+  if (!p) return undefined;
+  if (p.learnedWords !== undefined && p.learnedWords !== null) return p.learnedWords;
+  if (p.wordsLearned !== undefined && p.wordsLearned !== null) return p.wordsLearned;
+  return undefined;
+}
+
 /**
  * XP для узла `users/{uid}`: сначала `profile`, затем корень (другие клиенты / импорты).
  */
@@ -73,6 +84,21 @@ function pickXpFromUserNode(val: unknown): unknown {
     if (fromProf !== undefined && fromProf !== null) return fromProf;
   }
   for (const k of ['xp', 'totalXp', 'experience', 'points', 'score'] as const) {
+    const v = o[k];
+    if (v !== undefined && v !== null) return v;
+  }
+  return undefined;
+}
+
+function pickLearnedFromUserNode(val: unknown): unknown {
+  if (!val || typeof val !== 'object') return undefined;
+  const o = val as Record<string, unknown>;
+  const prof = o.profile;
+  if (prof && typeof prof === 'object') {
+    const fromProf = pickLearnedRaw(prof as ProfileSnap);
+    if (fromProf !== undefined && fromProf !== null) return fromProf;
+  }
+  for (const k of ['learnedWords', 'wordsLearned', 'wordsMastered'] as const) {
     const v = o[k];
     if (v !== undefined && v !== null) return v;
   }
@@ -145,16 +171,24 @@ function mergeLeaderboardSources(
     const bestXp = Math.max(prev.totalXp, e.totalXp);
     const primary = e.totalXp > prev.totalXp ? e : prev;
     const secondary = e.totalXp > prev.totalXp ? prev : e;
+    const bestWords = Math.max(prev.learnedWords ?? 0, e.learnedWords ?? 0);
     map.set(e.uid, {
       uid: e.uid,
       totalXp: bestXp,
+      learnedWords: bestWords,
       displayName: preferDisplayName(primary.displayName, secondary.displayName),
       avatar: preferAvatar(primary.avatar, secondary.avatar),
     });
   };
   for (const e of fromUsers) upsert(e);
   for (const e of fromFlat) upsert(e);
-  return [...map.values()].sort((x, y) => y.totalXp - x.totalXp).slice(0, top);
+  return [...map.values()]
+    .sort((x, y) => {
+      const d = y.totalXp - x.totalXp;
+      if (d !== 0) return d;
+      return y.learnedWords - x.learnedWords;
+    })
+    .slice(0, top);
 }
 
 function parseUsersLeaderboardSnapshot(snap: DataSnapshot): LeaderboardEntry[] {
@@ -168,14 +202,20 @@ function parseUsersLeaderboardSnapshot(snap: DataSnapshot): LeaderboardEntry[] {
         ? ((val as { profile: ProfileSnap }).profile as ProfileSnap)
         : undefined;
     const xp = coerceNonNegativeXp(pickXpFromUserNode(val));
+    const learned = coerceNonNegativeXp(pickLearnedFromUserNode(val));
     entries.push({
       uid,
       displayName: userNodeDisplayName(val, p),
       avatar: userNodeAvatar(val, p),
       totalXp: xp,
+      learnedWords: learned,
     });
   });
-  entries.sort((a, b) => b.totalXp - a.totalXp);
+  entries.sort((a, b) => {
+    const d = b.totalXp - a.totalXp;
+    if (d !== 0) return d;
+    return b.learnedWords - a.learnedWords;
+  });
   return entries;
 }
 
@@ -187,48 +227,62 @@ function parseFlatLeaderboardSnapshot(snap: DataSnapshot): LeaderboardEntry[] {
     if (!uid) return;
     const val = child.val();
     const xp = coerceNonNegativeXp(pickXpFromUserNode(val));
+    const learned = coerceNonNegativeXp(pickLearnedFromUserNode(val));
     const p = val && typeof val === 'object' ? (val as ProfileSnap) : undefined;
     entries.push({
       uid,
       displayName: userNodeDisplayName(val, p),
       avatar: userNodeAvatar(val, p),
       totalXp: xp,
+      learnedWords: learned,
     });
   });
-  entries.sort((a, b) => b.totalXp - a.totalXp);
+  entries.sort((a, b) => {
+    const d = b.totalXp - a.totalXp;
+    if (d !== 0) return d;
+    return b.learnedWords - a.learnedWords;
+  });
   return entries;
 }
 
 /**
- * Syncs XP + public leaderboard fields to `users/{uid}/profile`:
- * `xp`, `name`, `avatar` (RTDB query: orderByChild('profile/xp')).
- * Дублирует в `leaderboard/{uid}` (totalXp) — там отдельный индекс в правилах; тестеры могут попадать в любой узел.
+ * Syncs XP, learned-word count, name, avatar to:
+ * - `users/{uid}/profile` — `xp`, `learnedWords`, … (query: orderByChild('profile/xp'))
+ * - `leaderboard/{uid}` — `totalXp`, `learnedWords`, …
+ *
+ * `learnedWordCount` — eyni mənbə ki, Dashboard-da «öyrənilib» sayı: `knownWordIds.length`.
  */
 export async function syncLeaderboardXp(
   userId: string,
   totalXp: number,
   displayName: string,
   avatar: string,
+  learnedWordCount = 0,
 ): Promise<void> {
-  if (!userId.trim() || !rtdb || !isFirebaseLive) return;
+  if (!userId.trim() || !rtdb || !isFirebaseLive || !isRealtimeDatabaseUrlConfigured()) return;
   const trimmedName = displayName.trim().slice(0, 32) || 'Oyunçu';
   const xp = Math.max(0, Math.floor(totalXp));
+  const lw = Math.max(0, Math.floor(learnedWordCount));
   const av = avatar || 'pretzel';
   try {
     await Promise.all([
       update(ref(rtdb, `users/${userId}/profile`), {
         xp,
+        learnedWords: lw,
         name: trimmedName,
         avatar: av,
       }),
       update(ref(rtdb, `leaderboard/${userId}`), {
         totalXp: xp,
+        learnedWords: lw,
         name: trimmedName,
         avatar: av,
       }),
     ]);
-  } catch {
-    /* silent */
+  } catch (e) {
+    if (import.meta.env.DEV) {
+      console.warn('[leaderboard RTDB] syncLeaderboardXp failed', e);
+    }
   }
 }
 
@@ -239,7 +293,7 @@ export async function syncLeaderboardXp(
  * Узлы без валидного XP не отбрасываются — показываются с 0 XP.
  */
 export function subscribeLeaderboard(limit: number, cb: (entries: LeaderboardEntry[]) => void): () => void {
-  if (!rtdb || !isFirebaseLive) {
+  if (!rtdb || !isFirebaseLive || !isRealtimeDatabaseUrlConfigured()) {
     cb([]);
     return () => {};
   }

@@ -22,29 +22,41 @@ function dayMetGoal(map: Record<string, number>, day: string, goal: number): boo
 /**
  * Ardıcıl günlər: hər gün ən azı `goal` düzgün cavab.
  * Bu gün tamamlanmayıbsa, zəncir dündən sayılır (Duolingo kimi).
+ * `streakFreezeCoversToday` — bu gün üçün dondurucu aktivdirsə, seriya hesabında
+ * bu gün norma tutulmuş kimi sayılır (faktiki `correctToday` eyni qalır).
  */
 export function computeOdluSeriya(
   dailyCorrectCountByDate: Record<string, number>,
   todayKey: string,
   goal: number = ODLU_DAILY_GOAL,
+  streakFreezeCoversToday = false,
 ): OdluSeriyaState {
   const correctToday = correctOnDay(dailyCorrectCountByDate, todayKey);
   const metToday = correctToday >= goal;
 
+  const effectiveTodayForStreak =
+    streakFreezeCoversToday && correctToday < goal ? goal : correctToday;
+  const mapForStreak =
+    effectiveTodayForStreak === correctToday
+      ? dailyCorrectCountByDate
+      : { ...dailyCorrectCountByDate, [todayKey]: effectiveTodayForStreak };
+
+  const effectiveMetToday = effectiveTodayForStreak >= goal;
   let anchor = todayKey;
-  if (!metToday) {
+  if (!effectiveMetToday) {
     anchor = previousLocalDateKey(todayKey);
   }
 
   let streak = 0;
   let d = anchor;
   for (let guard = 0; guard < 4000; guard++) {
-    if (!dayMetGoal(dailyCorrectCountByDate, d, goal)) break;
+    if (!dayMetGoal(mapForStreak, d, goal)) break;
     streak += 1;
     d = previousLocalDateKey(d);
   }
 
-  const atRisk = !metToday && streak > 0;
+  const freezeRelievesRisk = streakFreezeCoversToday && correctToday < goal;
+  const atRisk = !metToday && streak > 0 && !freezeRelievesRisk;
 
   return {
     streak,

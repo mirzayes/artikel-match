@@ -8,13 +8,14 @@ import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BottomNav, type Tab } from './components/BottomNav';
 import { AmbientOrbs } from './components/layout/AmbientOrbs';
-import { Dashboard } from './components/Dashboard';
+import { HomeView } from './components/HomeView';
 import { ArticleMatchQuiz } from './components/ArticleMatchQuiz';
 import { LearningTopicHub } from './components/learning/LearningTopicHub';
 import { getOrCreateDuelUserId } from './components/DuelGame';
 import { FriendsNotificationLayer } from './components/FriendsNotificationLayer';
 import { VocabularyChecker } from './components/VocabularyChecker';
 import { CoinShopSheet } from './components/CoinShopSheet';
+import { VipSubscriptionModal } from './components/VipSubscriptionModal';
 import { MilestoneOverlay } from './components/MilestoneOverlay';
 import { PioneerBonusOverlay } from './components/PioneerBonusOverlay';
 import { WelcomeStarterOverlay } from './components/WelcomeStarterOverlay';
@@ -46,11 +47,15 @@ import { useGameStoreRehydrated } from './hooks/useGameStoreRehydrated';
 import { useSupabaseScoresRealtime } from './hooks/useSupabaseScoresRealtime';
 import {
   isArtikelVipFromLocalStorage,
+  isLessonDailyArtikCapReached,
   syncLessonDailyCoinsToToday,
+  syncStreakFreezeExpiry,
   useGameStore,
 } from './store/useGameStore';
 import { useVocabulary } from './context/VocabularyContext';
+import { countMasteredInLevel } from './lib/dashboardBuckets';
 import type { Article, GoetheLevel } from './types';
+import { GOETHE_LEVELS } from './types';
 import { highestUnlockedGoetheLevel, isLevelGateUnlocked, type LevelGateCheckArgs } from './lib/levelGate';
 import { DUEL_MIN_ARTIK_BALANCE } from './lib/duelEntry';
 import { LeaderboardLiveSync } from './lib/leaderboardLiveQuery';
@@ -104,20 +109,23 @@ export default function App() {
     displayName,
     setDisplayName,
     wrongCountByWordId,
-    hardWordIds,
     knownWordIds,
     masteryByWordId,
     srsByWordId,
     recordAnswer,
     byLevel,
-    resetProgress,
-    toggleKnownWord,
     ensureHardWord,
     removeHardWord,
-    odluDailyGoal,
-    setOdluDailyGoal,
   } = useQuizProgress();
   const { nounsByLevel } = useVocabulary();
+
+  const leaderboardLearnedWordsTotal = useMemo(() => {
+    return GOETHE_LEVELS.reduce((sum, lvl) => {
+      const nouns = nounsByLevel[lvl] ?? [];
+      if (nouns.length === 0) return sum;
+      return sum + countMasteredInLevel(nouns, knownWordIds, masteryByWordId);
+    }, 0);
+  }, [nounsByLevel, knownWordIds, masteryByWordId]);
 
   const iapLevelUnlocks = useGameStore((s) => s.iapLevelUnlocks);
   const levelGateCoinUnlocks = useGameStore((s) => s.levelGateCoinUnlocks);
@@ -155,11 +163,15 @@ export default function App() {
   useEffect(() => {
     if (!gameStoreHydrated) return;
     syncLessonDailyCoinsToToday();
+    syncStreakFreezeExpiry();
   }, [gameStoreHydrated]);
 
   useEffect(() => {
     const onVis = () => {
-      if (document.visibilityState === 'visible') syncLessonDailyCoinsToToday();
+      if (document.visibilityState === 'visible') {
+        syncLessonDailyCoinsToToday();
+        syncStreakFreezeExpiry();
+      }
     };
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
@@ -176,6 +188,7 @@ export default function App() {
   }, [gameStoreHydrated, isRegistered, totalXpAllLevels]);
 
   const [coinShopOpen, setCoinShopOpen] = useState(false);
+  const [vipPaymentOpen, setVipPaymentOpen] = useState(false);
   const [checkInToast, setCheckInToast] = useState<{ coins: number; dayIndex: number } | null>(null);
   const [referralRewardToast, setReferralRewardToast] = useState<number | null>(null);
   const [welcomeStarterVisible, setWelcomeStarterVisible] = useState(false);
@@ -317,8 +330,25 @@ export default function App() {
   useEffect(() => {
     if (!isFirebaseLive || !deviceSessionReady) return;
     const name = (profilePlayerName || displayName).trim() || 'Oyunçu';
-    void syncLeaderboardXp(rtdbUserId, totalXpAllLevels, name, profileAvatar);
-  }, [totalXpAllLevels, displayName, profilePlayerName, profileAvatar, rtdbUserId, deviceSessionReady]);
+    void (async () => {
+      if (!(await ensureAnonymousFirebaseUser())) return;
+      await syncLeaderboardXp(
+        rtdbUserId,
+        totalXpAllLevels,
+        name,
+        profileAvatar,
+        leaderboardLearnedWordsTotal,
+      );
+    })();
+  }, [
+    totalXpAllLevels,
+    displayName,
+    profilePlayerName,
+    profileAvatar,
+    rtdbUserId,
+    deviceSessionReady,
+    leaderboardLearnedWordsTotal,
+  ]);
 
   /** Yalnız statistika/mastery yazılır; modal, sessiya, «10 söz» yoxdur (App-də də yoxdur). */
   const handleLearningRecord = useCallback(
@@ -333,15 +363,6 @@ export default function App() {
       recordAnswer(level, article, correct, wordId);
     },
     [recordAnswer],
-  );
-
-  const handleSaveDisplayName = useCallback(
-    (name: string) => {
-      const trimmed = name.trim();
-      setDisplayName(trimmed);
-      if (isFirebaseLive) void setPlayerProfileDisplayName(rtdbUserId, trimmed);
-    },
-    [rtdbUserId, setDisplayName],
   );
 
   const handleRegistrationComplete = useCallback(() => {
@@ -371,6 +392,10 @@ export default function App() {
   }, []);
 
   const handleTabChange = useCallback((next: Tab) => {
+    if (next === 'quiz' && isLessonDailyArtikCapReached()) {
+      setVipPaymentOpen(true);
+      return;
+    }
     if (
       next === 'duel' &&
       !isArtikelVipFromLocalStorage() &&
@@ -404,26 +429,12 @@ export default function App() {
   }, []);
 
   const startLearnFull = useCallback(() => {
+    if (isLessonDailyArtikCapReached()) {
+      setVipPaymentOpen(true);
+      return;
+    }
     setLearnSubView('topics');
     setLearnQuizConfig(null);
-    setTab('quiz');
-  }, []);
-
-  const startLearnHardFocus = useCallback((wordIds: string[]) => {
-    setLearnQuizConfig({
-      restrictIds: wordIds.length > 0 ? [...wordIds] : null,
-      poolScope: 'selected_level',
-      reviewOnly: false,
-    });
-    setLearnSubView('quiz');
-    setLearnMountKey((k) => k + 1);
-    setTab('quiz');
-  }, []);
-
-  const enterLearnFromProfile = useCallback(() => {
-    setLearnQuizConfig(null);
-    setLearnSubView('topics');
-    setLearnMountKey((k) => k + 1);
     setTab('quiz');
   }, []);
 
@@ -570,29 +581,19 @@ export default function App() {
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className="relative z-[1]"
           >
-            <Dashboard
-              stats={stats}
+            <HomeView
+              selectedLevel={selectedLevel}
               totalXpAllLevels={totalXpAllLevels}
-              odluSeriya={odluSeriya}
-              displayName={displayName}
-              onSaveDisplayName={handleSaveDisplayName}
-              hardWordIds={hardWordIds}
               knownWordIds={knownWordIds}
               masteryByWordId={masteryByWordId}
-              selectedLevel={selectedLevel}
-              onLevelChange={setSelectedLevel}
-              onStartQuiz={startLearnFull}
-              onStartLearnHardWords={startLearnHardFocus}
-              onStartExam={() => setTab('exam')}
-              onStartDuel={handleStartDuel}
-              onToggleKnown={toggleKnownWord}
-              onReset={() => {
-                if (window.confirm(t('app.reset_confirm'))) resetProgress();
-              }}
-              onProfileEnterGame={enterLearnFromProfile}
-              odluDailyGoal={odluDailyGoal}
-              onOdluDailyGoalChange={setOdluDailyGoal}
+              streakDays={odluSeriya.streak}
               dashboardUserId={rtdbUserId}
+              onContinueLearn={startLearnFull}
+              onOpenVipPayment={() => setVipPaymentOpen(true)}
+              onOpenDuel={handleStartDuel}
+              onOpenExam={() => setTab('exam')}
+              onOpenCoinShop={() => setCoinShopOpen(true)}
+              onOpenLeaders={() => setTab('leaders')}
             />
           </motion.div>
         ) : tab === 'quiz' ? (
@@ -621,7 +622,12 @@ export default function App() {
                     totalXpAllLevels={totalXpAllLevels}
                     onNavigateDuel={handleStartDuel}
                     srsByWordId={srsByWordId}
+                    onOpenVipPayment={() => setVipPaymentOpen(true)}
                     onStartBlock={(wordIds, opts) => {
+                      if (isLessonDailyArtikCapReached()) {
+                        setVipPaymentOpen(true);
+                        return;
+                      }
                       setLearnQuizConfig({
                         restrictIds: [...wordIds],
                         poolScope: 'selected_level',
@@ -633,6 +639,10 @@ export default function App() {
                       setLearnMountKey((k) => k + 1);
                     }}
                     onStartRepeat={() => {
+                      if (isLessonDailyArtikCapReached()) {
+                        setVipPaymentOpen(true);
+                        return;
+                      }
                       setLearnQuizConfig({
                         restrictIds: null,
                         poolScope: 'selected_level',
@@ -771,6 +781,9 @@ export default function App() {
       ) : null}
       {isRegistered ? (
         <CoinShopSheet open={coinShopOpen} onClose={() => setCoinShopOpen(false)} />
+      ) : null}
+      {isRegistered ? (
+        <VipSubscriptionModal open={vipPaymentOpen} onClose={() => setVipPaymentOpen(false)} />
       ) : null}
     </div>
   );

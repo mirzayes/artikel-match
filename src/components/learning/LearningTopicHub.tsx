@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { startTransition, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { GOETHE_LEVELS, type GoetheLevel, type NounEntry, type WordSrsEntry } from '../../types';
 import { countDueWordsForLevel, filterLearningQuizPool } from '../../lib/wordLists';
@@ -21,11 +21,11 @@ import {
   isLevelGateUnlocked,
   type LevelGateCheckArgs,
 } from '../../lib/levelGate';
-import { VipSubscriptionModal } from '../VipSubscriptionModal';
 import { LevelUnlockModal } from '../LevelUnlockModal';
 import { LevelMasteryProgressBar } from '../LevelMasteryProgressBar';
 import {
   isArtikelVipFromLocalStorage,
+  isLessonDailyArtikCapReached,
   LESSON_DAILY_COIN_CAP,
   useGameStore,
 } from '../../store/useGameStore';
@@ -124,6 +124,7 @@ interface LearningTopicHubProps {
   onStartRepeat: () => void;
   totalXpAllLevels: number;
   onNavigateDuel?: () => void;
+  onOpenVipPayment: () => void;
 }
 
 export function LearningTopicHub({
@@ -136,12 +137,12 @@ export function LearningTopicHub({
   srsByWordId,
   onStartRepeat,
   totalXpAllLevels,
-  onNavigateDuel,
+  onNavigateDuel: _onNavigateDuel,
+  onOpenVipPayment,
 }: LearningTopicHubProps) {
   const { t } = useTranslation();
   const iapLevelUnlocks = useGameStore((s) => s.iapLevelUnlocks);
   const levelGateCoinUnlocks = useGameStore((s) => s.levelGateCoinUnlocks);
-  const claimRewardAdBonus = useGameStore((s) => s.claimRewardAdBonus);
   const lessonCoinsYmdStore = useGameStore((s) => s.lessonCoinsYmd);
   const lessonCoinsEarnedStore = useGameStore((s) => s.lessonCoinsEarnedToday);
   const learningAllBlocksUnlocked = useGameStore((s) => s.learningAllBlocksUnlocked);
@@ -150,8 +151,6 @@ export function LearningTopicHub({
   const unlockLearningBlocksForLevel = useGameStore((s) => s.unlockLearningBlocksForLevel);
   const coins = useGameStore((s) => s.coins);
   const [levelLockTarget, setLevelLockTarget] = useState<GoetheLevel | null>(null);
-  const [vipModalOpen, setVipModalOpen] = useState(false);
-  const [adToast, setAdToast] = useState<string | null>(null);
   const [unlockToast, setUnlockToast] = useState<string | null>(null);
   const [missionToast, setMissionToast] = useState<string | null>(null);
   /** Başla → rejim seçimi; null = bağlı */
@@ -190,12 +189,13 @@ export function LearningTopicHub({
     const today = formatLocalDate(new Date());
     return lessonCoinsYmdStore === today ? lessonCoinsEarnedStore : 0;
   }, [lessonCoinsYmdStore, lessonCoinsEarnedStore]);
-  const lessonCapFull = lessonEarnedToday >= LESSON_DAILY_COIN_CAP;
+  const isVipUser = isArtikelVipFromLocalStorage();
+  const lessonDailyBlocked = !isVipUser && lessonEarnedToday >= LESSON_DAILY_COIN_CAP;
 
   const handleLevelPick = useCallback(
     (lvl: GoetheLevel) => {
       if (!isArtikelVipFromLocalStorage() && lvl !== 'A1') {
-        startTransition(() => setVipModalOpen(true));
+        startTransition(() => onOpenVipPayment());
         return;
       }
       if (!isLevelGateUnlocked(lvl, levelGateArgs)) {
@@ -204,20 +204,8 @@ export function LearningTopicHub({
       }
       onLevelChange(lvl);
     },
-    [levelGateArgs, onLevelChange],
+    [levelGateArgs, onLevelChange, onOpenVipPayment],
   );
-
-  const handleWatchAd = useCallback(() => {
-    const n = claimRewardAdBonus();
-    if (n == null) setAdToast(t('dashboard.lesson_limit_ad_used'));
-    else setAdToast(t('common.plus_amount_artik', { amount: n }));
-  }, [claimRewardAdBonus, t]);
-
-  useEffect(() => {
-    if (!adToast) return;
-    const id = window.setTimeout(() => setAdToast(null), 2600);
-    return () => clearTimeout(id);
-  }, [adToast]);
 
   useEffect(() => {
     if (!unlockToast) return;
@@ -253,17 +241,6 @@ export function LearningTopicHub({
 
   const paidUnlockForLevel =
     learningAllBlocksUnlocked[selectedLevel] === true || isArtikelVipFromLocalStorage();
-
-  const prevMission2GateRef = useRef<Partial<Record<GoetheLevel, boolean>>>({});
-  useEffect(() => {
-    if (missions.length < 2) return;
-    const open = isMissionGateOpen(1, missions, knownWordIds, masteryByWordId, false, selectedLevel);
-    const wasOpen = prevMission2GateRef.current[selectedLevel] ?? false;
-    if (open && !wasOpen) {
-      console.log('[missions] next mission UNLOCKED (mission 2 gate opened)', { selectedLevel });
-    }
-    prevMission2GateRef.current[selectedLevel] = open;
-  }, [missions, knownWordIds, masteryByWordId, selectedLevel, paidUnlockForLevel]);
 
   const duelDeviceKey = useMemo(() => getOrCreateDuelUserId(), []);
 
@@ -359,19 +336,28 @@ export function LearningTopicHub({
   const handleConfirmMissionMode = useCallback(
     (missionMode: 'classic' | 'infinite') => {
       if (!missionModePicker?.wordIds.length) return;
+      if (isLessonDailyArtikCapReached()) {
+        onOpenVipPayment();
+        setMissionModePicker(null);
+        return;
+      }
       onStartBlock(missionModePicker.wordIds, {
         missionMode,
         missionSlotIndex: missionModePicker.missionIndex,
       });
       setMissionModePicker(null);
     },
-    [missionModePicker, onStartBlock],
+    [missionModePicker, onStartBlock, onOpenVipPayment],
   );
 
   const handleStartRepeat = useCallback(() => {
     if (repeatDueCount === 0) return;
+    if (isLessonDailyArtikCapReached()) {
+      onOpenVipPayment();
+      return;
+    }
     onStartRepeat();
-  }, [onStartRepeat, repeatDueCount]);
+  }, [onStartRepeat, onOpenVipPayment, repeatDueCount]);
 
   return (
     <div className="learning-topic-hub flex min-h-[100dvh] flex-col bg-[var(--artikl-learn-hub-bg)] px-4 pb-[var(--app-bottom-pad,7rem)] pt-[max(12px,env(safe-area-inset-top))] sm:px-6 sm:pb-[var(--app-bottom-pad-sm,8rem)]">
@@ -423,7 +409,7 @@ export function LearningTopicHub({
           ) : (
             <button
               type="button"
-              onClick={() => startTransition(() => setVipModalOpen(true))}
+              onClick={() => startTransition(() => onOpenVipPayment())}
               className="flex shrink-0 flex-col items-center justify-center rounded-xl border-2 border-amber-400/60 bg-gradient-to-b from-amber-500/25 to-amber-700/20 px-2.5 py-1 text-[10px] font-extrabold uppercase leading-tight tracking-wide text-amber-100 shadow-[0_0_18px_rgba(245,158,11,0.25)] transition-transform active:scale-95"
               title="Gold VIP"
             >
@@ -441,37 +427,54 @@ export function LearningTopicHub({
                 🪙
               </span>
               <span>
-                {lessonEarnedToday} / {LESSON_DAILY_COIN_CAP}
+                {isVipUser ? <span className="text-emerald-300/95">∞</span> : `${lessonEarnedToday} / ${LESSON_DAILY_COIN_CAP}`}
               </span>
             </span>
           </div>
           <div
             className="learning-hub-lesson-meter-track mt-2 h-2 w-full overflow-hidden rounded-full bg-[var(--artikl-prog-track-bg)]"
             role="progressbar"
-            aria-valuenow={lessonEarnedToday}
+            aria-valuenow={isVipUser ? 1 : lessonEarnedToday}
             aria-valuemin={0}
-            aria-valuemax={LESSON_DAILY_COIN_CAP}
+            aria-valuemax={isVipUser ? 1 : LESSON_DAILY_COIN_CAP}
             aria-label={t('dashboard.lesson_coin_meter_label')}
           >
             <motion.div
               className={
-                lessonCapFull
-                  ? 'learning-hub-lesson-meter-fill h-full rounded-full bg-gradient-to-r from-rose-500 to-orange-500'
-                  : 'learning-hub-lesson-meter-fill h-full rounded-full bg-gradient-to-r from-violet-500 via-purple-400 to-cyan-400'
+                isVipUser
+                  ? 'learning-hub-lesson-meter-fill h-full rounded-full bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600'
+                  : lessonDailyBlocked
+                    ? 'learning-hub-lesson-meter-fill h-full rounded-full bg-gradient-to-r from-rose-500 to-orange-500'
+                    : 'learning-hub-lesson-meter-fill h-full rounded-full bg-gradient-to-r from-violet-500 via-purple-400 to-cyan-400'
               }
               initial={{ width: 0 }}
               animate={{
-                width: `${LESSON_DAILY_COIN_CAP > 0 ? Math.min(100, (lessonEarnedToday / LESSON_DAILY_COIN_CAP) * 100) : 0}%`,
+                width: `${
+                  isVipUser
+                    ? 100
+                    : LESSON_DAILY_COIN_CAP > 0
+                      ? Math.min(100, (lessonEarnedToday / LESSON_DAILY_COIN_CAP) * 100)
+                      : 0
+                }%`,
               }}
               transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             />
           </div>
         </div>
 
-        {lessonCapFull ? (
-          <p className="learning-hub-lesson-cap-banner mt-2 rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-3 py-2.5 text-center text-[11px] font-medium leading-relaxed text-[#1A1A2E] dark:text-cyan-100/90">
-            {t('learning_topics.artik_limit_learning_continue')}
-          </p>
+        {lessonDailyBlocked ? (
+          <div className="learning-hub-lesson-cap-banner mt-3 rounded-[14px] border-2 border-amber-400/35 bg-gradient-to-br from-amber-500/10 via-[var(--artikl-surface)] to-violet-950/15 px-4 py-4 text-center shadow-[0_8px_28px_rgba(245,158,11,0.1)]">
+            <p className="text-[13px] font-semibold leading-snug text-artikl-heading">
+              {t('dashboard.lesson_daily_hard_stop')}
+            </p>
+            <button
+              type="button"
+              onClick={() => onOpenVipPayment()}
+              className="mt-3 w-full rounded-xl border-2 border-amber-400/60 bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 py-3 text-[14px] font-black uppercase tracking-wide text-stone-900 shadow-[0_8px_28px_rgba(245,158,11,0.3)] transition hover:brightness-105 active:scale-[0.99]"
+            >
+              {t('dashboard.lesson_limit_vip_cta')}
+            </button>
+          </div>
         ) : null}
 
         <p className="learning-hub-meta mt-3 text-center text-[11px] font-medium tabular-nums text-artikl-muted2">
@@ -517,7 +520,7 @@ export function LearningTopicHub({
             whileHover={repeatDueCount > 0 ? { scale: 1.01 } : undefined}
             whileTap={repeatDueCount > 0 ? { scale: 0.985 } : undefined}
             transition={{ type: 'spring', stiffness: 420, damping: 22 }}
-            disabled={repeatDueCount === 0}
+            disabled={repeatDueCount === 0 || lessonDailyBlocked}
             onClick={handleStartRepeat}
             className="learning-hub-repeat-cta mt-3 w-full rounded-xl border-2 border-purple-600 bg-white py-3 text-[13px] font-bold text-purple-600 shadow-[0_6px_24px_rgba(124,58,237,0.12)] transition-opacity disabled:cursor-not-allowed disabled:border-purple-200 disabled:text-[#9CA3AF] dark:border-cyan-400/40 dark:bg-gradient-to-r dark:from-cyan-600/35 dark:to-teal-600/30 dark:text-cyan-50 dark:shadow-[0_6px_24px_rgba(34,211,238,0.12)] dark:disabled:opacity-35"
           >
@@ -581,7 +584,7 @@ export function LearningTopicHub({
               const rewardKey = `${selectedLevel}:${missionIndex}`;
               const rewardClaimed = learningMissionArtikClaimed[rewardKey] === true;
               const wordIds = missionNouns.map((n) => n.id);
-              const canStart = gateOpen && eligibleCount > 0;
+              const canStart = gateOpen && eligibleCount > 0 && !lessonDailyBlocked;
 
               const missionCardMod = missionDone
                 ? 'learning-mission-card--done'
@@ -718,39 +721,13 @@ export function LearningTopicHub({
             {nearPaidUnlock ? (
               <button
                 type="button"
-                onClick={handleWatchAd}
-                className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-purple-600 bg-purple-600 py-3.5 text-[13px] font-extrabold text-white shadow-[0_6px_24px_rgba(124,58,237,0.25)] transition-transform animate-pulse active:scale-[0.98] dark:border-[#EA580C]/60 dark:bg-gradient-to-r dark:from-orange-600/32 dark:via-[#EA580C]/28 dark:to-orange-700/22 dark:shadow-[0_0_28px_rgba(234,88,12,0.32),0_8px_28px_rgba(234,88,12,0.2)] dark:ring-2 dark:ring-orange-500/45"
+                onClick={() => onOpenVipPayment()}
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-amber-400/60 bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 py-3.5 text-[13px] font-extrabold text-stone-900 shadow-[0_6px_24px_rgba(245,158,11,0.3)] transition-transform active:scale-[0.98]"
               >
-                <span aria-hidden>📺</span>
-                {t('dashboard.lesson_limit_ad_cta')}
+                <span aria-hidden>👑</span>
+                {t('dashboard.lesson_limit_vip_cta')}
               </button>
             ) : null}
-          </div>
-        ) : null}
-
-        {lessonCapFull ? (
-          <div className="mx-auto mt-5 flex w-full max-w-[380px] flex-wrap justify-center gap-2">
-            {onNavigateDuel ? (
-              <button
-                type="button"
-                onClick={onNavigateDuel}
-                className="rounded-xl border-2 border-purple-600 bg-white px-4 py-2.5 text-[12px] font-bold text-purple-600 dark:border-violet-400/40 dark:bg-violet-500/15 dark:text-violet-100"
-              >
-                {t('dashboard.lesson_limit_duel_cta')}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={handleWatchAd}
-              className={[
-                'rounded-xl px-4 py-2.5 text-[12px] font-semibold transition-transform active:scale-[0.98]',
-                nearPaidUnlock
-                  ? 'border-2 border-purple-600 bg-purple-600 text-white shadow-[0_0_24px_rgba(124,58,237,0.28)] ring-2 ring-purple-500/40 animate-pulse dark:border-[#EA580C]/65 dark:bg-gradient-to-r dark:from-orange-600/28 dark:to-[#EA580C]/22 dark:text-orange-50 dark:shadow-[0_0_24px_rgba(234,88,12,0.28)] dark:ring-orange-500/42'
-                  : 'border-2 border-purple-600 bg-white text-purple-600 dark:border-[var(--artikl-border2)] dark:bg-[var(--artikl-surface2)] dark:text-artikl-text/80',
-              ].join(' ')}
-            >
-              {t('dashboard.lesson_limit_ad_cta')}
-            </button>
           </div>
         ) : null}
 
@@ -811,8 +788,6 @@ export function LearningTopicHub({
           </div>
         ) : null}
 
-        <VipSubscriptionModal open={vipModalOpen} onClose={() => setVipModalOpen(false)} />
-
         <LevelUnlockModal
           open={levelLockTarget !== null}
           level={levelLockTarget}
@@ -821,15 +796,6 @@ export function LearningTopicHub({
           knownWordIds={knownWordIds}
           masteryByWordId={masteryByWordId}
         />
-
-        {adToast ? (
-          <div
-            className="fixed bottom-[max(6rem,env(safe-area-inset-bottom)+5rem)] left-1/2 z-[92] w-[min(90vw,320px)] -translate-x-1/2 rounded-xl border border-[var(--artikl-border2)] bg-[var(--artikl-surface)] px-3 py-2 text-center text-[12px] text-artikl-text shadow-lg"
-            role="status"
-          >
-            {adToast}
-          </div>
-        ) : null}
 
         {unlockToast ? (
           <div

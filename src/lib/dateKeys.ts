@@ -20,3 +20,9 @@ export function previousLocalDateKey(key: string): string {
   dt.setDate(dt.getDate() - 1);
   return formatLocalDate(dt);
 }
+
+export function nextLocalDateKey(key: string): string {
+  const dt = parseLocalDateKey(key);
+  dt.setDate(dt.getDate() + 1);
+  return formatLocalDate(dt);
+}

@@ -46,29 +46,35 @@ function randomMsInRange(minMs: number, maxMs: number): number {
   return minMs + Math.random() * (maxMs - minMs);
 }
 
-/** Simulated opponent: reaction delay per duel tier (unpredictable each turn). */
+/**
+ * Simulated opponent: “düşünmə” müddəti (hər cavabda təsadüfi, iqtisadiyyat üçün tier üzrə).
+ * Sadə: 3–5 s · Ciddi: 2–4 s · Ekspert: 1.5–2.5 s (minimal, amma ani deyil).
+ */
 function simBotDelayRangeMs(tier: DuelTier | null): { minMs: number; maxMs: number } {
   switch (tier?.id) {
     case 'sade':
-      return { minMs: 3500, maxMs: 5000 };
+      return { minMs: 3000, maxMs: 5000 };
     case 'ekspert':
       return { minMs: 1500, maxMs: 2500 };
     case 'ciddi':
     default:
-      return { minMs: 2500, maxMs: 3500 };
+      return { minMs: 2000, maxMs: 4000 };
   }
 }
 
-/** Probability the bot answers wrong (no score bump). Sadə 30%, Ciddi 20%, Ekspert 10%. */
+/**
+ * Bot səhv cavab ehtimalı (xal artmır). Düzgünlük ≈ 1 − bu dəyər:
+ * Sadə ~60% · Ciddi ~75% · Ekspert ~95% (400 Artik üçün güclü rəqib).
+ */
 function simBotWrongChance(tier: DuelTier | null): number {
   switch (tier?.id) {
     case 'sade':
-      return 0.3;
+      return 0.4;
     case 'ekspert':
-      return 0.1;
+      return 0.05;
     case 'ciddi':
     default:
-      return 0.2;
+      return 0.25;
   }
 }
 
@@ -925,19 +931,14 @@ export function DuelGame({
           </div>
 
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#d4c4ff]/90">⚔️ {t('duel.pvp_title')}</p>
-          <h1 className="mt-2 font-display text-xl font-bold text-artikl-text sm:text-2xl">{t('duel.choose_tier')}</h1>
-          <p className="mt-2 text-[12px] leading-relaxed text-artikl-muted2">
-            {t('duel.tier_hint')}
-          </p>
-
-          <p className="mt-5 text-[10px] font-semibold uppercase tracking-wider text-artikl-caption">
+          <h1 className="mt-2 font-display text-lg font-bold leading-snug text-artikl-text sm:text-xl">
+            {t('duel.intro_short')}
+          </h1>
+          <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-artikl-caption">
             {t('duel.word_level')}
           </p>
-          <p className="mt-1 text-[11px] leading-snug text-artikl-caption">
-            {t('duel.word_level_hint')}
-          </p>
           <div
-            className="mt-3 flex flex-wrap justify-center gap-1.5"
+            className="mt-2 flex flex-wrap justify-center gap-1.5"
             role="radiogroup"
             aria-label={t('duel.word_level')}
           >
@@ -963,12 +964,26 @@ export function DuelGame({
             })}
           </div>
 
-          {/* Tier cards */}
+          {/* Tier cards: Sadə / Ciddi / Ekspert */}
           <div className="mt-5 flex flex-col gap-3">
             {duelTiers.map((tier) => {
               const active = selectedTier.id === tier.id;
               const affordable = coins >= tier.entryFee;
-              const tierIcons: Record<string, string> = { sade: '🎯', ciddi: '🔥', ekspert: '💎' };
+              const tierStyle: Record<string, { on: string; off: string }> = {
+                sade: {
+                  on: 'border-2 border-emerald-400/75 bg-emerald-500/15 shadow-[0_0_28px_rgba(16,185,129,0.22)] ring-1 ring-emerald-400/25',
+                  off: 'border border-emerald-500/25 bg-emerald-950/[0.12] hover:border-emerald-400/35 hover:bg-emerald-900/10',
+                },
+                ciddi: {
+                  on: 'border-2 border-sky-400/75 bg-sky-500/15 shadow-[0_0_28px_rgba(14,165,233,0.22)] ring-1 ring-sky-400/25',
+                  off: 'border border-sky-500/25 bg-sky-950/[0.12] hover:border-sky-400/35 hover:bg-sky-900/10',
+                },
+                ekspert: {
+                  on: 'border-2 border-amber-400/55 bg-gradient-to-br from-violet-600/25 via-violet-900/15 to-amber-600/15 shadow-[0_0_28px_rgba(245,158,11,0.18)] ring-1 ring-amber-300/30',
+                  off: 'border border-violet-500/30 bg-gradient-to-br from-violet-950/20 to-amber-950/10 hover:border-amber-400/35',
+                },
+              };
+              const pack = tierStyle[tier.id] ?? tierStyle.sade!;
               return (
                 <button
                   key={tier.id}
@@ -976,33 +991,28 @@ export function DuelGame({
                   disabled={!affordable}
                   onClick={() => setSelectedTier(tier)}
                   className={[
-                    'relative flex items-center gap-4 rounded-2xl px-4 py-4 text-left transition-all',
-                    active && affordable
-                      ? 'border-2 border-purple-400/70 bg-gradient-to-r from-purple-500/20 via-purple-900/15 to-fuchsia-900/10 shadow-[0_0_28px_rgba(168,85,247,0.25)]'
-                      : affordable
-                        ? 'border border-[var(--artikl-border2)] bg-[var(--artikl-surface)] hover:border-white/[0.2] hover:bg-white/[0.08]'
-                        : 'border border-[var(--artikl-border)] bg-white/[0.02] cursor-not-allowed opacity-40',
+                    'relative w-full rounded-2xl px-4 py-3.5 text-left transition-all',
+                    !affordable
+                      ? 'cursor-not-allowed border border-[var(--artikl-border)] bg-white/[0.02] opacity-40'
+                      : active
+                        ? pack.on
+                        : pack.off,
                   ].join(' ')}
                 >
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--artikl-surface2)] text-2xl">
-                    {tierIcons[tier.id] ?? '⚔️'}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-sm font-bold ${active && affordable ? 'text-white' : 'text-artikl-text'}`}>
-                      {t(`duel.tier_${tier.id}`)}
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-artikl-caption">
-                      {t('duel.entry_fee')}: {t('common.amount_artik', { amount: tier.entryFee })}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-artikl-caption">
-                      {t('duel.prize')}
-                    </p>
-                    <p className="font-mono text-lg font-bold tabular-nums text-[#F59E0B]">
-                      {t('common.amount_artik', { amount: tier.prize })}
-                    </p>
-                  </div>
+                  <p
+                    className={[
+                      'text-[15px] font-extrabold tracking-tight',
+                      active && affordable ? 'text-artikl-heading' : 'text-artikl-text',
+                    ].join(' ')}
+                  >
+                    {t(`duel.tier_${tier.id}`)}
+                  </p>
+                  <p className="mt-2 font-mono text-[13px] font-bold tabular-nums text-artikl-text/90">
+                    {t('duel.line_entry', { amount: tier.entryFee })}
+                  </p>
+                  <p className="mt-1 font-mono text-[13px] font-bold tabular-nums text-amber-200/95">
+                    {t('duel.line_reward', { amount: tier.prize })}
+                  </p>
                 </button>
               );
             })}
@@ -1012,21 +1022,13 @@ export function DuelGame({
             <p className="mt-3 text-[11px] font-medium text-rose-400/80">{t('duel.not_enough_coins')}</p>
           )}
 
-          {/* Fund preview */}
-          <div className="mt-4 rounded-xl border border-[var(--artikl-border)] bg-[var(--artikl-surface)] px-4 py-2.5">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-artikl-caption">{t('duel.total_fund')}</p>
-            <p className="mt-0.5 font-mono text-xl font-bold tabular-nums text-[#7C3AED] dark:text-[#F59E0B]">
-              {t('common.amount_artik', { amount: selectedTier.prize })}
-            </p>
-          </div>
-
           <button
             type="button"
             disabled={!canAfford}
             onClick={() => void startMatch()}
             className="mt-6 w-full rounded-xl border-2 border-purple-600 bg-purple-600 py-3.5 text-sm font-bold text-white shadow-[0_10px_36px_rgba(168,85,247,0.35)] transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:border-purple-200 disabled:bg-purple-200 disabled:text-[#9CA3AF] dark:border-transparent dark:bg-gradient-to-r dark:from-[#7c6cf8] dark:via-[#a855f7] dark:to-[#c44fd9] dark:disabled:opacity-35"
           >
-            {t('duel.find_opponent_btn')} — {t('common.amount_artik', { amount: selectedTier.entryFee })}
+            {t('duel.find_opponent_btn')}
           </button>
           <button
             type="button"
@@ -1054,13 +1056,13 @@ export function DuelGame({
         </div>
         <p className="text-sm font-bold text-[rgba(240,238,255,0.9)]">{t('duel.searching')}</p>
         <p className="text-[11px] text-artikl-caption">{t('duel.searching_hint')}</p>
-        {activeTier && (
+        {activeTier ? (
           <div className="rounded-full border border-amber-400/25 bg-amber-500/10 px-3 py-1">
             <span className="text-[11px] font-bold tabular-nums text-[#7C3AED] dark:text-amber-200">
-              {t('duel.prize')}: {t('common.amount_artik', { amount: activeTier.prize })}
+              {t('duel.line_reward', { amount: activeTier.prize })}
             </span>
           </div>
-        )}
+        ) : null}
       </div>
     );
   }
@@ -1090,16 +1092,11 @@ export function DuelGame({
           </div>
 
           {/* Fund indicator */}
-          {activeTier && (
-            <div className="mt-2 flex items-center justify-center gap-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#4B5563] dark:text-amber-400/70">
-                {t('duel.prize')}:
-              </span>
-              <span className="font-mono text-sm font-bold tabular-nums text-[#7C3AED] dark:text-[#F59E0B]">
-                {t('common.amount_artik', { amount: activeTier.prize })}
-              </span>
-            </div>
-          )}
+          {activeTier ? (
+            <p className="mt-1 text-center font-mono text-[12px] font-bold tabular-nums text-[#7C3AED] dark:text-amber-200/90">
+              {t('duel.line_reward', { amount: activeTier.prize })}
+            </p>
+          ) : null}
 
           {/* Split-screen player panels */}
           <div className="mt-3 flex items-stretch justify-between gap-3">

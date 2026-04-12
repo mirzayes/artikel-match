@@ -9,9 +9,9 @@ export const B1_LEVEL_UNLOCK_ARTIK_COST = 1000;
 export const B2_LEVEL_UNLOCK_ARTIK_COST = 2000;
 export const C1_LEVEL_UNLOCK_ARTIK_COST = 2000;
 
-/** IAP göstəriciləri (real ödəniş SDK yoxdur — demo təsdiq). */
+/** IAP / səviyyə açışı üçün göstərilən qiymət (AZN). */
 export const LEVEL_UNLOCK_PRICE_AZN = 2;
-/** UI: B1+ üçün “Fast Pass” (eyni demo qiymət). */
+/** UI: B1+ üçün “Fast Pass” (eyni qiymət göstəricisi). */
 export const FAST_PASS_PRICE_AZN = LEVEL_UNLOCK_PRICE_AZN;
 export const COIN_PACK_1000_PRICE_AZN = 0.99;
 export const COIN_PACK_1000_AMOUNT = 1000;
