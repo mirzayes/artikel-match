@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { startTransition, useCallback, useEffect, useMemo, useState } from 'react';
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { GOETHE_LEVELS, type GoetheLevel, type NounEntry, type WordSrsEntry } from '../../types';
 import { countDueWordsForLevel, filterLearningQuizPool } from '../../lib/wordLists';
@@ -40,6 +40,7 @@ function computeMissionMapVisibleCore(
   masteryByWordId: Record<string, number>,
   allMissionsPaidUnlocked: boolean,
   luckyMissionIndex: number | null,
+  level: GoetheLevel,
 ): { baseIndices: number[]; restIndices: number[] } {
   const n = missions.length;
   if (n === 0) return { baseIndices: [], restIndices: [] };
@@ -51,13 +52,14 @@ function computeMissionMapVisibleCore(
       knownWordIds,
       masteryByWordId,
       allMissionsPaidUnlocked,
+      level,
     );
     const lucky = luckyMissionIndex !== null && missionIndex === luckyMissionIndex;
     return baseGate || lucky;
   };
 
   const doneAt = (missionIndex: number) =>
-    isMissionMastered(missions[missionIndex]!, knownWordIds, masteryByWordId);
+    isMissionMastered(missions[missionIndex]!, knownWordIds, masteryByWordId, level, missionIndex);
 
   let activeIdx: number | null = null;
   for (let i = 0; i < n; i++) {
@@ -111,7 +113,10 @@ interface LearningTopicHubProps {
   selectedLevel: GoetheLevel;
   onLevelChange: (level: GoetheLevel) => void;
   /** Missiya söz dəsti + rejim (Klassik / Sonsuz) */
-  onStartBlock: (wordIds: string[], opts: { missionMode: 'classic' | 'infinite' }) => void;
+  onStartBlock: (
+    wordIds: string[],
+    opts: { missionMode: 'classic' | 'infinite'; missionSlotIndex?: number },
+  ) => void;
   srsByWordId: Record<string, WordSrsEntry>;
   /** Təkrar sırası — yalnız növbəsi çatan köhnə sözlər */
   onStartRepeat: () => void;
@@ -148,7 +153,10 @@ export function LearningTopicHub({
   const [unlockToast, setUnlockToast] = useState<string | null>(null);
   const [missionToast, setMissionToast] = useState<string | null>(null);
   /** Başla → rejim seçimi; null = bağlı */
-  const [missionModePickerWordIds, setMissionModePickerWordIds] = useState<string[] | null>(null);
+  const [missionModePicker, setMissionModePicker] = useState<{
+    wordIds: string[];
+    missionIndex: number;
+  } | null>(null);
   /** Missiya xəritəsində «Daha çox göstər» — hər klikdə +5 missiya */
   const [missionMapExpandBatches, setMissionMapExpandBatches] = useState(0);
 
@@ -173,6 +181,7 @@ export function LearningTopicHub({
 
   useEffect(() => {
     setMissionMapExpandBatches(0);
+    setMissionModePicker(null);
   }, [selectedLevel]);
 
   const lessonEarnedToday = useMemo(() => {
@@ -243,6 +252,17 @@ export function LearningTopicHub({
   const paidUnlockForLevel =
     learningAllBlocksUnlocked[selectedLevel] === true || isArtikelVipFromLocalStorage();
 
+  const prevMission2GateRef = useRef<Partial<Record<GoetheLevel, boolean>>>({});
+  useEffect(() => {
+    if (missions.length < 2) return;
+    const open = isMissionGateOpen(1, missions, knownWordIds, masteryByWordId, false, selectedLevel);
+    const wasOpen = prevMission2GateRef.current[selectedLevel] ?? false;
+    if (open && !wasOpen) {
+      console.log('[missions] next mission UNLOCKED (mission 2 gate opened)', { selectedLevel });
+    }
+    prevMission2GateRef.current[selectedLevel] = open;
+  }, [missions, knownWordIds, masteryByWordId, selectedLevel, paidUnlockForLevel]);
+
   const duelDeviceKey = useMemo(() => getOrCreateDuelUserId(), []);
 
   const luckyMissionIndex = useMemo(
@@ -273,6 +293,7 @@ export function LearningTopicHub({
       masteryByWordId,
       paidUnlockForLevel,
       luckyMissionIndex,
+      selectedLevel,
     );
     const extra = missionMapExpandBatches * MISSION_MAP_PAGE;
     const more = restIndices.slice(0, extra);
@@ -288,6 +309,7 @@ export function LearningTopicHub({
     paidUnlockForLevel,
     luckyMissionIndex,
     missionMapExpandBatches,
+    selectedLevel,
   ]);
 
   const missionMapMoreRemaining =
@@ -296,9 +318,9 @@ export function LearningTopicHub({
   const showPaidUnlockOffer = useMemo(() => {
     if (missions.length <= 1 || paidUnlockForLevel) return false;
     return missions.some(
-      (_, i) => !isMissionGateOpen(i, missions, knownWordIds, masteryByWordId, false),
+      (_, i) => !isMissionGateOpen(i, missions, knownWordIds, masteryByWordId, false, selectedLevel),
     );
-  }, [missions, knownWordIds, masteryByWordId, paidUnlockForLevel]);
+  }, [missions, knownWordIds, masteryByWordId, paidUnlockForLevel, selectedLevel]);
 
   const paidUnlockGap = LEARN_BLOCKS_UNLOCK_ALL_COST - coins;
   const nearPaidUnlock =
@@ -311,7 +333,7 @@ export function LearningTopicHub({
     let totalCoins = 0;
     let missionCount = 0;
     missions.forEach((missionNouns, i) => {
-      const done = isMissionMastered(missionNouns, knownWordIds, masteryByWordId);
+      const done = isMissionMastered(missionNouns, knownWordIds, masteryByWordId, selectedLevel, i);
       const g = tryClaimLearningMissionReward(selectedLevel, i, done);
       if (g > 0) {
         totalCoins += g;
@@ -334,11 +356,14 @@ export function LearningTopicHub({
 
   const handleConfirmMissionMode = useCallback(
     (missionMode: 'classic' | 'infinite') => {
-      if (!missionModePickerWordIds?.length) return;
-      onStartBlock(missionModePickerWordIds, { missionMode });
-      setMissionModePickerWordIds(null);
+      if (!missionModePicker?.wordIds.length) return;
+      onStartBlock(missionModePicker.wordIds, {
+        missionMode,
+        missionSlotIndex: missionModePicker.missionIndex,
+      });
+      setMissionModePicker(null);
     },
-    [missionModePickerWordIds, onStartBlock],
+    [missionModePicker, onStartBlock],
   );
 
   const handleStartRepeat = useCallback(() => {
@@ -504,7 +529,13 @@ export function LearningTopicHub({
 
         {luckyMissionIndex !== null &&
         missions[luckyMissionIndex] &&
-        !isMissionMastered(missions[luckyMissionIndex]!, knownWordIds, masteryByWordId) ? (
+        !isMissionMastered(
+          missions[luckyMissionIndex]!,
+          knownWordIds,
+          masteryByWordId,
+          selectedLevel,
+          luckyMissionIndex,
+        ) ? (
           <p className="learning-hub-lucky-banner mt-2 rounded-xl border border-[#F59E0B]/40 bg-gradient-to-r from-[#F59E0B]/16 to-orange-500/10 px-3 py-2 text-center text-[11px] font-semibold leading-snug text-[#1A1A2E] dark:text-[#FEF3C7]/95">
             {t('learning_topics.lucky_mission_banner', { n: luckyMissionIndex + 1 })}
           </p>
@@ -526,6 +557,7 @@ export function LearningTopicHub({
                 knownWordIds,
                 masteryByWordId,
                 paidUnlockForLevel,
+                selectedLevel,
               );
               const isLuckyMission =
                 luckyMissionIndex !== null && missionIndex === luckyMissionIndex;
@@ -535,7 +567,13 @@ export function LearningTopicHub({
               ).length;
               const eligible = filterLearningQuizPool(missionNouns, knownWordIds);
               const eligibleCount = eligible.length;
-              const missionDone = isMissionMastered(missionNouns, knownWordIds, masteryByWordId);
+              const missionDone = isMissionMastered(
+                missionNouns,
+                knownWordIds,
+                masteryByWordId,
+                selectedLevel,
+                missionIndex,
+              );
               const rewardKey = `${selectedLevel}:${missionIndex}`;
               const rewardClaimed = learningMissionArtikClaimed[rewardKey] === true;
               const wordIds = missionNouns.map((n) => n.id);
@@ -633,7 +671,7 @@ export function LearningTopicHub({
                           whileTap={canStart ? { scale: 0.98 } : undefined}
                           transition={{ type: 'spring', stiffness: 420, damping: 22 }}
                           disabled={!canStart}
-                          onClick={() => setMissionModePickerWordIds(wordIds)}
+                          onClick={() => setMissionModePicker({ wordIds, missionIndex })}
                           className="learning-mission-start-btn mt-2 w-full rounded-lg border-2 border-purple-600 bg-purple-600 py-2 text-[11px] font-bold text-white shadow-[0_6px_20px_rgba(139,92,246,0.22)] transition-opacity disabled:cursor-not-allowed disabled:border-purple-200 disabled:bg-purple-200 disabled:text-[#9CA3AF] dark:border-transparent dark:bg-gradient-to-r dark:from-[#7c6cf8] dark:via-[#a855f7] dark:to-[#c44fd9] dark:disabled:opacity-35"
                         >
                           {t('learning_topics.mission_start')}
@@ -712,7 +750,7 @@ export function LearningTopicHub({
           </div>
         ) : null}
 
-        {missionModePickerWordIds ? (
+        {missionModePicker ? (
           <div
             className="fixed inset-0 z-[120] flex flex-col justify-end bg-black/55 backdrop-blur-[2px] sm:items-center sm:justify-center sm:px-4"
             role="dialog"
@@ -723,7 +761,7 @@ export function LearningTopicHub({
               type="button"
               className="absolute inset-0 cursor-default"
               aria-label={t('learning_topics.mission_mode_cancel')}
-              onClick={() => setMissionModePickerWordIds(null)}
+              onClick={() => setMissionModePicker(null)}
             />
             <div className="relative z-[1] mx-auto w-full max-w-[400px] rounded-t-3xl border border-[var(--artikl-border)] bg-[var(--artikl-surface)] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-[0_-8px_40px_rgba(0,0,0,0.35)] sm:rounded-3xl sm:pb-5">
               <h2
@@ -760,7 +798,7 @@ export function LearningTopicHub({
               </div>
               <button
                 type="button"
-                onClick={() => setMissionModePickerWordIds(null)}
+                onClick={() => setMissionModePicker(null)}
                 className="mt-4 w-full rounded-xl border-2 border-purple-600 bg-white py-2.5 text-[12px] font-semibold text-purple-600 dark:border-[var(--artikl-border2)] dark:bg-[var(--artikl-surface2)] dark:text-artikl-text/80"
               >
                 {t('learning_topics.mission_mode_cancel')}

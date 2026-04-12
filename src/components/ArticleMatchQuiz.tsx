@@ -48,6 +48,7 @@ import {
   getLessonCoinMultiplier,
   getOdluStreakArtikMultiplier,
 } from '../lib/coinBonus';
+import { markMissionSessionCleared } from '../lib/learnMissions';
 import { tryClaimA1MasterReward } from '../lib/milestones';
 import { avatarIdToEmoji } from '../lib/playerProfileRtdb';
 import { useGameStore } from '../store/useGameStore';
@@ -137,6 +138,8 @@ interface ArticleMatchQuizProps {
   odluStreakDays?: number;
   /** Missiya «Sonsuz»: bütün sözlər qarışıq, sessiyada təkrar yox */
   missionSessionMode?: 'classic' | 'infinite';
+  /** Missiya kartı indeksi — klassik sessiya tam bitəndə növbəti kilid üçün */
+  missionSlotIndex?: number | null;
 }
 
 /** Fisher–Yates: yalnız göstərilmə sırası üçün (SRS seçimi dəyişmir). */
@@ -170,6 +173,7 @@ export function ArticleMatchQuiz({
   totalXpAllLevels = 0,
   odluStreakDays = 0,
   missionSessionMode = 'classic',
+  missionSlotIndex = null,
 }: ArticleMatchQuizProps) {
   const { t } = useTranslation();
   const { nounsByLevel } = useVocabulary();
@@ -328,6 +332,47 @@ export function ArticleMatchQuiz({
     const remote = usesRemoteGlossFile(glossLang) ? remoteGlossById : null;
 
     if (missionInfiniteMode && restrictToWordIds != null && restrictToWordIds.length > 0) {
+      const poolOrdered = fisherYatesShuffle(focused);
+      if (!poolOrdered.length) {
+        setWordQueue([]);
+        setSessionComplete(false);
+        setLoadErr(t('quiz.topic_empty'));
+        return;
+      }
+
+      const coinClass: Record<string, 'new' | 'review'> = {};
+      for (const n of poolOrdered) {
+        coinClass[n.id] = classifyLessonCoinWordType(n.id, knownWordIds, srsByWordId);
+      }
+      sessionWordCoinClassRef.current = coinClass;
+      sessionNewCorrectRef.current = 0;
+      sessionReviewCorrectRef.current = 0;
+
+      const sessionCards = poolOrdered.map((n) => nounToVokabelRow(n, glossLang, remote));
+      const ids = sessionCards.map((r) => r.id);
+      const initialMastery: Record<string, number> = {};
+      for (const id of ids) initialMastery[id] = 0;
+
+      setSessionTargetWordIds(ids);
+      setSessionMasteryByWordId(initialMastery);
+      setWordQueue(sessionCards);
+      setSessionComplete(false);
+      setLoadErr(null);
+
+      if (levelChanged) {
+        setComboLocal(0);
+      }
+      return;
+    }
+
+    /** Klassik missiya: bütün 25 söz növbədə olmalıdır (SRS «due» alt dəstə düşməsin). */
+    const missionClassicPack =
+      !missionInfiniteMode &&
+      !reviewOnly &&
+      restrictToWordIds != null &&
+      restrictToWordIds.length > 0;
+
+    if (missionClassicPack) {
       const poolOrdered = fisherYatesShuffle(focused);
       if (!poolOrdered.length) {
         setWordQueue([]);
@@ -576,7 +621,11 @@ export function ArticleMatchQuiz({
       infinite: missionInfiniteModeRef.current,
     });
     setSessionComplete(true);
-  }, [knownWordIds, masteryByWordId, nounsByLevel.A1, odluStreakDays]);
+
+    if (!reviewOnly && missionSlotIndex != null) {
+      markMissionSessionCleared(level, missionSlotIndex);
+    }
+  }, [knownWordIds, masteryByWordId, nounsByLevel.A1, odluStreakDays, reviewOnly, missionSlotIndex, level]);
 
   /** Cavabdan sonra: neutral — növbə; hard — çətin + arxaya */
   const advanceFromAnswered = useCallback(

@@ -18,6 +18,7 @@ import {
 import { tryUnlockMarathonAchievement } from '../lib/achievements';
 import { clampMastery } from '../lib/smartReview';
 import { xpForCorrectAnswer } from '../lib/scoring';
+import { clearAllMissionSessionClearedMarkers } from '../lib/learnMissions';
 import { formatLocalDate, localDateKey } from '../lib/dateKeys';
 import { computeOdluSeriya } from '../lib/odluStreak';
 import { nextReviewAfterCorrect, nextReviewAfterWrong } from '../lib/srs';
@@ -490,6 +491,7 @@ export function useQuizProgress() {
   const resetProgress = useCallback(() => {
     try {
       localStorage.removeItem(QUIZ_LIVES_STORAGE_KEY);
+      clearAllMissionSessionClearedMarkers();
     } catch {
       /* ignore */
     }

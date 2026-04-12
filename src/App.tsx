@@ -84,6 +84,8 @@ type LearnQuizConfig = {
   reviewOnly?: boolean;
   /** Missiya «Sonsuz» rejimi: təkrarsız sıra */
   missionSessionMode?: 'classic' | 'infinite';
+  /** Missiya xəritəsi indeksi — klassik sessiya bitəndə kilid üçün */
+  missionSlotIndex?: number;
 };
 
 export default function App() {
@@ -625,6 +627,7 @@ export default function App() {
                         poolScope: 'selected_level',
                         reviewOnly: false,
                         missionSessionMode: opts.missionMode,
+                        missionSlotIndex: opts.missionSlotIndex,
                       });
                       setLearnSubView('quiz');
                       setLearnMountKey((k) => k + 1);
@@ -661,6 +664,7 @@ export default function App() {
                     restrictToWordIds={learnQuizConfig.restrictIds}
                     reviewOnly={learnQuizConfig.reviewOnly === true}
                     missionSessionMode={learnQuizConfig.missionSessionMode}
+                    missionSlotIndex={learnQuizConfig.missionSlotIndex ?? null}
                     progressLevelLabel={
                       learnQuizConfig.reviewOnly ? t('learning_topics.repeat_chip') : undefined
                     }

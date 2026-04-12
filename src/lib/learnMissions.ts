@@ -8,9 +8,63 @@ export const LEARNING_MISSION_WORD_COUNT = 25;
 export const LEARNING_MISSION_ARTIK_REWARD = 50;
 
 const MISSION_ORDER_STORAGE_PREFIX = 'mission_order_';
+/** Klassik missiya sessiyası bitəndə (25 söz) — növbəti missiyanın kilidi üçün. */
+const MISSION_SESSION_CLEARED_PREFIX = 'learning_mission_session_cleared_';
 
 function missionOrderStorageKey(level: GoetheLevel): string {
   return `${MISSION_ORDER_STORAGE_PREFIX}${level}`;
+}
+
+export function missionSessionClearedStorageKey(level: GoetheLevel, missionIndex: number): string {
+  return `${MISSION_SESSION_CLEARED_PREFIX}${level}_${missionIndex}`;
+}
+
+export function readMissionSessionCleared(level: GoetheLevel, missionIndex: number): boolean {
+  if (typeof localStorage === 'undefined') return false;
+  try {
+    return localStorage.getItem(missionSessionClearedStorageKey(level, missionIndex)) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** Klassik missiya «Nəticə» ekranına çatanda çağırılır (SRS 5× deyil). */
+export function markMissionSessionCleared(level: GoetheLevel, missionIndex: number): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    const key = missionSessionClearedStorageKey(level, missionIndex);
+    localStorage.setItem(key, '1');
+    console.log('[missions] mission session COMPLETE — saved', { level, missionIndex, key });
+    console.log('[missions] next mission gate may open for index', missionIndex + 1);
+  } catch (e) {
+    console.warn('[missions] failed to save session cleared', e);
+  }
+}
+
+/** Təkmil sıfırlama: missiya sessiya kilidləri. */
+export function clearAllMissionSessionClearedMarkers(): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    const toRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(MISSION_SESSION_CLEARED_PREFIX)) toRemove.push(k);
+    }
+    for (const k of toRemove) localStorage.removeItem(k);
+  } catch {
+    /* ignore */
+  }
+}
+
+function isMissionWordsDoneForGate(
+  missionNouns: NounEntry[],
+  knownWordIds: string[],
+  masteryByWordId: Record<string, number>,
+  level: GoetheLevel,
+  missionIndex: number,
+): boolean {
+  if (isLearnBlockMastered(missionNouns, knownWordIds, masteryByWordId)) return true;
+  return readMissionSessionCleared(level, missionIndex);
 }
 
 function shuffleIds(ids: string[]): string[] {
@@ -91,18 +145,31 @@ export function formatMissionRange(missionIndex: number, missionNouns: NounEntry
   return `${start}–${end}`;
 }
 
-/** Missiya 0 həmişə; növbəti — əvvəlki mənimsənilib və ya ödənişlə hamısı açılıb. */
+/** Missiya 0 həmişə; növbəti — əvvəlki mənimsənilib, sessiya bitib və ya ödənişlə hamısı açılıb. */
 export function isMissionGateOpen(
   missionIndex: number,
   missions: NounEntry[][],
   knownWordIds: string[],
   masteryByWordId: Record<string, number>,
   allMissionsPaidUnlocked: boolean,
+  level: GoetheLevel,
 ): boolean {
   if (allMissionsPaidUnlocked) return true;
   if (missionIndex <= 0) return true;
   const prev = missions[missionIndex - 1];
-  return prev ? isLearnBlockMastered(prev, knownWordIds, masteryByWordId) : true;
+  const prevIdx = missionIndex - 1;
+  return prev
+    ? isMissionWordsDoneForGate(prev, knownWordIds, masteryByWordId, level, prevIdx)
+    : true;
 }
 
-export const isMissionMastered = isLearnBlockMastered;
+/** Missiya kartı: tamamlanıb (SRS bloku) və ya klassik sessiya bitib. */
+export function isMissionMastered(
+  missionNouns: NounEntry[],
+  knownWordIds: string[],
+  masteryByWordId: Record<string, number>,
+  level: GoetheLevel,
+  missionIndex: number,
+): boolean {
+  return isMissionWordsDoneForGate(missionNouns, knownWordIds, masteryByWordId, level, missionIndex);
+}

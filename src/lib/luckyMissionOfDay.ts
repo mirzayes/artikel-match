@@ -41,6 +41,7 @@ export function pickLuckyMissionIndexForDay(args: {
       knownWordIds,
       masteryByWordId,
       allMissionsPaidUnlocked,
+      level,
     );
     if (!open) locked.push(i);
   }
