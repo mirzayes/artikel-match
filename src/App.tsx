@@ -438,6 +438,22 @@ export default function App() {
     setTab('quiz');
   }, []);
 
+  const openLearnAtLevelFromHomeMap = useCallback((level: GoetheLevel) => {
+    if (isLessonDailyArtikCapReached()) {
+      setVipPaymentOpen(true);
+      return;
+    }
+    if (!isArtikelVipFromLocalStorage() && level !== 'A1') {
+      setVipPaymentOpen(true);
+      return;
+    }
+    setSelectedLevel(level);
+    setLearnSubView('topics');
+    setLearnQuizConfig(null);
+    setLearnMountKey((k) => k + 1);
+    setTab('quiz');
+  }, [setSelectedLevel]);
+
   const showRegistrationGate = gameStoreHydrated && !isRegistered;
 
   const levelGateArgsForClamp: LevelGateCheckArgs = useMemo(
@@ -594,6 +610,7 @@ export default function App() {
               onOpenExam={() => setTab('exam')}
               onOpenCoinShop={() => setCoinShopOpen(true)}
               onOpenLeaders={() => setTab('leaders')}
+              onMapLevelSelect={openLearnAtLevelFromHomeMap}
             />
           </motion.div>
         ) : tab === 'quiz' ? (

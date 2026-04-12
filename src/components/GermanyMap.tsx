@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import type { GoetheLevel } from '../types';
 import {
   AZ_VISITED_CITIES_STORAGE_KEY,
   getMissionCityData,
@@ -162,7 +163,27 @@ function visitedKey(ids: number[]): string {
   return JSON.stringify(ids);
 }
 
-export function GermanyMap() {
+/** Ana səhifə: cənubdan şimala — səviyyə seçimi (xəritədə “şəhər” kimi). */
+const LEVEL_HOTSPOTS: readonly { level: GoetheLevel; x: number; y: number }[] = [
+  { level: 'A1', x: 268, y: 428 },
+  { level: 'A2', x: 248, y: 360 },
+  { level: 'B1', x: 218, y: 288 },
+  { level: 'B2', x: 188, y: 210 },
+  { level: 'C1', x: 312, y: 138 },
+];
+
+export type GermanyMapProps = {
+  /** Ana səhifə: A1–C1 nöqtələri — klik → öyrənmə səviyyəsi */
+  showLevelHotspots?: boolean;
+  selectedLevel?: GoetheLevel;
+  onPickLevel?: (level: GoetheLevel) => void;
+};
+
+export function GermanyMap({
+  showLevelHotspots = false,
+  selectedLevel,
+  onPickLevel,
+}: GermanyMapProps = {}) {
   const [visited, setVisited] = useState<number[]>(() => readVisitedSorted());
   const [pulseIds, setPulseIds] = useState<Set<number>>(() => new Set());
   const prevKeyRef = useRef<string | null>(null);
@@ -242,7 +263,7 @@ export function GermanyMap() {
   }, [visited, pulseIds]);
 
   return (
-    <div className="germany-map-wrap mt-4 w-full">
+    <div className="germany-map-wrap mt-3 w-full">
       <style>{`
         @keyframes germany-map-pin-pulse {
           0% { transform: scale(0.2); opacity: 0; }
@@ -253,13 +274,13 @@ export function GermanyMap() {
           animation: germany-map-pin-pulse 0.75s ease-out both;
         }
       `}</style>
-      <h3 className="mb-3 text-center text-[15px] font-bold tracking-tight text-[#3d3845] dark:text-artikl-heading">
+      <h3 className="mb-2 text-center text-[14px] font-bold tracking-tight text-[#3d3845] dark:text-artikl-heading">
         🗺️ Almaniya Səyahəti
       </h3>
       <div
-        className="relative mx-auto w-full max-w-[min(100%,300px)] rounded-2xl border px-8 py-10 shadow-sm"
+        className="relative mx-auto w-full max-w-[min(100%,300px)] rounded-2xl border px-5 py-5 shadow-sm"
         style={{
-          height: 300,
+          height: 232,
           backgroundColor: MAP_BG,
           borderColor: BORDER,
         }}
@@ -325,8 +346,61 @@ export function GermanyMap() {
               ))}
             </g>
           ) : null}
+          {showLevelHotspots && onPickLevel ? (
+            <g className="germany-map-level-hotspots" style={{ pointerEvents: 'auto' }}>
+              {LEVEL_HOTSPOTS.map(({ level, x, y }) => {
+                const selected = level === selectedLevel;
+                const activate = () => onPickLevel(level);
+                const onKey = (e: KeyboardEvent<SVGGElement>) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    activate();
+                  }
+                };
+                return (
+                  <g
+                    key={level}
+                    transform={`translate(${x}, ${y})`}
+                    role="button"
+                    tabIndex={0}
+                    style={{ cursor: 'pointer' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      activate();
+                    }}
+                    onKeyDown={onKey}
+                  >
+                    <title>{level}</title>
+                    <circle
+                      r={20}
+                      cx={0}
+                      cy={0}
+                      fill={selected ? 'rgba(124, 58, 237, 0.22)' : 'rgba(255,255,255,0.92)'}
+                      stroke={selected ? '#5b21b6' : '#6d28d9'}
+                      strokeWidth={selected ? 2.5 : 1.75}
+                      style={{
+                        filter: selected
+                          ? 'drop-shadow(0 0 6px rgba(109, 40, 217, 0.45))'
+                          : 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))',
+                      }}
+                    />
+                    <text
+                      x={0}
+                      y={4}
+                      textAnchor="middle"
+                      className="select-none font-bold"
+                      fill="#4c1d95"
+                      style={{ fontSize: 11, letterSpacing: '0.02em', pointerEvents: 'none' }}
+                    >
+                      {level}
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
+          ) : null}
         </svg>
-        {count === 0 ? (
+        {count === 0 && !showLevelHotspots ? (
           <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center px-8">
             <p className="max-w-[14rem] text-[13px] font-medium leading-relaxed text-[#7a7268]">
               Hələ şəhər ziyarət edilməyib
@@ -334,7 +408,7 @@ export function GermanyMap() {
           </div>
         ) : null}
       </div>
-      <p className="mt-3 text-center text-[12px] font-medium tabular-nums text-[#6b6560] dark:text-artikl-caption">
+      <p className="mt-2 text-center text-[11px] font-medium tabular-nums text-[#6b6560] dark:text-artikl-caption">
         {count} / {total} şəhər ziyarət edildi
       </p>
     </div>

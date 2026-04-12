@@ -7,6 +7,7 @@ import { formatLocalDate } from '../lib/dateKeys';
 import { isFirebaseLive } from '../lib/firebase';
 import { useLeaderboardLiveQuery } from '../lib/leaderboardLiveQuery';
 import type { GoetheLevel } from '../types';
+import { GermanyMap } from './GermanyMap';
 import { LevelMasteryProgressBar } from './LevelMasteryProgressBar';
 import {
   isArtikelVipFromLocalStorage,
@@ -46,6 +47,8 @@ export type HomeViewProps = {
   onOpenExam: () => void;
   onOpenCoinShop: () => void;
   onOpenLeaders: () => void;
+  /** Xəritədə səviyyə nöqtəsi — öyrənmə tabına keçid */
+  onMapLevelSelect: (level: GoetheLevel) => void;
 };
 
 export function HomeView({
@@ -61,6 +64,7 @@ export function HomeView({
   onOpenExam,
   onOpenCoinShop,
   onOpenLeaders,
+  onMapLevelSelect,
 }: HomeViewProps) {
   const { t } = useTranslation();
   const { nounsByLevel } = useVocabulary();
@@ -176,8 +180,21 @@ export function HomeView({
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.04 }}
+          className="mt-5 w-full"
+        >
+          <GermanyMap
+            showLevelHotspots
+            selectedLevel={selectedLevel}
+            onPickLevel={onMapLevelSelect}
+          />
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="mt-6"
+          className="mt-4"
         >
           {lessonCapFull ? (
             <button
