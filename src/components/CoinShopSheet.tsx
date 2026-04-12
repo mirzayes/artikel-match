@@ -12,14 +12,12 @@ import {
 } from '../lib/paymentLinks';
 import { PayCurrencyCornerToggle } from './pricing/PayCurrencyCornerToggle';
 import { PaymentModalInstagramSupportLink } from './social/SprachbasarInstagram';
+import { formatPackPrice, packPriceForCurrency, SHOP_VIP_PACKS } from '../lib/shopVipPackages';
 
 type CoinShopSheetProps = {
   open: boolean;
   onClose: () => void;
 };
-
-const PRICES_AZN = [3, 7, 19] as const;
-const PRICES_EUR = [9, 19, 49] as const;
 
 export function CoinShopSheet({ open, onClose }: CoinShopSheetProps) {
   const { t } = useTranslation();
@@ -79,7 +77,6 @@ export function CoinShopSheet({ open, onClose }: CoinShopSheetProps) {
 
   if (!open) return null;
 
-  const prices = currency === 'AZN' ? PRICES_AZN : PRICES_EUR;
   const curSym = payCurrencySymbol(currency);
 
   return (
@@ -127,21 +124,42 @@ export function CoinShopSheet({ open, onClose }: CoinShopSheetProps) {
           </div>
 
           <div className="relative z-10 grid grid-cols-3 gap-2">
-            {prices.map((p) => (
-              <div
-                key={`${currency}-${p}`}
-                className="relative isolate overflow-hidden rounded-2xl border border-white/[0.12] bg-white/[0.06] px-3 py-4 text-center shadow-inner shadow-black/20"
-              >
-                <div className="relative z-10 flex min-h-[5.5rem] flex-col items-center justify-center gap-1">
-                  <p className="text-3xl font-bold tabular-nums leading-none tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
-                    <span>{p}</span>
-                    <span className="ml-0.5 text-[1.35rem] font-black text-white/95" aria-hidden>
-                      {curSym}
+            {SHOP_VIP_PACKS.map((pack) => {
+              const amount = packPriceForCurrency(pack, currency);
+              const priceStr = formatPackPrice(amount);
+              const isBest = pack.emphasis === 'best';
+              const isValue = pack.emphasis === 'value';
+              const shell = isBest
+                ? 'relative isolate overflow-hidden rounded-2xl border-2 border-amber-300/85 bg-gradient-to-br from-amber-500/20 via-amber-950/25 to-yellow-950/35 px-1.5 pb-3.5 pt-5 text-center shadow-[0_0_22px_rgba(234,179,8,0.18)] ring-1 ring-amber-200/35'
+                : isValue
+                  ? 'relative isolate overflow-hidden rounded-2xl border border-emerald-400/40 bg-gradient-to-br from-emerald-950/30 via-[#0c1614] to-[#080c0b] px-1.5 pb-3.5 pt-5 text-center shadow-[0_0_18px_rgba(16,185,129,0.1)] ring-1 ring-emerald-400/22'
+                  : 'relative isolate overflow-hidden rounded-2xl border border-white/[0.12] bg-white/[0.06] px-1.5 py-3.5 text-center shadow-inner shadow-black/20';
+              return (
+                <div key={pack.id} className={shell}>
+                  {pack.badge === 'value' ? (
+                    <span className="absolute left-1/2 top-0 z-20 max-w-[min(100%,7rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-500 px-1 py-0.5 text-[5.5px] font-black uppercase leading-tight tracking-wide text-stone-950 sm:text-[6.5px]">
+                      {t('coin_shop.pack_badge_value')}
                     </span>
-                  </p>
+                  ) : null}
+                  {pack.badge === 'best' ? (
+                    <span className="absolute left-1/2 top-0 z-20 max-w-[min(100%,9rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-400 px-1 py-0.5 text-[5.5px] font-black uppercase leading-tight tracking-wide text-stone-900 sm:text-[6.5px]">
+                      {t('coin_shop.pack_badge_best')}
+                    </span>
+                  ) : null}
+                  <div className="relative z-10 flex min-h-[5.5rem] flex-col items-center justify-center gap-1">
+                    <p className="text-[9px] font-bold uppercase tracking-wide text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]">
+                      {t(pack.periodKey)}
+                    </p>
+                    <p className="text-[clamp(0.95rem,3.5vw,1.35rem)] font-bold tabular-nums leading-none tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
+                      <span>{priceStr}</span>
+                      <span className="ml-0.5 text-[0.95em] font-black text-white/95" aria-hidden>
+                        {curSym}
+                      </span>
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="mt-5">

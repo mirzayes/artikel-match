@@ -170,7 +170,12 @@
     "paypal_instruction": "Pay with PayPal and send the screenshot to Instagram.",
     "paypal_cta": "PayPal-la ödə",
     "instagram_receipt": "Ödəniş etdim (Instagram)",
-    "instagram_questions": "Sualınız var? Instagram-da yazın"
+    "instagram_questions": "Sualınız var? Instagram-da yazın",
+    "pack_period_1m": "1 ay",
+    "pack_period_3m": "3 ay",
+    "pack_period_12m": "12 ay",
+    "pack_badge_value": "Sərfəli",
+    "pack_badge_best": "Ən yaxşı seçim"
   },
   "learning_topics": {
     "section_title": "Öyrənmə",

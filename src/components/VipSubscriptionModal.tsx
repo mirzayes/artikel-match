@@ -14,14 +14,12 @@ import {
 } from '../lib/paymentLinks';
 import { PayCurrencyCornerToggle } from './pricing/PayCurrencyCornerToggle';
 import { PaymentModalInstagramSupportLink } from './social/SprachbasarInstagram';
+import { formatPackPrice, packPriceForCurrency, SHOP_VIP_PACKS } from '../lib/shopVipPackages';
 
 type Props = {
   open: boolean;
   onClose: () => void;
 };
-
-const VIP_AZN = [3, 7, 19] as const;
-const VIP_EUR = [5, 12, 29] as const;
 
 /**
  * VIP satış modalı + PostHog.
@@ -100,7 +98,6 @@ export function VipSubscriptionModal({ open, onClose }: Props) {
   if (!open) return null;
 
   const instagramHref = instagramCheckoutUrl();
-  const prices = currency === 'AZN' ? VIP_AZN : VIP_EUR;
   const curSym = payCurrencySymbol(currency);
 
   return (
@@ -156,48 +153,42 @@ export function VipSubscriptionModal({ open, onClose }: Props) {
         </ul>
 
         <div className="relative z-10 mt-4 grid grid-cols-3 gap-2">
-          <div className="relative isolate overflow-hidden rounded-2xl border border-white/[0.12] bg-white/[0.06] px-3 py-4 text-center shadow-inner shadow-black/25">
-            <div className="relative z-10 flex min-h-[6.25rem] flex-col items-center justify-center gap-1.5">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                1 ay
-              </p>
-              <p className="text-3xl font-bold tabular-nums leading-none tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-                <span>{prices[0]}</span>
-                <span className="ml-0.5 text-[1.35rem] font-black text-white/95" aria-hidden>
-                  {curSym}
-                </span>
-              </p>
-            </div>
-          </div>
-          <div className="relative isolate overflow-hidden rounded-2xl border border-white/[0.12] bg-white/[0.06] px-3 py-4 text-center shadow-inner shadow-black/25">
-            <div className="relative z-10 flex min-h-[6.25rem] flex-col items-center justify-center gap-1.5">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                3 ay
-              </p>
-              <p className="text-3xl font-bold tabular-nums leading-none tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-                <span>{prices[1]}</span>
-                <span className="ml-0.5 text-[1.35rem] font-black text-white/95" aria-hidden>
-                  {curSym}
-                </span>
-              </p>
-            </div>
-          </div>
-          <div className="relative isolate overflow-hidden rounded-2xl border-2 border-amber-300/90 bg-gradient-to-br from-amber-500/25 via-amber-900/30 to-yellow-950/40 px-3 pb-4 pt-6 text-center shadow-[0_0_28px_rgba(234,179,8,0.22)] ring-1 ring-amber-200/40">
-            <span className="absolute left-1/2 top-0 z-20 max-w-[calc(100%+4px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-400 px-2 py-0.5 text-[6px] font-black uppercase leading-tight tracking-wide text-stone-900 sm:text-[7px]">
-              ƏN SƏRFƏLİ PLAN
-            </span>
-            <div className="relative z-10 flex min-h-[6.25rem] flex-col items-center justify-center gap-1.5">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
-                12 ay
-              </p>
-              <p className="text-3xl font-bold tabular-nums leading-none tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]">
-                <span>{prices[2]}</span>
-                <span className="ml-0.5 text-[1.35rem] font-black text-white/95" aria-hidden>
-                  {curSym}
-                </span>
-              </p>
-            </div>
-          </div>
+          {SHOP_VIP_PACKS.map((pack) => {
+            const amount = packPriceForCurrency(pack, currency);
+            const priceStr = formatPackPrice(amount);
+            const isBest = pack.emphasis === 'best';
+            const isValue = pack.emphasis === 'value';
+            const shell = isBest
+              ? 'relative isolate overflow-hidden rounded-2xl border-2 border-amber-300/90 bg-gradient-to-br from-amber-500/25 via-amber-900/30 to-yellow-950/40 px-2 pb-4 pt-6 text-center shadow-[0_0_28px_rgba(234,179,8,0.22)] ring-1 ring-amber-200/40'
+              : isValue
+                ? 'relative isolate overflow-hidden rounded-2xl border border-emerald-400/45 bg-gradient-to-br from-emerald-950/35 via-[#0c1814] to-[#080e0c] px-2 pb-4 pt-6 text-center shadow-[0_0_20px_rgba(16,185,129,0.12)] ring-1 ring-emerald-400/25'
+                : 'relative isolate overflow-hidden rounded-2xl border border-white/[0.12] bg-white/[0.06] px-2 py-4 text-center shadow-inner shadow-black/25';
+            return (
+              <div key={pack.id} className={shell}>
+                {pack.badge === 'value' ? (
+                  <span className="absolute left-1/2 top-0 z-20 max-w-[min(100%,7.5rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-500 px-1.5 py-0.5 text-[6px] font-black uppercase leading-tight tracking-wide text-stone-950 sm:text-[7px]">
+                    {t('coin_shop.pack_badge_value')}
+                  </span>
+                ) : null}
+                {pack.badge === 'best' ? (
+                  <span className="absolute left-1/2 top-0 z-20 max-w-[min(100%,9.5rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-400 px-1.5 py-0.5 text-[6px] font-black uppercase leading-tight tracking-wide text-stone-900 sm:text-[7px]">
+                    {t('coin_shop.pack_badge_best')}
+                  </span>
+                ) : null}
+                <div className="relative z-10 flex min-h-[6.25rem] flex-col items-center justify-center gap-1.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                    {t(pack.periodKey)}
+                  </p>
+                  <p className="text-[clamp(1.05rem,3.8vw,1.5rem)] font-bold tabular-nums leading-none tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                    <span>{priceStr}</span>
+                    <span className="ml-0.5 text-[0.95em] font-black text-white/95" aria-hidden>
+                      {curSym}
+                    </span>
+                  </p>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {currency === 'AZN' ? (
