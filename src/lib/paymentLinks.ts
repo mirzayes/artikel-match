@@ -2,6 +2,10 @@
  * Ödəniş: kart (AZN), PayPal (EUR), Instagram təsdiq.
  */
 
+/** Bloq / dəstək — @sprachbasar (yeni tab və ya Instagram tətbiqi). */
+const INSTAGRAM_SPRACHBASAR_DEFAULT =
+  'https://www.instagram.com/sprachbasar?igsh=NHJtd2I5MGc3Y3pr';
+
 export function instagramCheckoutUrl(): string {
   const direct = (import.meta.env.VITE_INSTAGRAM_CHECKOUT_URL ?? '').trim();
   if (direct) return direct;
@@ -9,6 +13,12 @@ export function instagramCheckoutUrl(): string {
   if (u) return u;
   const h = (import.meta.env.VITE_SUPPORT_INSTAGRAM_HANDLE ?? 'artikelmatch').trim().replace(/^@/, '');
   return `https://www.instagram.com/${encodeURIComponent(h)}/`;
+}
+
+/** Ayarlarda və ödəniş modallarında: izləmə, suallar. `VITE_INSTAGRAM_COMMUNITY_PROFILE_URL` ilə əvəz oluna bilər. */
+export function instagramSprachbasarUrl(): string {
+  const u = (import.meta.env.VITE_INSTAGRAM_COMMUNITY_PROFILE_URL ?? '').trim();
+  return u || INSTAGRAM_SPRACHBASAR_DEFAULT;
 }
 
 const PAYPAL_EMAIL_DEFAULT = 'mirzayes1993@gmail.com';

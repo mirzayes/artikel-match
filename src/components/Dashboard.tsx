@@ -43,6 +43,7 @@ import { avatarIdToEmoji } from '../lib/playerProfileRtdb';
 import type { LeaderboardEntry } from '../lib/leaderboardRtdb';
 import { useLeaderboardLiveQuery } from '../lib/leaderboardLiveQuery';
 import { DUEL_MIN_ARTIK_BALANCE } from '../lib/duelEntry';
+import { SettingsInstagramFollowLink } from './social/SprachbasarInstagram';
 import { subscribeMatchmakingWaitingCount } from '../lib/matchmakingQueueRtdb';
 import { prefetchLexiconCatalog } from '../lib/lexiconPrefetch';
 
@@ -894,6 +895,9 @@ export function Dashboard({
             <span className="text-[10px] text-artikl-caption">{t('dashboard.details_chevron')}</span>
           </summary>
           <div className="flex flex-col border-t border-[var(--artikl-border)] px-3 pb-3 pt-3">
+            <div className="mb-4">
+              <SettingsInstagramFollowLink />
+            </div>
             {/* Daily goal selector */}
             <div>
               <p className="text-[11px] font-semibold text-artikl-text">

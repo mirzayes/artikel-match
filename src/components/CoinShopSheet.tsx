@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { usePayCurrency } from '../hooks/usePayCurrency';
+import { getPayCurrency, payCurrencySymbol } from '../lib/payCurrencyPreference';
 import { isArtikelVipFromLocalStorage, useGameStore } from '../store/useGameStore';
 import {
   instagramCheckoutUrl,
@@ -8,13 +10,13 @@ import {
   paymentCardDisplay,
   paymentCardPlainForCopy,
 } from '../lib/paymentLinks';
+import { PayCurrencyCornerToggle } from './pricing/PayCurrencyCornerToggle';
+import { PaymentModalInstagramSupportLink } from './social/SprachbasarInstagram';
 
 type CoinShopSheetProps = {
   open: boolean;
   onClose: () => void;
 };
-
-type PayCurrency = 'AZN' | 'EUR';
 
 const PRICES_AZN = [3, 7, 19] as const;
 const PRICES_EUR = [9, 19, 49] as const;
@@ -23,7 +25,7 @@ export function CoinShopSheet({ open, onClose }: CoinShopSheetProps) {
   const { t } = useTranslation();
   const coins = useGameStore((s) => s.coins);
   const [isVip, setIsVip] = useState(() => isArtikelVipFromLocalStorage());
-  const [currency, setCurrency] = useState<PayCurrency>('AZN');
+  const { currency, setCurrency, toggleCurrency } = usePayCurrency();
 
   const cardShown = paymentCardDisplay();
   const paypalUrl = paypalCheckoutUrl();
@@ -33,7 +35,8 @@ export function CoinShopSheet({ open, onClose }: CoinShopSheetProps) {
   useEffect(() => {
     if (!open) return;
     setIsVip(isArtikelVipFromLocalStorage());
-  }, [open]);
+    setCurrency(getPayCurrency());
+  }, [open, setCurrency]);
 
   const onCopyCard = useCallback(async () => {
     const plain = paymentCardPlainForCopy();
@@ -77,6 +80,7 @@ export function CoinShopSheet({ open, onClose }: CoinShopSheetProps) {
   if (!open) return null;
 
   const prices = currency === 'AZN' ? PRICES_AZN : PRICES_EUR;
+  const curSym = payCurrencySymbol(currency);
 
   return (
     <div
@@ -90,6 +94,11 @@ export function CoinShopSheet({ open, onClose }: CoinShopSheetProps) {
         className="relative max-h-[min(88dvh,640px)] w-full max-w-[400px] overflow-hidden rounded-[22px] border border-white/[0.1] bg-[#0c0c10] shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
         onClick={(e) => e.stopPropagation()}
       >
+        <PayCurrencyCornerToggle
+          currency={currency}
+          onToggle={toggleCurrency}
+          className="absolute left-3 top-3 z-10 border-white/[0.08]"
+        />
         <button
           type="button"
           onClick={onClose}
@@ -99,7 +108,7 @@ export function CoinShopSheet({ open, onClose }: CoinShopSheetProps) {
           ✕
         </button>
 
-        <div className="max-h-[min(88dvh,640px)] overflow-y-auto overscroll-contain px-5 pb-6 pt-5">
+        <div className="max-h-[min(88dvh,640px)] overflow-y-auto overscroll-contain px-5 pb-6 pt-14">
           <div className="mb-5 flex items-center gap-3 pr-10">
             <span
               className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 text-lg shadow-lg shadow-amber-500/20"
@@ -117,47 +126,6 @@ export function CoinShopSheet({ open, onClose }: CoinShopSheetProps) {
             </div>
           </div>
 
-          <div
-            className="relative z-10 mb-5 flex rounded-2xl border border-white/[0.06] bg-black/50 p-1"
-            role="tablist"
-            aria-label={t('coin_shop.currency_toggle_aria')}
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={currency === 'AZN'}
-              onClick={() => setCurrency('AZN')}
-              className={[
-                'relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[13px] font-bold transition-all',
-                currency === 'AZN'
-                  ? 'bg-gradient-to-r from-sky-500/90 to-cyan-600/90 text-white shadow-md shadow-sky-500/15'
-                  : 'text-white/70 hover:text-white',
-              ].join(' ')}
-            >
-              <span className="tabular-nums text-inherit">AZN</span>
-              <span className="text-base font-black leading-none text-inherit" aria-hidden>
-                ₼
-              </span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={currency === 'EUR'}
-              onClick={() => setCurrency('EUR')}
-              className={[
-                'relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[13px] font-bold transition-all',
-                currency === 'EUR'
-                  ? 'bg-gradient-to-r from-indigo-500/90 to-violet-600/90 text-white shadow-md shadow-violet-500/15'
-                  : 'text-white/70 hover:text-white',
-              ].join(' ')}
-            >
-              <span className="tabular-nums text-inherit">EUR</span>
-              <span className="text-base font-black leading-none text-inherit" aria-hidden>
-                €
-              </span>
-            </button>
-          </div>
-
           <div className="relative z-10 grid grid-cols-3 gap-2">
             {prices.map((p) => (
               <div
@@ -165,19 +133,11 @@ export function CoinShopSheet({ open, onClose }: CoinShopSheetProps) {
                 className="relative isolate overflow-hidden rounded-2xl border border-white/[0.12] bg-white/[0.06] px-3 py-4 text-center shadow-inner shadow-black/20"
               >
                 <div className="relative z-10 flex min-h-[5.5rem] flex-col items-center justify-center gap-1">
-                  <p className="text-3xl font-bold tabular-nums leading-none text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
-                    {p}
-                  </p>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]">
-                    {currency === 'EUR' ? (
-                      <>
-                        EUR <span className="text-sm font-black normal-case">€</span>
-                      </>
-                    ) : (
-                      <>
-                        AZN <span className="text-sm font-black normal-case">₼</span>
-                      </>
-                    )}
+                  <p className="text-3xl font-bold tabular-nums leading-none tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
+                    <span>{p}</span>
+                    <span className="ml-0.5 text-[1.35rem] font-black text-white/95" aria-hidden>
+                      {curSym}
+                    </span>
                   </p>
                 </div>
               </div>
@@ -239,6 +199,7 @@ export function CoinShopSheet({ open, onClose }: CoinShopSheetProps) {
           >
             {t('coin_shop.instagram_receipt')}
           </a>
+          <PaymentModalInstagramSupportLink />
         </div>
       </div>
     </div>

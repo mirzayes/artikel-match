@@ -72,6 +72,9 @@ const SESSION_STAR_MAX = 5;
 const SESSION_COMPLETION_PERFECT_BONUS = 15;
 /** Ardıcıl düzgün cavablar — rekord `localStorage`-da (vanilla nümunə ilə eyni açar). */
 const BEST_SCORE_STORAGE_KEY = 'bestScore';
+/** Missiya bitəndə şəhər məlumatı: tam oxuma müddəti + yumşaq yox olma (avtomatik keçid saxlanılır). */
+const MISSION_CITY_REVEAL_HOLD_MS = 5200;
+const MISSION_CITY_REVEAL_EXIT_MS = 560;
 
 function readBestRunFromStorage(): number {
   try {
@@ -251,6 +254,7 @@ export function ArticleMatchQuiz({
     city: MissionGermanCity;
     visitedUniqueCount: number;
   } | null>(null);
+  const [missionCityRevealExiting, setMissionCityRevealExiting] = useState(false);
 
   const [comboLocal, setComboLocal] = useState(0);
   const comboLocalRef = useRef(0);
@@ -341,6 +345,8 @@ export function ArticleMatchQuiz({
     setSessionTargetWordIds([]);
     setSessionMasteryByWordId({});
     setRunScore(0);
+    setMissionCityRevealSnapshot(null);
+    setMissionCityRevealExiting(false);
   }, []);
 
   useEffect(() => {
@@ -850,10 +856,25 @@ export function ArticleMatchQuiz({
   }, [shareToast]);
 
   useEffect(() => {
-    if (!missionCityRevealSnapshot) return;
-    const id = window.setTimeout(() => setMissionCityRevealSnapshot(null), 3000);
-    return () => clearTimeout(id);
+    if (!missionCityRevealSnapshot) {
+      setMissionCityRevealExiting(false);
+      return;
+    }
+    setMissionCityRevealExiting(false);
+    const holdId = window.setTimeout(() => {
+      setMissionCityRevealExiting(true);
+    }, MISSION_CITY_REVEAL_HOLD_MS);
+    return () => window.clearTimeout(holdId);
   }, [missionCityRevealSnapshot]);
+
+  useEffect(() => {
+    if (!missionCityRevealExiting || !missionCityRevealSnapshot) return;
+    const exitId = window.setTimeout(() => {
+      setMissionCityRevealSnapshot(null);
+      setMissionCityRevealExiting(false);
+    }, MISSION_CITY_REVEAL_EXIT_MS);
+    return () => window.clearTimeout(exitId);
+  }, [missionCityRevealExiting, missionCityRevealSnapshot]);
 
   const handleShareCorrect = useCallback(async () => {
     if (!currentWord) return;
@@ -917,6 +938,7 @@ export function ArticleMatchQuiz({
         <MissionCityReveal
           city={missionCityRevealSnapshot.city}
           visitedUniqueCount={missionCityRevealSnapshot.visitedUniqueCount}
+          exiting={missionCityRevealExiting}
         />
       );
     }

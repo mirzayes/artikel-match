@@ -51,6 +51,8 @@ interface ImportMetaEnv {
   readonly VITE_INSTAGRAM_CHECKOUT_URL?: string;
   /** Instagram profil linki (məs. https://www.instagram.com/nick/) */
   readonly VITE_SUPPORT_INSTAGRAM_URL?: string;
+  /** Sprachbasar / bloq profili — boşdursa layihə default @sprachbasar linki. */
+  readonly VITE_INSTAGRAM_COMMUNITY_PROFILE_URL?: string;
   /** @nick — link yoxdursa profil URL qurulur. */
   readonly VITE_SUPPORT_INSTAGRAM_HANDLE?: string;
 }

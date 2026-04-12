@@ -1,14 +1,29 @@
+import { useEffect, useState } from 'react';
 import type { MissionGermanCity } from '../lib/missionGermanCities';
 
 type MissionCityRevealProps = {
   city: MissionGermanCity;
   visitedUniqueCount: number;
+  /** Yumşaq yox olma (valideyn taymeri) */
+  exiting?: boolean;
 };
 
-export function MissionCityReveal({ city, visitedUniqueCount }: MissionCityRevealProps) {
+export function MissionCityReveal({ city, visitedUniqueCount, exiting = false }: MissionCityRevealProps) {
+  const [entered, setEntered] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const opaque = entered && !exiting;
+
   return (
     <div
-      className="fixed inset-0 z-[198] flex flex-col items-center justify-center gap-5 bg-gradient-to-b from-[#0c0a14] via-[#16122a] to-[#0a0812] px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] text-center"
+      className={[
+        'fixed inset-0 z-[198] flex flex-col items-center justify-center gap-5 bg-gradient-to-b from-[#0c0a14] via-[#16122a] to-[#0a0812] px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] text-center transition-opacity duration-500 ease-out',
+        opaque ? 'opacity-100' : 'opacity-0',
+        exiting ? 'pointer-events-none' : '',
+      ].join(' ')}
       role="dialog"
       aria-modal="true"
       aria-labelledby="mission-city-welcome"

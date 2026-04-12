@@ -160,13 +160,17 @@
     "balance_label": "Balans",
     "close_sheet": "Bağla",
     "currency_toggle_aria": "Valyuta",
+    "currency_switch_aria": "Ödəniş valyutasını dəyiş",
+    "currency_switch_to_eur": "EUR göstər",
+    "currency_switch_to_azn": "AZN göstər",
     "copy": "Kopyala",
     "azn_method_card": "Kart",
     "azn_pay_instruction": "Ödənişi m10 və ya istənilən bank kartı ilə bu hesaba göndərin.",
     "eur_method_paypal": "PayPal",
     "paypal_instruction": "Pay with PayPal and send the screenshot to Instagram.",
     "paypal_cta": "PayPal-la ödə",
-    "instagram_receipt": "Ödəniş etdim (Instagram)"
+    "instagram_receipt": "Ödəniş etdim (Instagram)",
+    "instagram_questions": "Sualınız var? Instagram-da yazın"
   },
   "learning_topics": {
     "section_title": "Öyrənmə",
@@ -301,7 +305,9 @@
     "gloss_az": "Azərbaycan dili",
     "gloss_coverage_loading": "Yüklənir…",
     "gloss_coverage_error": "Xəta",
-    "gloss_coverage_pct": "{{pct}}%"
+    "gloss_coverage_pct": "{{pct}}%",
+    "instagram_follow": "Bizi Instagram-da izlə",
+    "instagram_follow_hint": "Bloq və yeniliklər — bir toxunuşla."
   },
   "pricing": {
     "region_note": "Regional qiymət önizləməsi (gələcək abunə üçün):",

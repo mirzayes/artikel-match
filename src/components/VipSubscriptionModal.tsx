@@ -1,8 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { usePostHog } from 'posthog-js/react';
 import { useTranslation } from 'react-i18next';
+import { usePayCurrency } from '../hooks/usePayCurrency';
+import { getPayCurrency, payCurrencySymbol } from '../lib/payCurrencyPreference';
 import {
   instagramCheckoutUrl,
   paypalCheckoutUrl,
@@ -10,13 +12,13 @@ import {
   paymentCardDisplay,
   paymentCardPlainForCopy,
 } from '../lib/paymentLinks';
+import { PayCurrencyCornerToggle } from './pricing/PayCurrencyCornerToggle';
+import { PaymentModalInstagramSupportLink } from './social/SprachbasarInstagram';
 
 type Props = {
   open: boolean;
   onClose: () => void;
 };
-
-type PayCurrency = 'AZN' | 'EUR';
 
 const VIP_AZN = [3, 7, 19] as const;
 const VIP_EUR = [5, 12, 29] as const;
@@ -28,7 +30,7 @@ const VIP_EUR = [5, 12, 29] as const;
 export function VipSubscriptionModal({ open, onClose }: Props) {
   const { t } = useTranslation();
   const posthog = usePostHog();
-  const [currency, setCurrency] = useState<PayCurrency>('AZN');
+  const { currency, setCurrency, toggleCurrency } = usePayCurrency();
   const cardLine = paymentCardDisplay();
   const paypalUrl = paypalCheckoutUrl();
   const paypalEmail = paypalRecipientEmail();
@@ -48,6 +50,11 @@ export function VipSubscriptionModal({ open, onClose }: Props) {
     if (!open) return;
     safeCapture('payment_modal_opened');
   }, [open, safeCapture]);
+
+  useEffect(() => {
+    if (!open) return;
+    setCurrency(getPayCurrency());
+  }, [open, setCurrency]);
 
   const onCopyNumber = useCallback(async () => {
     try {
@@ -94,7 +101,7 @@ export function VipSubscriptionModal({ open, onClose }: Props) {
 
   const instagramHref = instagramCheckoutUrl();
   const prices = currency === 'AZN' ? VIP_AZN : VIP_EUR;
-  const unit = currency === 'AZN' ? 'AZN' : 'EUR';
+  const curSym = payCurrencySymbol(currency);
 
   return (
     <div
@@ -111,21 +118,27 @@ export function VipSubscriptionModal({ open, onClose }: Props) {
         <div className="pointer-events-none absolute -left-10 top-0 h-40 w-40 rounded-full bg-amber-400/12 blur-3xl" aria-hidden />
         <div className="pointer-events-none absolute -bottom-6 right-0 h-36 w-36 rounded-full bg-amber-500/8 blur-2xl" aria-hidden />
 
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full text-lg text-amber-100/45 transition-colors hover:bg-white/10 hover:text-amber-50"
-          aria-label={t('coin_shop.close_sheet')}
-        >
-          ✕
-        </button>
-
-        <h2
-          id="vip-sub-title"
-          className="pr-10 text-center font-display text-[1.3rem] font-black leading-tight tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-400"
-        >
-          VIP
-        </h2>
+        <div className="relative mb-1 min-h-[2.25rem]">
+          <PayCurrencyCornerToggle
+            currency={currency}
+            onToggle={toggleCurrency}
+            className="absolute left-0 top-0 z-10 border-amber-500/15 bg-black/40 text-amber-100/70 hover:border-amber-400/25 hover:bg-black/50 hover:text-amber-50"
+          />
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-0 top-0 z-10 flex h-9 w-9 items-center justify-center rounded-full text-lg text-amber-100/45 transition-colors hover:bg-white/10 hover:text-amber-50"
+            aria-label={t('coin_shop.close_sheet')}
+          >
+            ✕
+          </button>
+          <h2
+            id="vip-sub-title"
+            className="px-12 text-center font-display text-[1.3rem] font-black leading-tight tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-400"
+          >
+            VIP
+          </h2>
+        </div>
 
         <ul className="mt-4 space-y-2 text-[13px] font-semibold leading-snug text-amber-50/90">
           <li className="flex gap-2">
@@ -142,66 +155,17 @@ export function VipSubscriptionModal({ open, onClose }: Props) {
           </li>
         </ul>
 
-        <div
-          className="relative z-10 mt-4 flex rounded-2xl border border-white/[0.06] bg-black/40 p-1"
-          role="tablist"
-          aria-label={t('coin_shop.currency_toggle_aria')}
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={currency === 'AZN'}
-            onClick={() => setCurrency('AZN')}
-            className={[
-              'relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[12px] font-bold transition-all',
-              currency === 'AZN'
-                ? 'bg-gradient-to-r from-sky-500/85 to-cyan-600/85 text-white shadow-md'
-                : 'text-white/70 hover:text-white',
-            ].join(' ')}
-          >
-            <span className="tabular-nums text-inherit">AZN</span>
-            <span className="text-base font-black leading-none text-inherit" aria-hidden>
-              ₼
-            </span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={currency === 'EUR'}
-            onClick={() => setCurrency('EUR')}
-            className={[
-              'relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-[12px] font-bold transition-all',
-              currency === 'EUR'
-                ? 'bg-gradient-to-r from-indigo-500/85 to-violet-600/85 text-white shadow-md'
-                : 'text-white/70 hover:text-white',
-            ].join(' ')}
-          >
-            <span className="tabular-nums text-inherit">EUR</span>
-            <span className="text-base font-black leading-none text-inherit" aria-hidden>
-              €
-            </span>
-          </button>
-        </div>
-
         <div className="relative z-10 mt-4 grid grid-cols-3 gap-2">
           <div className="relative isolate overflow-hidden rounded-2xl border border-white/[0.12] bg-white/[0.06] px-3 py-4 text-center shadow-inner shadow-black/25">
             <div className="relative z-10 flex min-h-[6.25rem] flex-col items-center justify-center gap-1.5">
               <p className="text-[10px] font-bold uppercase tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                 1 ay
               </p>
-              <p className="text-3xl font-bold tabular-nums leading-none text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-                {prices[0]}
-              </p>
-              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]">
-                {unit === 'EUR' ? (
-                  <>
-                    EUR <span className="text-sm font-black normal-case">€</span>
-                  </>
-                ) : (
-                  <>
-                    AZN <span className="text-sm font-black normal-case">₼</span>
-                  </>
-                )}
+              <p className="text-3xl font-bold tabular-nums leading-none tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                <span>{prices[0]}</span>
+                <span className="ml-0.5 text-[1.35rem] font-black text-white/95" aria-hidden>
+                  {curSym}
+                </span>
               </p>
             </div>
           </div>
@@ -210,19 +174,11 @@ export function VipSubscriptionModal({ open, onClose }: Props) {
               <p className="text-[10px] font-bold uppercase tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                 3 ay
               </p>
-              <p className="text-3xl font-bold tabular-nums leading-none text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-                {prices[1]}
-              </p>
-              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]">
-                {unit === 'EUR' ? (
-                  <>
-                    EUR <span className="text-sm font-black normal-case">€</span>
-                  </>
-                ) : (
-                  <>
-                    AZN <span className="text-sm font-black normal-case">₼</span>
-                  </>
-                )}
+              <p className="text-3xl font-bold tabular-nums leading-none tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                <span>{prices[1]}</span>
+                <span className="ml-0.5 text-[1.35rem] font-black text-white/95" aria-hidden>
+                  {curSym}
+                </span>
               </p>
             </div>
           </div>
@@ -234,19 +190,11 @@ export function VipSubscriptionModal({ open, onClose }: Props) {
               <p className="text-[10px] font-bold uppercase tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
                 12 ay
               </p>
-              <p className="text-3xl font-bold tabular-nums leading-none text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]">
-                {prices[2]}
-              </p>
-              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                {unit === 'EUR' ? (
-                  <>
-                    EUR <span className="text-sm font-black normal-case">€</span>
-                  </>
-                ) : (
-                  <>
-                    AZN <span className="text-sm font-black normal-case">₼</span>
-                  </>
-                )}
+              <p className="text-3xl font-bold tabular-nums leading-none tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]">
+                <span>{prices[2]}</span>
+                <span className="ml-0.5 text-[1.35rem] font-black text-white/95" aria-hidden>
+                  {curSym}
+                </span>
               </p>
             </div>
           </div>
@@ -302,6 +250,7 @@ export function VipSubscriptionModal({ open, onClose }: Props) {
         >
           {t('coin_shop.instagram_receipt')}
         </a>
+        <PaymentModalInstagramSupportLink />
       </div>
     </div>
   );
