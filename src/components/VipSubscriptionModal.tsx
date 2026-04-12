@@ -72,15 +72,9 @@ export function VipSubscriptionModal({ open, onClose }: Props) {
     safeCapture('card_number_copied', { method: 'phone_m10' });
   }, [phone, safeCapture]);
 
-  const onInstagramCheckout = useCallback(() => {
-    safeCapture('instagram_checkout_clicked');
-    const url = instagramCheckoutUrl();
-    const w = window.open(url, '_blank', 'noopener,noreferrer');
-    /** Popup bloklanıbsa eyni pəncərədə aç (məs. bəzi mobil brauzerlər). */
-    if (w == null) window.location.assign(url);
-  }, [safeCapture]);
-
   if (!open) return null;
+
+  const instagramHref = instagramCheckoutUrl();
 
   return (
     <div
@@ -160,13 +154,19 @@ export function VipSubscriptionModal({ open, onClose }: Props) {
           )}
         </button>
 
-        <button
-          type="button"
-          onClick={onInstagramCheckout}
-          className="mt-5 w-full rounded-2xl bg-gradient-to-r from-fuchsia-600 via-violet-600 to-indigo-600 py-3.5 text-[13px] font-bold text-white shadow-[0_10px_36px_rgba(139,92,246,0.35)] transition-transform active:scale-[0.99]"
+        <a
+          href={instagramHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-5 block w-full rounded-lg py-3 text-center text-[13px] font-bold text-white no-underline shadow-[0_8px_28px_rgba(225,48,108,0.35)] transition-[opacity,transform] hover:opacity-95 active:scale-[0.99]"
+          style={{
+            background:
+              'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)',
+          }}
+          onClick={() => safeCapture('instagram_checkout_clicked')}
         >
           Ödəniş etdim (Instagram-a yaz)
-        </button>
+        </a>
 
         <p className="mt-3 text-center text-[10px] leading-relaxed text-amber-200/35">
           Ödənişdən sonra Instagram-da yaz — VIP aktivləşdiriləcək.

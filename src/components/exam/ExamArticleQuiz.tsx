@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Article, ExamSessionConfig, GoetheLevel, LevelProgressStats } from '../../types';
-import { QUIZ_MAX_LIVES, useQuizLives } from '../../hooks/useQuizLives';
+import { QUIZ_MAX_LIVES } from '../../hooks/useQuizLives';
+import { localDateKey } from '../../lib/dateKeys';
 import { getArticleFact } from '../../data/articleFacts';
 import type { VokabelRow } from '../../lib/vokabelnCsv';
 import { ArticleButton, type ArticleBtnMode } from '../quiz/ArticleButton';
@@ -17,10 +18,72 @@ import { vibrateCorrectAnswer, vibrateWrongAnswer } from '../../lib/answerFeedba
 import { useGameStore } from '../../store/useGameStore';
 import { trackArticleClicked } from '../../lib/trackArticleAnalytics';
 
-function parseArticleInput(raw: string): Article | null {
-  const t = raw.trim().toLowerCase();
-  if (t === 'der' || t === 'die' || t === 'das') return t;
-  return null;
+const EXAM_HEARTS_KEY = 'exam_hearts';
+const EXAM_HEARTS_DATE_KEY = 'exam_hearts_date';
+
+function clampExamHearts(n: number): number {
+  return Math.max(0, Math.min(QUIZ_MAX_LIVES, Math.floor(n)));
+}
+
+/** Yerli gecə yarısı (növbəti təqvim gününün 00:00) qədər ms. */
+function msUntilLocalMidnight(from: Date): number {
+  const end = new Date(from.getFullYear(), from.getMonth(), from.getDate() + 1, 0, 0, 0, 0);
+  return Math.max(0, end.getTime() - from.getTime());
+}
+
+function formatHmsCountdown(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  const hh = Math.floor(s / 3600);
+  const mm = Math.floor((s % 3600) / 60);
+  const ss = s % 60;
+  return [hh, mm, ss].map((x) => String(x).padStart(2, '0')).join(':');
+}
+
+function readInitialExamHearts(): number {
+  const today = localDateKey();
+  try {
+    const storedDate = localStorage.getItem(EXAM_HEARTS_DATE_KEY) ?? '';
+    if (storedDate !== today) {
+      localStorage.setItem(EXAM_HEARTS_KEY, String(QUIZ_MAX_LIVES));
+      localStorage.setItem(EXAM_HEARTS_DATE_KEY, today);
+      return QUIZ_MAX_LIVES;
+    }
+    const raw = localStorage.getItem(EXAM_HEARTS_KEY);
+    if (raw == null || raw === '') return QUIZ_MAX_LIVES;
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n)) return QUIZ_MAX_LIVES;
+    return clampExamHearts(n);
+  } catch {
+    return QUIZ_MAX_LIVES;
+  }
+}
+
+function ExamHeartsExhaustedView() {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const ms = msUntilLocalMidnight(new Date());
+  const label = formatHmsCountdown(ms);
+
+  return (
+    <div
+      className="flex min-h-[100dvh] flex-col items-center justify-center px-6 pb-32 pt-[max(0px,env(safe-area-inset-top))] text-center"
+      style={{ background: 'var(--artikl-bg)', color: 'var(--artikl-text)' }}
+    >
+      <div className="max-w-[min(100%,420px)]">
+        <p className="text-lg font-bold leading-snug">Bu gün imtahan hüququnuz bitib</p>
+        <p
+          className="mt-6 font-mono text-3xl font-black tabular-nums tracking-tight text-artikl-heading"
+          aria-live="polite"
+        >
+          {label}
+        </p>
+        <p className="mt-4 text-sm text-artikl-muted2">Gecə yarısından sonra yenilənəcək</p>
+      </div>
+    </div>
+  );
 }
 
 interface ExamArticleQuizProps {
@@ -39,7 +102,7 @@ export function ExamArticleQuiz({ config, rows, levelStats, onRecord, onFinish }
   const playerEmoji = avatarIdToEmoji(playerAvatarId);
   const level = config.level;
   const targetTotal = examQuestionCount(config);
-  const { lives, loseLife, gainLifeFromRecovery } = useQuizLives();
+  const [examHearts, setExamHearts] = useState(readInitialExamHearts);
 
   const order = useMemo(() => {
     const len = rows.length;
@@ -55,8 +118,6 @@ export function ExamArticleQuiz({ config, rows, levelStats, onRecord, onFinish }
   const [sessionCorrect, setSessionCorrect] = useState(0);
   const [sessionAnswered, setSessionAnswered] = useState(0);
   const [xpPop, setXpPop] = useState(false);
-  const [recoverInput, setRecoverInput] = useState('');
-  const [recoverErr, setRecoverErr] = useState<string | null>(null);
   const xpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sessionRef = useRef({ c: 0, t: 0 });
@@ -106,9 +167,31 @@ export function ExamArticleQuiz({ config, rows, levelStats, onRecord, onFinish }
   );
 
   useEffect(() => {
-    setRecoverInput('');
-    setRecoverErr(null);
-  }, [current?.id]);
+    try {
+      localStorage.setItem(EXAM_HEARTS_KEY, String(examHearts));
+      localStorage.setItem(EXAM_HEARTS_DATE_KEY, localDateKey());
+    } catch {
+      /* ignore */
+    }
+  }, [examHearts]);
+
+  /** Təqvimi dəyişəndə (gecə yarısı) imtahan canlarını yenilə. */
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const today = localDateKey();
+      try {
+        const stored = localStorage.getItem(EXAM_HEARTS_DATE_KEY) ?? '';
+        if (stored !== today) {
+          setExamHearts(QUIZ_MAX_LIVES);
+          localStorage.setItem(EXAM_HEARTS_KEY, String(QUIZ_MAX_LIVES));
+          localStorage.setItem(EXAM_HEARTS_DATE_KEY, today);
+        }
+      } catch {
+        /* ignore */
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const finiteTotal = targetTotal ?? 0;
   const progressFraction =
@@ -146,29 +229,11 @@ export function ExamArticleQuiz({ config, rows, levelStats, onRecord, onFinish }
         setSessionCorrect((n) => n + 1);
       } else {
         vibrateWrongAnswer();
-        loseLife();
+        setExamHearts((h) => Math.max(0, h - 1));
       }
     },
-    [current, level, loseLife, onRecord, phase, triggerXpPop],
+    [current, level, onRecord, phase, triggerXpPop],
   );
-
-  const handleRecoverySubmit = useCallback(() => {
-    if (!current || phase !== 'idle' || lives !== 0) return;
-    const a = parseArticleInput(recoverInput);
-    if (!a) {
-      setRecoverErr('der, die və ya das yazın');
-      return;
-    }
-    if (a !== current.article) {
-      vibrateWrongAnswer();
-      setRecoverErr('Düzgün deyil');
-      return;
-    }
-    setRecoverErr(null);
-    setRecoverInput('');
-    gainLifeFromRecovery();
-    handlePick(a);
-  }, [current, gainLifeFromRecovery, handlePick, lives, phase, recoverInput]);
 
   const completeSession = useCallback(() => {
     const { c, t } = sessionRef.current;
@@ -204,8 +269,6 @@ export function ExamArticleQuiz({ config, rows, levelStats, onRecord, onFinish }
 
   const isCorrectPick = Boolean(picked !== null && current && picked === current.article);
 
-  const showArticleRecovery = lives === 0 && phase === 'idle';
-
   const btnMode = useCallback(
     (a: Article): ArticleBtnMode => {
       if (phase === 'idle' || !current) return 'idle';
@@ -230,6 +293,12 @@ export function ExamArticleQuiz({ config, rows, levelStats, onRecord, onFinish }
     );
   }
 
+  if (examHearts === 0) {
+    return (
+      <ExamHeartsExhaustedView />
+    );
+  }
+
   return (
     <div
       className="flex min-h-[100dvh] justify-center pb-36 pt-[max(0px,env(safe-area-inset-top))]"
@@ -251,7 +320,7 @@ export function ExamArticleQuiz({ config, rows, levelStats, onRecord, onFinish }
         <QuizTopBar
           stats={levelStats}
           xpPop={xpPop}
-          hearts={{ filled: lives, max: QUIZ_MAX_LIVES }}
+          hearts={{ filled: examHearts, max: QUIZ_MAX_LIVES }}
           playerEmoji={playerEmoji}
         />
         <ProgressBar
@@ -300,43 +369,17 @@ export function ExamArticleQuiz({ config, rows, levelStats, onRecord, onFinish }
           </FeedbackBar>
         ) : null}
 
-        {showArticleRecovery ? (
-          <div className="artikl-recover">
-            <input
-              className="artikl-recover-input"
-              value={recoverInput}
-              onChange={(e) => {
-                setRecoverInput(e.target.value);
-                setRecoverErr(null);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleRecoverySubmit();
-              }}
-              placeholder="der / die / das"
-              autoComplete="off"
-              autoCorrect="off"
-              spellCheck={false}
-              enterKeyHint="done"
+        <div className="artikl-btns">
+          {(['der', 'die', 'das'] as const).map((a) => (
+            <ArticleButton
+              key={a}
+              article={a}
+              mode={btnMode(a)}
+              disabled={phase === 'answered'}
+              onPick={handlePick}
             />
-            <button type="button" className="artikl-recover-submit" onClick={handleRecoverySubmit}>
-              Təsdiq et
-            </button>
-            {recoverErr ? <p className="artikl-recover-err">{recoverErr}</p> : null}
-            <p className="artikl-recover-hint">Can bitib — düzgün artikli yazın (+1 can)</p>
-          </div>
-        ) : (
-          <div className="artikl-btns">
-            {(['der', 'die', 'das'] as const).map((a) => (
-              <ArticleButton
-                key={a}
-                article={a}
-                mode={btnMode(a)}
-                disabled={phase === 'answered'}
-                onPick={handlePick}
-              />
-            ))}
-          </div>
-        )}
+          ))}
+        </div>
 
         <div className="artikl-actions">
           {phase === 'answered' ? (
