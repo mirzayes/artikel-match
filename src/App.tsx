@@ -59,6 +59,11 @@ import { GOETHE_LEVELS } from './types';
 import { highestUnlockedGoetheLevel, isLevelGateUnlocked, type LevelGateCheckArgs } from './lib/levelGate';
 import { DUEL_MIN_ARTIK_BALANCE } from './lib/duelEntry';
 import { LeaderboardLiveSync } from './lib/leaderboardLiveQuery';
+import {
+  promptNotificationPermissionOnFirstLaunch,
+  startPwaLocalNotificationScheduler,
+} from './lib/pwaLocalNotifications';
+import { checkStreak } from './lib/retentionStreak';
 
 const ExamFlowLazy = lazy(() =>
   import('./components/exam/ExamFlow').then((m) => ({ default: m.ExamFlow })),
@@ -155,9 +160,19 @@ export default function App() {
     }
   }, [gameStoreHydrated, displayName, setDisplayName]);
 
+  const [retentionStreakEntryBump, setRetentionStreakEntryBump] = useState(false);
   useEffect(() => {
     syncDailyStreak();
+    const r = checkStreak();
+    setRetentionStreakEntryBump(r.didBumpStreak);
   }, []);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => promptNotificationPermissionOnFirstLaunch(), 2000);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  useEffect(() => startPwaLocalNotificationScheduler(), []);
 
   /** Gündəlik öyrənmə limiti (300) — saxlanılmış tarix dünəndirsə, təqvimə görə sıfırlanır. */
   useEffect(() => {
@@ -603,6 +618,7 @@ export default function App() {
               knownWordIds={knownWordIds}
               masteryByWordId={masteryByWordId}
               streakDays={odluSeriya.streak}
+              retentionStreakEntryBump={retentionStreakEntryBump}
               dashboardUserId={rtdbUserId}
               onContinueLearn={startLearnFull}
               onOpenVipPayment={() => setVipPaymentOpen(true)}

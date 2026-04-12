@@ -74,6 +74,8 @@ export default defineConfig(({ mode }) => {
           mode: workboxBundleMode,
           sourcemap: false,
           navigateFallback: '/index.html',
+          /** Retention / push: `showNotification` + `notificationclick` (+ push şablonu) */
+          importScripts: ['service-worker.js'],
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,json,webmanifest}'],
           runtimeCaching: [
             {

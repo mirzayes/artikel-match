@@ -45,7 +45,9 @@
     "rank_out_top": "10+",
     "quick_section_title": "Tez keçid",
     "quick_duel": "Duel",
-    "quick_exam": "Sınaq"
+    "quick_exam": "Sınaq",
+    "retention_streak_tip": "Sənin {{count}} günlük öyrənmə seriyan var! Belə davam et!",
+    "retention_streak_a11y": "Öyrənmə seriyası: {{count}} gün"
   },
   "rewards": {
     "check_in_title": "Günlük çek-in!",
@@ -175,7 +177,17 @@
     "pack_period_3m": "3 ay",
     "pack_period_12m": "12 ay",
     "pack_badge_value": "Sərfəli",
-    "pack_badge_best": "Ən yaxşı seçim"
+    "pack_badge_best": "Ən yaxşı seçim",
+    "receipt_section_title": "Ödəniş təsdiqi",
+    "receipt_upload_label": "Ödəniş çekini yükləyin",
+    "receipt_submit": "Təsdiq üçün göndər",
+    "receipt_uploading": "Göndərilir…",
+    "receipt_success_vip": "Çek uğurla göndərildi. VIP statusunuz tezliklə aktiv ediləcək. Sualınız olsa, Instagram-a yazın.",
+    "receipt_success_shop": "Çek uğurla göndərildi. Balansınız tezliklə yenilənəcək. Sualınız olsa, Instagram-a yazın.",
+    "receipt_error": "Yükləmə alınmadı. Bir daha cəhd edin və ya Instagram-da yazın.",
+    "receipt_too_large": "Fayl çox böyükdür (maks. 5 MB).",
+    "receipt_not_image": "Yalnız şəkil faylı seçin.",
+    "receipt_not_configured_hint": "Server hazır deyil — çek ekran görüntüsünü Instagram-da göndərin."
   },
   "learning_topics": {
     "section_title": "Öyrənmə",

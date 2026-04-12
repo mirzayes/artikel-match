@@ -14,6 +14,7 @@ import {
 } from '../lib/paymentLinks';
 import { PayCurrencyCornerToggle } from './pricing/PayCurrencyCornerToggle';
 import { PaymentModalInstagramSupportLink } from './social/SprachbasarInstagram';
+import { PaymentReceiptConfirmBlock } from './payment/PaymentReceiptConfirmBlock';
 import { formatPackPrice, packPriceForCurrency, SHOP_VIP_PACKS } from '../lib/shopVipPackages';
 
 type Props = {
@@ -209,6 +210,12 @@ export function VipSubscriptionModal({ open, onClose }: Props) {
               </button>
             </div>
             <p className="mt-3 text-center text-[10px] leading-relaxed text-white/48">{t('coin_shop.azn_pay_instruction')}</p>
+            <PaymentReceiptConfirmBlock
+              currency={currency}
+              source="vip_modal"
+              open={open}
+              onUploaded={() => safeCapture('payment_receipt_uploaded', { context: 'vip_modal', currency })}
+            />
           </div>
         ) : (
           <div className="mt-5 rounded-[18px] border border-white/[0.1] bg-gradient-to-br from-[#12182a] via-[#0e1220] to-[#080b14] p-4">
@@ -226,6 +233,12 @@ export function VipSubscriptionModal({ open, onClose }: Props) {
             >
               {t('coin_shop.paypal_cta')}
             </button>
+            <PaymentReceiptConfirmBlock
+              currency={currency}
+              source="vip_modal"
+              open={open}
+              onUploaded={() => safeCapture('payment_receipt_uploaded', { context: 'vip_modal', currency })}
+            />
           </div>
         )}
 

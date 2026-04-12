@@ -12,6 +12,7 @@ import {
 } from '../lib/paymentLinks';
 import { PayCurrencyCornerToggle } from './pricing/PayCurrencyCornerToggle';
 import { PaymentModalInstagramSupportLink } from './social/SprachbasarInstagram';
+import { PaymentReceiptConfirmBlock } from './payment/PaymentReceiptConfirmBlock';
 import { formatPackPrice, packPriceForCurrency, SHOP_VIP_PACKS } from '../lib/shopVipPackages';
 
 type CoinShopSheetProps = {
@@ -183,6 +184,7 @@ export function CoinShopSheet({ open, onClose }: CoinShopSheetProps) {
                 <p className="mt-4 text-center text-[11px] leading-relaxed text-white/50">
                   {t('coin_shop.azn_pay_instruction')}
                 </p>
+                <PaymentReceiptConfirmBlock currency={currency} source="coin_shop" open={open} />
               </div>
             ) : (
               <div className="rounded-[20px] border border-white/[0.1] bg-gradient-to-br from-[#12182a] via-[#0e1220] to-[#080b14] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
@@ -202,6 +204,7 @@ export function CoinShopSheet({ open, onClose }: CoinShopSheetProps) {
                 >
                   {t('coin_shop.paypal_cta')}
                 </button>
+                <PaymentReceiptConfirmBlock currency={currency} source="coin_shop" open={open} />
               </div>
             )}
           </div>

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useVocabulary } from '../context/VocabularyContext';
 import { countMasteredInLevel } from '../lib/dashboardBuckets';
@@ -14,6 +14,9 @@ import {
   LESSON_DAILY_COIN_CAP,
   useGameStore,
 } from '../store/useGameStore';
+import { readRetentionStreakState } from '../lib/retentionStreak';
+
+const RETENTION_ENTRY_PULSE_SS = 'artikl-retention-entry-pulse-ymd';
 
 function StreakFreezeSnowflake() {
   const { t } = useTranslation();
@@ -34,12 +37,120 @@ function StreakFreezeSnowflake() {
   );
 }
 
+/** Tətbiqə giriş seriyası (localStorage) — XP / səviyyə ilə eyni xəttdə. */
+function RetentionAppStreakChip({ entryPulse }: { entryPulse: boolean }) {
+  const { t } = useTranslation();
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [playEntryPulse, setPlayEntryPulse] = useState(false);
+  const [state, setState] = useState(() => readRetentionStreakState());
+  const [tipOpen, setTipOpen] = useState(false);
+
+  /** Eyni gündə tab dəyişəndə təkrar oynamasın; ilk «bump» açılışında bir dəfə. */
+  useEffect(() => {
+    if (!entryPulse) return;
+    const today = formatLocalDate(new Date());
+    try {
+      if (sessionStorage.getItem(RETENTION_ENTRY_PULSE_SS) === today) return;
+      sessionStorage.setItem(RETENTION_ENTRY_PULSE_SS, today);
+    } catch {
+      /* ignore */
+    }
+    setPlayEntryPulse(true);
+    const tid = window.setTimeout(() => setPlayEntryPulse(false), 900);
+    return () => window.clearTimeout(tid);
+  }, [entryPulse]);
+
+  useEffect(() => {
+    const refresh = () => setState(readRetentionStreakState());
+    refresh();
+    const onVis = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, []);
+
+  useEffect(() => {
+    if (!tipOpen) return;
+    const id = window.setTimeout(() => setTipOpen(false), 4500);
+    return () => window.clearTimeout(id);
+  }, [tipOpen]);
+
+  useEffect(() => {
+    if (!tipOpen) return;
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      const el = wrapRef.current;
+      if (!el || el.contains(e.target as Node)) return;
+      setTipOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('touchstart', onDown, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('touchstart', onDown);
+    };
+  }, [tipOpen]);
+
+  const n = state.streak;
+  const active = n > 0;
+
+  return (
+    <div ref={wrapRef} className="relative flex flex-col items-center">
+      <motion.button
+        type="button"
+        aria-expanded={tipOpen}
+        aria-label={t('home_view.retention_streak_a11y', { count: n })}
+        onClick={() => setTipOpen((v) => !v)}
+        initial={false}
+        animate={
+          playEntryPulse
+            ? {
+                scale: [1, 1.24, 1, 1.12, 1],
+              }
+            : { scale: 1 }
+        }
+        transition={{ duration: 0.78, times: [0, 0.22, 0.48, 0.72, 1], ease: [0.22, 1, 0.36, 1] }}
+        className="flex min-h-[44px] min-w-[44px] flex-col items-center justify-center gap-0 rounded-xl px-1.5 py-1 transition-colors active:bg-white/[0.06]"
+      >
+        <span
+          className={`select-none text-[1.35rem] leading-none transition-[filter,opacity] ${
+            active
+              ? 'opacity-100 saturate-150 [filter:drop-shadow(0_0_10px_rgba(251,146,60,0.85))]'
+              : 'opacity-[0.42] grayscale'
+          }`}
+          aria-hidden
+        >
+          🔥
+        </span>
+        <span
+          className={`text-[13px] font-black tabular-nums leading-none ${
+            active ? 'text-orange-500 dark:text-orange-400' : 'text-artikl-muted2'
+          }`}
+        >
+          {n}
+        </span>
+      </motion.button>
+
+      {tipOpen ? (
+        <div
+          role="tooltip"
+          className="absolute left-1/2 top-[calc(100%+6px)] z-30 w-[min(240px,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border border-[var(--artikl-border)] bg-[var(--artikl-surface)] px-3 py-2.5 text-center text-[12px] font-semibold leading-snug text-artikl-heading shadow-[0_12px_40px_rgba(0,0,0,0.2)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+        >
+          {t('home_view.retention_streak_tip', { count: n })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export type HomeViewProps = {
   selectedLevel: GoetheLevel;
   totalXpAllLevels: number;
   knownWordIds: string[];
   masteryByWordId: Record<string, number>;
   streakDays: number;
+  /** Bu sessiyada `checkStreak` seriyanı artırdısa — alov üçün giriş animasiyası. */
+  retentionStreakEntryBump: boolean;
   dashboardUserId: string;
   onContinueLearn: () => void;
   onOpenVipPayment: () => void;
@@ -57,6 +168,7 @@ export function HomeView({
   knownWordIds,
   masteryByWordId,
   streakDays,
+  retentionStreakEntryBump,
   dashboardUserId,
   onContinueLearn,
   onOpenVipPayment,
@@ -109,8 +221,8 @@ export function HomeView({
           animate={{ opacity: 1, y: 0 }}
           className="rounded-2xl border border-[var(--artikl-border)] bg-[var(--artikl-surface)]/80 px-4 py-4 shadow-[0_8px_32px_rgba(0,0,0,0.12)] backdrop-blur-md dark:shadow-[0_8px_32px_rgba(0,0,0,0.35)]"
         >
-          <div className="flex items-start justify-between gap-3">
-            <div>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
               <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-artikl-muted2">
                 {t('home_view.level_progress_caption')}
               </p>
@@ -118,7 +230,10 @@ export function HomeView({
                 {selectedLevel}
               </p>
             </div>
-            <div className="text-right">
+            <div className="shrink-0 self-center">
+              <RetentionAppStreakChip entryPulse={retentionStreakEntryBump} />
+            </div>
+            <div className="min-w-0 flex-1 text-right">
               <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-artikl-muted2">
                 {t('home_view.total_xp_label')}
               </p>

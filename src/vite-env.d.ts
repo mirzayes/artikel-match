@@ -22,6 +22,9 @@ interface WindowEventMap {
 interface ImportMetaEnv {
   readonly NEXT_PUBLIC_POSTHOG_KEY?: string;
   readonly NEXT_PUBLIC_POSTHOG_HOST?: string;
+  /** Supabase (opsional): çek yükləmə + `payment_receipts` cədvəli. */
+  readonly VITE_SUPABASE_URL?: string;
+  readonly VITE_SUPABASE_ANON_KEY?: string;
   /** POST: JSON { wordId, article, word, translation } → { explanation } və ya mətn */
   readonly VITE_WORD_EXPLAIN_URL?: string;
   readonly VITE_FIREBASE_API_KEY?: string;

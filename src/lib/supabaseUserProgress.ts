@@ -13,7 +13,7 @@ function getSupabaseRestConfig(): { url: string; key: string } | null {
   }
 }
 
-function getOrCreateDeviceId(): string {
+export function getOrCreateDeviceId(): string {
   try {
     const k = 'artikel-progress-device-id';
     let id = localStorage.getItem(k);
