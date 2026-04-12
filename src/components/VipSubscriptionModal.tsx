@@ -1,20 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import posthog from 'posthog-js';
+import { usePostHog } from 'posthog-js/react';
 
 type Props = {
   open: boolean;
   onClose: () => void;
 };
-
-function safeCapture(event: string, props?: Record<string, unknown>) {
-  try {
-    posthog.capture(event, props);
-  } catch {
-    /* PostHog yüklənməyibsə və ya bloklanıbsa */
-  }
-}
 
 /** m10 / kart — kopyalama üçün; .env: VITE_PAYMENT_PHONE_M10 */
 function paymentPhoneDisplay(): string {
@@ -35,8 +27,20 @@ function instagramCheckoutUrl(): string {
  * `.env`: `VITE_PAYMENT_PHONE_M10`, `VITE_INSTAGRAM_CHECKOUT_URL` (və ya köhnə `VITE_SUPPORT_*`).
  */
 export function VipSubscriptionModal({ open, onClose }: Props) {
+  const posthog = usePostHog();
   const [copyDone, setCopyDone] = useState(false);
   const phone = paymentPhoneDisplay();
+
+  const safeCapture = useCallback(
+    (event: string, props?: Record<string, unknown>) => {
+      try {
+        posthog?.capture(event, props);
+      } catch {
+        /* PostHog konteksti yoxdursa və ya bloklanıbsa */
+      }
+    },
+    [posthog],
+  );
 
   useEffect(() => {
     if (!open) {
@@ -44,7 +48,7 @@ export function VipSubscriptionModal({ open, onClose }: Props) {
       return;
     }
     safeCapture('payment_modal_opened');
-  }, [open]);
+  }, [open, safeCapture]);
 
   const onCopyNumber = useCallback(async () => {
     try {
@@ -66,12 +70,15 @@ export function VipSubscriptionModal({ open, onClose }: Props) {
       }
     }
     safeCapture('card_number_copied', { method: 'phone_m10' });
-  }, [phone]);
+  }, [phone, safeCapture]);
 
   const onInstagramCheckout = useCallback(() => {
     safeCapture('instagram_checkout_clicked');
-    window.open(instagramCheckoutUrl(), '_blank', 'noopener,noreferrer');
-  }, []);
+    const url = instagramCheckoutUrl();
+    const w = window.open(url, '_blank', 'noopener,noreferrer');
+    /** Popup bloklanıbsa eyni pəncərədə aç (məs. bəzi mobil brauzerlər). */
+    if (w == null) window.location.assign(url);
+  }, [safeCapture]);
 
   if (!open) return null;
 
