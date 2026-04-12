@@ -2,13 +2,13 @@ import type { GoetheLevel, NounEntry } from '../types';
 import { isLearnBlockMastered } from './learnBlocks';
 
 /** Öyrənmə mövzusu: hər missiyada bu qədər isim (blokdan ayrı; sessiya ölçüsü 20 qalır). */
-export const LEARNING_MISSION_WORD_COUNT = 25;
+export const LEARNING_MISSION_WORD_COUNT = 10;
 
 /** Missiya ilk dəfə tamamlandıqda (limitdən kənar). */
 export const LEARNING_MISSION_ARTIK_REWARD = 50;
 
 const MISSION_ORDER_STORAGE_PREFIX = 'mission_order_';
-/** Klassik missiya sessiyası bitəndə (25 söz) — növbəti missiyanın kilidi üçün. */
+/** Klassik missiya sessiyası bitəndə (missiya söz sayı qədər) — növbəti missiyanın kilidi üçün. */
 const MISSION_SESSION_CLEARED_PREFIX = 'learning_mission_session_cleared_';
 
 function missionOrderStorageKey(level: GoetheLevel): string {
@@ -78,7 +78,7 @@ function shuffleIds(ids: string[]): string[] {
 
 /**
  * Səviyyə üçün bütün sözləri bir dəfə qarışdırılmış ardıcıllıqla qaytarır (localStorage-da saxlanır).
- * Əvvəlcə tam siyahı qarışdırılır, sonra missiyalar 25-lik dilimlərə bölünür.
+ * Əvvəlcə tam siyahı qarışdırılır, sonra missiyalar `LEARNING_MISSION_WORD_COUNT` ölçülü dilimlərə bölünür.
  */
 export function getMissionOrderedNouns(level: GoetheLevel, nouns: NounEntry[]): NounEntry[] {
   if (nouns.length === 0) return [];

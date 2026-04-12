@@ -1,23 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isArtikelVipFromLocalStorage, useGameStore } from '../store/useGameStore';
-import { COIN_PACK_1000_AMOUNT, COIN_PACK_1000_PRICE_AZN } from '../lib/levelGate';
 
 type CoinShopSheetProps = {
   open: boolean;
   onClose: () => void;
 };
 
-function openSupportPage(): boolean {
-  const url = (import.meta.env.VITE_BUY_ME_A_COFFEE_URL ?? '').trim();
-  if (!url) return false;
-  window.open(url, '_blank', 'noopener,noreferrer');
-  return true;
-}
+const PRO_MAILTO = 'mailto:artikelmatch@gmail.com?subject=PRO%20subscription';
+
+const linkAsBtn =
+  'inline-flex shrink-0 items-center justify-center rounded-xl px-3 py-2 text-xs font-bold transition active:scale-[0.98]';
 
 export function CoinShopSheet({ open, onClose }: CoinShopSheetProps) {
   const { t } = useTranslation();
-  const purchaseCoinPack1000Demo = useGameStore((s) => s.purchaseCoinPack1000Demo);
   const coins = useGameStore((s) => s.coins);
   const [isVip, setIsVip] = useState(() => isArtikelVipFromLocalStorage());
 
@@ -27,23 +23,6 @@ export function CoinShopSheet({ open, onClose }: CoinShopSheetProps) {
   }, [open]);
 
   if (!open) return null;
-
-  const buy = () => {
-    const ok = window.confirm(
-      t('coin_shop.confirm_pack', { coins: COIN_PACK_1000_AMOUNT, price: COIN_PACK_1000_PRICE_AZN }),
-    );
-    if (!ok) return;
-    purchaseCoinPack1000Demo();
-    onClose();
-  };
-
-  const onSupportClick = () => {
-    if (!openSupportPage()) {
-      window.alert(t('coin_shop.support_missing_url'));
-      return;
-    }
-    window.alert(t('coin_shop.support_contact_hint'));
-  };
 
   return (
     <div
@@ -79,26 +58,6 @@ export function CoinShopSheet({ open, onClose }: CoinShopSheetProps) {
         <h2 id="coin-shop-title" className="text-base font-bold text-[#7C3AED] dark:text-amber-100">
           {t('coin_shop.title')}
         </h2>
-        <p className="mt-3 text-[13px] leading-relaxed text-artikl-text">
-          {t('coin_shop.pack_line', { coins: COIN_PACK_1000_AMOUNT, price: COIN_PACK_1000_PRICE_AZN })}
-        </p>
-        <p className="mt-2 text-[11px] text-artikl-caption">{t('coin_shop.demo_note')}</p>
-        <div className="mt-5 flex gap-2">
-          <button
-            type="button"
-            onClick={buy}
-            className="flex-1 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 py-3 text-sm font-bold text-stone-950 shadow-lg active:scale-[0.98]"
-          >
-            {t('coin_shop.buy')}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-white/15 px-4 py-3 text-sm font-semibold text-artikl-text"
-          >
-            {t('coin_shop.cancel')}
-          </button>
-        </div>
 
         <p className="mt-6 text-center text-[11px] font-semibold uppercase tracking-wide text-artikl-caption">
           {t('coin_shop.section_extra')}
@@ -110,13 +69,12 @@ export function CoinShopSheet({ open, onClose }: CoinShopSheetProps) {
               <p className="text-sm font-bold text-artikl-text">✨ {t('coin_shop.pro_title')}</p>
               <p className="mt-0.5 text-[11px] text-artikl-caption">{t('coin_shop.pro_sub')}</p>
             </div>
-            <button
-              type="button"
-              onClick={onSupportClick}
-              className="shrink-0 rounded-xl bg-violet-600 px-3 py-2 text-xs font-bold text-white active:scale-[0.98]"
+            <a
+              href={PRO_MAILTO}
+              className={`${linkAsBtn} bg-violet-600 text-white hover:bg-violet-500`}
             >
-              {t('coin_shop.pro_price')}
-            </button>
+              PRO üçün əlaqə saxla
+            </a>
           </div>
 
           <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-500/35 bg-amber-950/25 p-3">
@@ -124,13 +82,14 @@ export function CoinShopSheet({ open, onClose }: CoinShopSheetProps) {
               <p className="text-sm font-bold text-artikl-text">☕ {t('coin_shop.coffee_title')}</p>
               <p className="mt-0.5 text-[11px] text-artikl-caption">{t('coin_shop.coffee_sub')}</p>
             </div>
-            <button
-              type="button"
-              onClick={onSupportClick}
-              className="shrink-0 rounded-xl bg-amber-500 px-3 py-2 text-xs font-bold text-stone-950 active:scale-[0.98]"
+            <a
+              href="https://ko-fi.com/artikelmatch"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${linkAsBtn} bg-amber-500 text-stone-950 hover:bg-amber-400`}
             >
               {t('coin_shop.coffee_cta')}
-            </button>
+            </a>
           </div>
 
           <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 p-3 opacity-70">
@@ -139,7 +98,7 @@ export function CoinShopSheet({ open, onClose }: CoinShopSheetProps) {
               <p className="mt-0.5 text-[11px] text-artikl-caption">{t('coin_shop.video_sub')}</p>
             </div>
             <span className="shrink-0 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-artikl-caption">
-              {t('coin_shop.video_soon')}
+              Tezliklə
             </span>
           </div>
         </div>

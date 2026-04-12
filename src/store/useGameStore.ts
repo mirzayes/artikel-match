@@ -170,8 +170,6 @@ export type PlayerStore = {
    */
   duelStreakTempBadgeUntilMs: number;
   grantIapLevelUnlock: (level: GoetheLevel) => void;
-  /** Demo: 1000 sikkə — real ödəniş yoxdur. */
-  purchaseCoinPack1000Demo: () => void;
   /** Gündə bir dəfə +50 🪙; null — bu gün artıq alınıb. */
   claimRewardAdBonus: () => number | null;
   setPlayer: (name: string, avatarId: string) => void;
@@ -263,8 +261,6 @@ export const useGameStore = create<PlayerStore>()(
         set((s) => ({
           iapLevelUnlocks: { ...s.iapLevelUnlocks, [level]: true },
         })),
-      purchaseCoinPack1000Demo: () =>
-        set((s) => ({ coins: s.coins + 1000 })),
       claimRewardAdBonus: () => {
         const today = formatLocalDate(new Date());
         const s = get();

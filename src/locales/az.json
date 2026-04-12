@@ -171,7 +171,7 @@
     "show_more_missions": "Daha çox göstər",
     "mission_title": "Missiya {{n}}",
     "mission_start": "Başla",
-    "mission_sub_ready": "25 sözə qədər bu dəstdə",
+    "mission_sub_ready": "{{count}} sözə qədər bu dəstdə",
     "mission_complete": "Missiya tamamlandı",
     "mission_locked_hint": "Əvvəlki missiya bitməlidir",
     "mission_artik_toast": "{{count}} missiya: +{{amount}} Artik!",

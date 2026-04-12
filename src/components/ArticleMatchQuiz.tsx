@@ -154,6 +154,37 @@ function fisherYatesShuffle<T>(items: T[]): T[] {
   return a;
 }
 
+const MISSION_MOTIVATION_QUOTES_AZ = [
+  'Hər böyük nailiyyət kiçik addımlarla başlayır',
+  'Bugün öyrəndiklərin sabah gücünə çevrilir',
+  'Almanca öyrənmək maraton kimidir, dur-dur qaçma',
+  'Hər səhv sənə bir şey öyrədir',
+  'Dil öyrənmək beyni gücləndirən ən yaxşı məşqdir',
+] as const;
+
+function buildMissionMotivationFromSummary(coin: Pick<SessionCoinRewardSummary, 'correctAnswers' | 'errors'>): {
+  headline: string;
+  quote: string;
+} {
+  const correct = coin.correctAnswers;
+  const errors = coin.errors;
+  const total = correct + errors;
+  const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+  let headline: string;
+  if (errors === 0 && correct > 0) {
+    headline = 'Mükəmməl! Sən dahisən! 🔥';
+  } else if (pct >= 80) {
+    headline = 'Əla nəticə! Davam et! 💪';
+  } else if (pct >= 60) {
+    headline = 'Yaxşıdır! Hər gün daha yaxşı olursan! ⚡';
+  } else {
+    headline = 'Təslim olma! Təkrar et, bacaracaqsan! 🎯';
+  }
+  const quote =
+    MISSION_MOTIVATION_QUOTES_AZ[Math.floor(Math.random() * MISSION_MOTIVATION_QUOTES_AZ.length)]!;
+  return { headline, quote };
+}
+
 export function ArticleMatchQuiz({
   level,
   levelStats,
@@ -365,7 +396,7 @@ export function ArticleMatchQuiz({
       return;
     }
 
-    /** Klassik missiya: bütün 25 söz növbədə olmalıdır (SRS «due» alt dəstə düşməsin). */
+    /** Klassik missiya: bütün missiya sözləri növbədə olmalıdır (SRS «due» alt dəstə düşməsin). */
     const missionClassicPack =
       !missionInfiniteMode &&
       !reviewOnly &&
@@ -820,6 +851,16 @@ export function ArticleMatchQuiz({
 
   const isCorrectPick = Boolean(picked !== null && currentWord && picked === currentWord.article);
 
+  const missionCorrect = sessionCoinReward?.correctAnswers;
+  const missionErrors = sessionCoinReward?.errors;
+  const missionMotivationBanner = useMemo(() => {
+    if (!sessionComplete || missionSlotIndex == null || missionCorrect == null || missionErrors == null) return null;
+    return buildMissionMotivationFromSummary({
+      correctAnswers: missionCorrect,
+      errors: missionErrors,
+    });
+  }, [sessionComplete, missionSlotIndex, missionCorrect, missionErrors]);
+
   if (loadErr) {
     return (
       <div
@@ -859,6 +900,7 @@ export function ArticleMatchQuiz({
               })
             : null
         }
+        missionMotivationBanner={missionMotivationBanner}
         onHome={() => onExitAfterSession?.()}
         onRestart={() => {
           setSessionCoinReward(null);

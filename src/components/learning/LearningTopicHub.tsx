@@ -13,6 +13,7 @@ import {
   isMissionGateOpen,
   isMissionMastered,
   LEARNING_MISSION_ARTIK_REWARD,
+  LEARNING_MISSION_WORD_COUNT,
 } from '../../lib/learnMissions';
 import { vibrateCoinReward } from '../../lib/answerFeedbackMedia';
 import {
@@ -655,7 +656,7 @@ export function LearningTopicHub({
                           </p>
                         ) : (
                           <p className="learning-mission-card__status learning-mission-card__status--ready text-[10px] leading-snug text-[#4B5563] dark:text-artikl-text/48">
-                            {t('learning_topics.mission_sub_ready')}
+                            {t('learning_topics.mission_sub_ready', { count: LEARNING_MISSION_WORD_COUNT })}
                           </p>
                         )
                       ) : (

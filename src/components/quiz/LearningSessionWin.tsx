@@ -63,6 +63,8 @@ type LearningSessionWinProps = {
   titleOverride?: string | null;
   /** Veriləndə standart alt başlıq əvəzinə */
   subtitleOverride?: string | null;
+  /** Missiya bitəndə: dəqiqlik + təsadüfi sitat (2 san kart üstündə). */
+  missionMotivationBanner?: { headline: string; quote: string } | null;
   onHome: () => void;
   onRestart: () => void;
 };
@@ -161,12 +163,27 @@ export function LearningSessionWin({
   secondaryActionLabel = 'Ana səhifə',
   titleOverride = null,
   subtitleOverride = null,
+  missionMotivationBanner = null,
   onHome,
   onRestart,
 }: LearningSessionWinProps) {
   const { t } = useTranslation();
   const showCoins = coinReward && coinReward.total > 0;
   const finalScore = coinReward?.correctAnswers ?? 0;
+
+  const [missionMotivationVisible, setMissionMotivationVisible] = useState(
+    () => Boolean(missionMotivationBanner),
+  );
+
+  useEffect(() => {
+    if (!missionMotivationBanner) {
+      setMissionMotivationVisible(false);
+      return;
+    }
+    setMissionMotivationVisible(true);
+    const id = window.setTimeout(() => setMissionMotivationVisible(false), 2000);
+    return () => clearTimeout(id);
+  }, [missionMotivationBanner]);
 
   const [shareToastVisible, setShareToastVisible] = useState(false);
   const shareToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -239,6 +256,20 @@ export function LearningSessionWin({
         transition={{ type: 'spring', stiffness: 340, damping: 26 }}
         className="learning-win-card glass-card learning-win-card--wide"
       >
+        {missionMotivationVisible && missionMotivationBanner ? (
+          <div
+            className="absolute inset-0 z-[5] flex flex-col items-center justify-center gap-6 rounded-[1.25rem] bg-[#0a0a12]/94 px-4 py-8 backdrop-blur-md"
+            role="status"
+            aria-live="polite"
+          >
+            <p className="px-1 text-center text-[1.35rem] font-black leading-snug tracking-tight text-white sm:text-2xl">
+              {missionMotivationBanner.headline}
+            </p>
+            <p className="max-w-[20rem] px-2 text-center text-[0.95rem] font-bold leading-relaxed text-violet-200/95 sm:text-base">
+              {missionMotivationBanner.quote}
+            </p>
+          </div>
+        ) : null}
         <p className="learning-win-emoji" aria-hidden>
           🎉
         </p>
